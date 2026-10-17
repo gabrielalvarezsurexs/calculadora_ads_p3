@@ -402,10 +402,10 @@ def numeracion(n_numeradas: int) -> str:
                 f'<w:lvlText w:val="{texto}"/><w:lvlJc w:val="left"/><w:pPr><w:ind '
                 f'w:left="{sangria}" w:hanging="360"/></w:pPr>{fuente}</w:lvl>')
     vinetas = (f'<w:abstractNum w:abstractNumId="0"><w:multiLevelType w:val="hybridMultilevel"/>'
-               f'{nivel(0, "bullet", "", 720)}{nivel(1, "bullet", "–", 1440)}'
+               f'{nivel(0, "bullet", "", 720)}{nivel(1, "bullet", "o", 1440)}'
                '</w:abstractNum>')
     numeros = (f'<w:abstractNum w:abstractNumId="1"><w:multiLevelType w:val="hybridMultilevel"/>'
-               f'{nivel(0, "decimal", "%1.", 720)}{nivel(1, "bullet", "–", 1440)}'
+               f'{nivel(0, "decimal", "%1.", 720)}{nivel(1, "bullet", "o", 1440)}'
                '</w:abstractNum>')
     nums = ['<w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>']
     for k in range(n_numeradas):
@@ -461,8 +461,8 @@ def empaquetar(doc: Documento, salida: Path) -> None:
                  for k, (nombre, _) in enumerate(doc.imagenes, start=1)]
     core = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties '
             'xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" '
-            'xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Reporte Técnico — Calculadora '
-            'ADS</dc:title><dc:language>es-MX</dc:language></cp:coreProperties>')
+            'xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Reporte Técnico de la '
+            'Calculadora ADS</dc:title><dc:language>es-MX</dc:language></cp:coreProperties>')
     with zipfile.ZipFile(salida, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("[Content_Types].xml", tipos)
         z.writestr("_rels/.rels", rels)

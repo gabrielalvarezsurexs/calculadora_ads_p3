@@ -125,7 +125,7 @@ Las bitácoras de cada proceso quedan en `logs/<nombre>-<hash8>.log`.
 | **La célula GUI** | [interfaz/nucleo.py](interfaz/nucleo.py) (lógica) y [interfaz/gui.py](interfaz/gui.py) (ventana) |
 | **Lo común a toda célula** (conexión, failover) | [celula/base.py](celula/base.py) |
 | **Las 4 operaciones** | [servidor/calculo.py](servidor/calculo.py): función pura |
-| **El formato de los mensajes** | [comun/mensajes.py](comun/mensajes.py) y §5–§6 del reporte |
+| **El formato de los mensajes** | [comun/mensajes.py](comun/mensajes.py) y las secciones 5 y 6 del reporte |
 | **Los Códigos de Contenido** | [comun/codigos.py](comun/codigos.py) |
 | **Los hashes y el ranking de elección** | [comun/huella.py](comun/huella.py) |
 | **Todas las constantes de tiempo** | [comun/config.py](comun/config.py) |

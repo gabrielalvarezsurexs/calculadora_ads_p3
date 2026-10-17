@@ -11,7 +11,7 @@ Lee dos tablas de GUION_VIDEO.md:
   matriz que se demuestra en el video, en el mismo orden. Si su "Minuto" está vacío, toma el de
   su escena.
 
-Solo toca las filas de la matriz cuya columna "Video" no es "—". Antes de escribir verifica que
+Solo toca las filas de la matriz cuya columna "Video" no es "N/A". Antes de escribir verifica que
 coincidan con las del guion (mismo § y mismo requisito, en el mismo orden) y que todos los
 minutos tengan la forma m:ss o mm:ss. Se puede volver a correr si se corrige un minuto.
 """
@@ -23,7 +23,7 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
 MINUTO = re.compile(r"^\d{1,2}:[0-5]\d$")
-SIN_VIDEO = "—"
+SIN_VIDEO = "N/A"
 PENDIENTE = "<mm:ss>"
 
 
