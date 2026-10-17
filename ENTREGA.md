@@ -8,7 +8,7 @@ hacer a mano.
 | Entregable | Estado | Dónde / qué falta |
 |---|---|---|
 | **Reporte técnico** | Escrito | [REPORTE_TECNICO.md](REPORTE_TECNICO.md) y `Reporte_Tecnico_Calculadora_ADS.docx`. Falta llenar la portada y los minutos del video, y regenerar el `.docx` |
-| **Video con audio** | Guion listo, **falta grabar** | [GUION_VIDEO.md](GUION_VIDEO.md): 15 escenas, ~16 min |
+| **Video con audio** | Guion listo, **falta grabar** | [GUION_VIDEO.md](GUION_VIDEO.md): 10 escenas, ~10 min |
 | **Liga al código fuente** | **Falta publicar** | Commit + push a GitHub |
 
 ## Lo que falta que hagas tú

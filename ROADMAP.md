@@ -13,8 +13,8 @@ Plan completo: [docs/PLAN.md](docs/PLAN.md). Notas internas: [CLAUDE.md](CLAUDE.
 
 ## Estado actual / siguiente paso
 
-**Estado:** S6 terminada: **todas las fases (0 → E) completas.** `GUION_VIDEO.md` (15 escenas,
-~16 min, comandos probados) y `docs/llenar_minutos.py` (copia los minutos del guion a la matriz
+**Estado:** S6 terminada: **todas las fases (0 → E) completas.** `GUION_VIDEO.md` (10 escenas,
+~10 min, comandos probados) y `docs/llenar_minutos.py` (copia los minutos del guion a la matriz
 del reporte). Checklist final hecho de este lado; lo que queda es manual del usuario y está en
 `ENTREGA.md`.
 

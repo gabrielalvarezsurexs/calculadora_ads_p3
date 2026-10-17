@@ -65,7 +65,7 @@ py docs/llenar_minutos.py [--revisar]   # minutos de GUION_VIDEO.md -> columna "
 ## Documentación (entregables)
 - `README.md` — puerta de entrada del repo. `ENTREGA.md` — estado de los 3 entregables, lo que
   hace el usuario a mano y el checklist final.
-- `GUION_VIDEO.md` — 15 escenas (~16 min) en el orden de la corrida verificada, con comandos de
+- `GUION_VIDEO.md` — 10 escenas (~10 min) en el orden de la corrida verificada, con comandos de
   PowerShell probados (conteo de `RES` por operación, papeles de una operación, sondas con `$id`,
   limpieza de procesos). Al final, "Minutos por escena" y "Matriz del reporte": esta última
   replica, en el mismo orden, las filas del §2 del reporte que llevan video. Si se agrega o quita
