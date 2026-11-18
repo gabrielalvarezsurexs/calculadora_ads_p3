@@ -19,7 +19,7 @@ pidió el usuario, literal) · [docs/ENUNCIADO.md](docs/ENUNCIADO.md) (PDF liter
 
 ## Estado actual / siguiente paso
 
-**Estado:** **S1–S7 cerradas** (fases A–E). S7: `GUION_VIDEO.md` (11 escenas, ~15 min: los 8
+**Estado:** **S1–S7 cerradas** (fases A–E). S7: `GUION_VIDEO.md` (11 escenas, ~12 min: los 8
 escenarios + arranque + "sin unidad central", con clics exactos, qué se ve, qué decir, qué hacer
 si algo falla, limpieza, tablas de minutos con las 45 filas de la matriz) y
 `docs/llenar_minutos.py` (matriz por ID; probado en copias). Quedan abiertos E2 y E3, que hace

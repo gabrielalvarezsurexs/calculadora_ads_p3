@@ -8,7 +8,7 @@ hacer a mano.
 | Entregable | Estado | Dónde / qué falta |
 |---|---|---|
 | **Reporte técnico** | Escrito (30 páginas en Word) | [REPORTE_TECNICO.md](REPORTE_TECNICO.md) y `Reporte_Tecnico_Calculadora_ADS.docx`. Falta llenar la portada y los minutos del video, y regenerar el `.docx` |
-| **Video con audio** | Guion listo, **falta grabar** | [GUION_VIDEO.md](GUION_VIDEO.md): 11 escenas, ~15 min (los ocho escenarios + arranque + "sin unidad central") |
+| **Video con audio** | Guion listo, **falta grabar** | [GUION_VIDEO.md](GUION_VIDEO.md): 11 escenas, ~12 min (los ocho escenarios + arranque + "sin unidad central") |
 | **Liga al código fuente** | **Falta publicar** | Repo nuevo en GitHub: commit + push |
 
 ## Lo que falta que hagas tú

@@ -17,7 +17,7 @@ sin servidor central), con cuatro cosas nuevas:
 | Entregable | Dónde |
 |---|---|
 | Reporte técnico (30 páginas) | [REPORTE_TECNICO.md](REPORTE_TECNICO.md) → `Reporte_Tecnico_Calculadora_ADS.docx` (`uv run python docs/md_a_docx.py`) |
-| Guion del video (11 escenas, ~15 min) | [GUION_VIDEO.md](GUION_VIDEO.md) → minutos a la matriz con `uv run python docs/llenar_minutos.py` |
+| Guion del video (11 escenas, ~12 min) | [GUION_VIDEO.md](GUION_VIDEO.md) → minutos a la matriz con `uv run python docs/llenar_minutos.py` |
 | Hoja de control de la entrega | [ENTREGA.md](ENTREGA.md) |
 
 Verificado: 201 pruebas en verde tres veces seguidas, `ruff` limpio y los ocho escenarios del

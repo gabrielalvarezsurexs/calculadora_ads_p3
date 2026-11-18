@@ -183,6 +183,26 @@ requisitos marcados); el reporte es S6 y empieza cuando el usuario lo indique.
 ve y qué decir, tablas de minutos), `docs/llenar_minutos.py` adaptado a la matriz por ID y
 checklist final.
 
+## Mensaje 15 — 2026-11-18
+
+> el proyecto es calculadora_ads, no?
+
+> osea tengo q crear un nuevo repo no?
+
+> Ya quedó
+
+**Cómo quedó:** el tercer parcial vive en `calculadora_ads_p3/` (el segundo, en `calculadora_ads/`,
+no se toca). El usuario creó el repo `calculadora_ads_p3` en GitHub e hizo commit y push
+("Entrega Final ADS").
+
+## Mensaje 16 — 2026-11-18
+
+> Ahora, hazle una auditoría completa a la implementacion para encontrar bugs ver que este bien
+> pero no demasiado largo el guion, y que el reporte tampoco sea exageradamente extenso
+
+**Cómo quedó:** auditoría del código (revisión por áreas, suite y ruff), y repaso de extensión del
+guion y del reporte.
+
 ---
 
 ## Respuestas a las preguntas del primer borrador

@@ -1,6 +1,6 @@
 # Guion del video de la Calculadora ADS (Tercer Parcial)
 
-Duración objetivo: unos 15 minutos, en 11 escenas. Cada escena dice qué hacer (clics y comandos),
+Duración objetivo: unos 12 minutos, en 11 escenas. Cada escena dice qué hacer (clics y comandos),
 qué se ve y qué decir. El texto de "Di esto" es una guía; dilo con tus palabras.
 
 Haz las escenas **en este orden**: cada una deja el sistema como lo necesita la siguiente (por
@@ -69,31 +69,26 @@ tareas. Lo normal es dejar el **gestor de fondo** y traer encima la GUI o el pan
 **No cierres con la X la ventana de un nodo ni la de una madre**: eso es una caída. Las fallas se
 hacen desde el panel, en las escenas 8, 9 y 11.
 
-**Si vas largo de tiempo**, omite el paso del disco en la escena 6 y la sustitución rechazada
-(`SUM 9.9`) de la escena 7. Lo demás cubre lo que pide el enunciado.
+**Si vas largo de tiempo**, omite la sustitución rechazada (`SUM 9.9`) de la escena 7. Lo demás
+cubre lo que pide el enunciado.
 
 ---
 
-## Escena 1. Qué cambió y con qué está hecho (0:50)
+## Escena 1. Qué cambió y con qué está hecho (0:40)
 
 **Haz esto.** Muestra el `README.md` (la tabla de las cuatro cosas nuevas).
 
 **Di esto.**
 
-> Hola, soy `<tu nombre>`. Este es el tercer parcial de Cómputo Distribuido: la calculadora ADS
-> del segundo parcial, que ya no tenía nada central, con cuatro cosas nuevas. Primero, las
-> células servidor ahora son células madre vacías: no saben sumar ni dividir; esa lógica vive en
-> microservicios, que llamo genes, y que cargan de disco mientras corren. Segundo, un gestor de
-> microservicios con base de datos que dibuja la topología y manda los genes por el mismo Campo
-> de Datos. Tercero, cada operación lleva folio y huella, y su evento tiene cuatro fases. Y
-> cuarto, si una célula muere, las demás la regeneran solas, una a la vez y sin crecer sin
-> control. No hay orquestador: el gestor es una herramienta, no un jefe. Todo está en Python con
-> la librería estándar: sockets, hilos, Tkinter, importlib para cargar los genes y sqlite3 para
-> la base de datos.
+> Hola, soy `<tu nombre>`. Este es el tercer parcial: la calculadora ADS del segundo parcial con
+> cuatro cosas nuevas. Las células servidor ahora son células madre vacías que cargan su lógica,
+> los genes, desde disco mientras corren. Un gestor con base de datos dibuja la topología y manda
+> esos genes por el Campo de Datos. Cada operación lleva folio y huella. Y si una célula muere,
+> las demás la regeneran solas, sin orquestador. Todo en Python con la librería estándar.
 
 ---
 
-## Escena 2. Arranque: nodos, madres vacías y el gestor (1:40)
+## Escena 2. Arranque: nodos, madres vacías y el gestor (1:30)
 
 **Haz esto.**
 
@@ -116,21 +111,17 @@ hacen desde el panel, en las escenas 8, 9 y 11.
 
 **Di esto.**
 
-> El panel es solo para la demostración, está fuera del sistema: lanza los mismos comandos que
-> escribiría a mano. Arranco en modo vacío: cuatro nodos en malla completa y, en cada uno, una
-> GUI y cuatro células madre que no tienen ningún gen. Son tres programas base: el nodo, la madre
-> y la interfaz. Por eso la calculadora todavía no puede hacer nada: no hay quién sume. El Nodo 2
-> tiene tres vecinos y cinco células; la conexión es la del segundo parcial, con un HOLA que dice
-> qué entidad es, y la malla se arma sola por gossip. Ahora abro el gestor del Nodo 1. Es una
-> célula más: se conecta a un nodo y arma este diagrama solo con los latidos que ya circulan.
-> Tiene una base de datos SQLite con seis genes; uno, la SUM 9.9, está manipulado a propósito y
-> por eso sale con una cruz: su programa no coincide con su sha256. Con un clic le pido una madre de cada operación por nodo: son dieciséis
-> órdenes de alta que viajan por el Campo de Datos. Y queda exactamente el esquema del enunciado:
-> cuatro nodos, una GUI y una célula de cada operación en cada nodo.
+> El panel solo lanza los mismos comandos que escribiría a mano; está fuera del sistema. Arranco
+> en modo vacío: cuatro nodos en malla y, en cada uno, una GUI y cuatro madres sin ningún gen.
+> Por eso la calculadora no puede hacer nada todavía. El Nodo 2 tiene tres vecinos y cinco
+> células: la conexión es la del segundo parcial. Abro el gestor del Nodo 1: es una célula más y
+> arma este diagrama solo con los latidos. Su base de datos tiene seis genes; la SUM 9.9 sale con
+> una cruz porque está manipulada a propósito. Con un clic, una madre de cada operación por nodo:
+> dieciséis órdenes por el Campo de Datos, y queda el esquema del enunciado.
 
 ---
 
-## Escena 3. Una operación con folio, de punta a punta (1:45)
+## Escena 3. Una operación con folio, de punta a punta (1:30)
 
 **Haz esto.**
 
@@ -152,21 +143,17 @@ hacen desde el panel, en las escenas 8, 9 y 11.
 
 **Di esto.**
 
-> Siete más cinco desde la GUI-1: doce. Esta tarjeta es el evento. El folio lo genera la GUI y
-> amarra todo: solicitud, acuses, respuesta y cierre. La huella tiene dos partes: un sello, que es
-> un hash del origen, el folio y la operación, y un rastro, la trayectoria lógica de quién tocó el
-> evento. El evento pasó por cuatro fases: inicio cuando la GUI publica SUM_REQ, confirmado al
-> llegar al mínimo de dos acuses, procesado con la respuesta y finalizado cuando la GUI publica
-> SUM_FIN, que les dice a todas que ya terminó. Acusaron las cuatro madres que tienen la suma.
-> La GUI-2 no muestra nada: le llegaron los mismos mensajes por broadcast, pero el folio no es
-> suyo y los cuenta como ajenas. En el Nodo 2 se ve la base heredada: la solicitud llegó del
-> Nodo 1 y las copias repetidas se descartan como duplicadas, así no hay ciclos. Y en la bitácora
-> de la madre: recibió, validó el sello, acusó, por el ranking resultó titular y respondió una
-> sola vez; las madres de resta ni la tomaron, porque deciden por Código de Contenido y folio.
+> Siete más cinco: doce. Esta tarjeta es el evento. El folio amarra solicitud, acuses, respuesta
+> y cierre. La huella es un sello, un hash del origen, el folio y la operación, más un rastro de
+> quién tocó el evento. Pasó por sus cuatro fases: inicio, confirmado al llegar al mínimo de dos
+> acuses, procesado con la respuesta, y finalizado con SUM_FIN. La GUI-2 recibió lo mismo por
+> broadcast, pero el folio no es suyo y lo ignora. En el Nodo 2, las copias repetidas se descartan
+> como duplicadas: no hay ciclos. Y la madre titular validó el sello, acusó y respondió una sola
+> vez; las de resta ni la tomaron, porque deciden por Código de Contenido y folio.
 
 ---
 
-## Escena 4. Solicitudes simultáneas (0:50)
+## Escena 4. Solicitudes simultáneas (0:40)
 
 **Haz esto.**
 
@@ -185,7 +172,7 @@ hacen desde el panel, en las escenas 8, 9 y 11.
 
 ---
 
-## Escena 5. Mínimo de ACK y una célula que no acusa (1:00)
+## Escena 5. Mínimo de ACK y una célula que no acusa (0:50)
 
 **Haz esto.**
 
@@ -206,7 +193,7 @@ hacen desde el panel, en las escenas 8, 9 y 11.
 
 ---
 
-## Escena 6. Carga dinámica: una madre vacía aprende a multiplicar (1:30)
+## Escena 6. Carga dinámica: una madre vacía aprende a multiplicar (1:10)
 
 **Haz esto.**
 
@@ -218,31 +205,20 @@ hacen desde el panel, en las escenas 8, 9 y 11.
 4. En el panel, clic en la ficha **"M5 · MUL"**. En su bitácora señala, en orden:
    `GEN_ESCRITO … → datos\celulas\…`, `GEN_VALIDADO … sha256 … coincide`,
    `GEN_CARGADO … en memoria con importlib` y `GEN_ACTIVO … ahora atiendo MUL_REQ`.
-5. (Opcional) En la terminal, el gen en disco:
-
-   ```powershell
-   Get-ChildItem datos\celulas -Directory -Filter 'M5-N2-*' | Sort-Object CreationTime |
-     Select-Object -Last 1 | Get-ChildItem -Recurse -File |
-     ForEach-Object { Resolve-Path -Relative $_.FullName }
-   ```
-
-   Salen `manifiesto.json` y `servicio.py`.
-6. En la **GUI-1**, `6` `×` `7` `=` → `42`. En **Evento**: **esperados** con 5 madres MUL,
+5. En la **GUI-1**, `6` `×` `7` `=` → `42`. En **Evento**: **esperados** con 5 madres MUL,
    incluida **M5-N2**, y **ACK 5/2**.
 
 **Di esto.**
 
-> Agrego una madre nueva al Nodo 2. Nace vacía: es el mismo programa base, sin aritmética. En el
-> gestor aparece sola, porque late. Uso la topología para decidir: la elijo en el diagrama, elijo
-> la multiplicación en el catálogo e inyecto. La orden viaja por el Campo de Datos con un folio
-> de orden, y la madre hace el ciclo completo: escribe el gen en su propio disco, lo valida
-> contra su sha256, lo carga en memoria con importlib, le corre sus pruebas y lo activa. Aquí
-> está en disco: el manifiesto y el programa. Y sin reiniciar nada, ya multiplica: seis por
-> siete, cuarenta y dos, y M5-N2 está entre las que acusaron.
+> Agrego una madre vacía al Nodo 2: el mismo programa base, sin aritmética. Aparece sola en el
+> gestor. La elijo en el diagrama, elijo la multiplicación e inyecto. La madre escribe el gen en
+> su propio disco, lo valida contra su sha256, lo carga en memoria con importlib y lo activa. Sin
+> reiniciar nada ya multiplica: seis por siete, cuarenta y dos, y M5-N2 está entre las que
+> acusaron.
 
 ---
 
-## Escena 7. Baja y cambio de versión (1:45)
+## Escena 7. Baja y cambio de versión (1:20)
 
 **Haz esto.**
 
@@ -256,22 +232,18 @@ hacen desde el panel, en las escenas 8, 9 y 11.
 5. En el gestor, clic en **M1-N1**, en el catálogo clic en **SUM 9.9** (✘) y en **"Sustituir
    versión"**. Abajo sale en rojo: **rechazada — validar: sha256 no coincide … ; sigue activo
    SUM@2.0**.
-6. En el panel, clic en la ficha **"M1 · SUM"** de Nodo 1 y señala en su bitácora `GEN_SUSTITUIDO SUM@1.0 →
-   SUM@2.0` y `GEN_RECHAZADO … sha256 no coincide`.
 
 **Di esto.**
 
-> Doy de baja la suma en la madre del Nodo 4: deja de atender SUM_REQ al instante, y la GUI ya
-> no la espera. Cero punto uno más cero punto dos, con la versión 1.0, que suma en punto
-> flotante: el famoso 0.30000000000000004. Ahora sustituyo la versión en todas las que tienen la
-> suma por la 2.0, que suma en decimal exacto. El cambio es atómico: la versión vieja sigue
-> atendiendo hasta que la nueva pasa todas sus pruebas. Mismo cálculo: cero punto tres. Y si
-> intento instalar la 9.9, la madre la rechaza: el programa no coincide con su firma, y se queda
-> con la 2.0. La madre decide si acepta una orden; el gestor solo la pide.
+> Doy de baja la suma en la madre del Nodo 4: deja de atender SUM_REQ y la GUI ya no la espera.
+> Cero punto uno más cero punto dos con la versión 1.0, en punto flotante: 0.30000000000000004.
+> Sustituyo la versión en todas por la 2.0, que suma en decimal exacto; el cambio es atómico.
+> Mismo cálculo: cero punto tres. Y si intento instalar la 9.9, la madre la rechaza porque no
+> coincide con su firma, y se queda con la 2.0. La madre decide; el gestor solo pide.
 
 ---
 
-## Escena 8. Falla y autorrecuperación (1:30)
+## Escena 8. Falla y autorrecuperación (1:10)
 
 **Haz esto.**
 
@@ -283,23 +255,19 @@ hacen desde el panel, en las escenas 8, 9 y 11.
    (`M1-N… entrega SUM@2.0 …`), **listo** y **nivel ok**. En el diagrama nace **M1-N2·r1** con la
    insignia **r1**.
 3. Mientras se regenera, en la **GUI-3**, `3` `+` `4` `=` → `7`.
-4. En el panel aparece la ficha **"M1·r1 · SUM"** en Nodo 2 y, en **Procesos**, su comando con
-   `--reemplaza … --copiar SUM@2.0:…`.
+4. En el panel aparece la ficha **"M1·r1 · SUM"** en Nodo 2.
 
 **Di esto.**
 
-> Ahora mato una célula de suma, sin avisarle a nadie, y no vuelvo a tocar nada. Cada madre
-> escucha los latidos de las demás; a los seis segundos todas la dan por perdida, y como se fue
-> sin despedirse, es una pérdida y no un retiro. Ninguna manda: todas calculan el mismo ranking
-> con un hash, y la que queda primero es la clonadora; avisa con CLON_AVISO para que nadie más
-> clone, y lanza el reemplazo en el mismo nodo. El reemplazo nace vacío y pide por el Campo de
-> Datos los genes que tenía la perdida, con su hash: le llegó la SUM 2.0, no la 1.0, porque copia
-> lo que se había perdido. Mientras tanto la suma nunca dejó de funcionar: tres más cuatro, siete.
-> Al recuperar el nivel que había, todas anotan nivel OK.
+> Mato una célula de suma sin avisarle a nadie, y no toco nada más. A los seis segundos todas las
+> madres la dan por perdida: se fue sin despedirse. Ninguna manda: todas calculan el mismo
+> ranking y la primera es la clonadora; avisa para que nadie más clone y lanza el reemplazo. El
+> reemplazo nace vacío y pide por el Campo de Datos los genes de la perdida: la SUM 2.0, no la
+> 1.0. Mientras, la suma nunca dejó de funcionar: tres más cuatro, siete. Nivel recuperado.
 
 ---
 
-## Escena 9. Prevención del cáncer: se detiene sola (1:30)
+## Escena 9. Prevención del cáncer: se detiene sola (1:20)
 
 **Haz esto.**
 
@@ -318,19 +286,15 @@ hacen desde el panel, en las escenas 8, 9 y 11.
 
 **Di esto.**
 
-> Recuperado el nivel, la clonación se detiene: diez segundos y nada más, una sola célula nueva
-> por una perdida. Ahora algo más fuerte: tumbo tres sumas a la vez, incluido el reemplazo de
-> hace rato. La suma se deshabilita en las GUIs porque solo queda la muda. Las madres no clonan
-> las tres a la vez: va una regeneración a la vez en todo el sistema, con una pausa entre una y
-> otra, y cada pérdida tiene a lo más un reemplazo. Hay ocho límites contra el cáncer: solo se
-> regenera por pérdida, uno a uno, un clonador por pérdida, el reemplazo en curso cuenta, una a
-> la vez, topes duros por gen y en total, telómeros, que impiden clones de clones sin fin, y un
-> cupo por madre. Este de aquí es r2: clon de un clon, generación dos. Y al llegar a las mismas
-> tres sumas que había, nivel OK y se detiene.
+> Recuperado el nivel, la clonación se detiene: diez segundos y nada más. Ahora tumbo tres sumas
+> a la vez, incluido el reemplazo. Las madres no las clonan juntas: va una a la vez, con pausa, y
+> cada pérdida tiene un solo reemplazo. Son ocho límites contra el cáncer, entre ellos topes por
+> gen y en total, y telómeros: este es r2, clon de un clon. Al volver a las tres sumas que había,
+> nivel OK y se detiene.
 
 ---
 
-## Escena 10. Cambio de topología: un quinto nodo (1:10)
+## Escena 10. Cambio de topología: un quinto nodo (0:50)
 
 **Haz esto.**
 
@@ -345,15 +309,13 @@ hacen desde el panel, en las escenas 8, 9 y 11.
 
 **Di esto.**
 
-> El número de nodos no está fijo. Agrego un quinto nodo con una sola semilla: descubre a los
-> demás por gossip y en un momento tiene cuatro vecinos, sin cambiar código ni reiniciar a nadie.
-> El gestor no tiene una lista de nodos: lo dibuja porque le llegó su latido. Le pongo una madre,
-> el gestor la ve en el Nodo 5, la elijo con la topología nueva y le inyecto la división. Siete
-> entre dos, tres punto cinco, y ya participa la madre del Nodo 5.
+> Agrego un quinto nodo con una sola semilla: por gossip tiene cuatro vecinos en un momento, sin
+> reiniciar a nadie. El gestor lo dibuja porque le llegó su latido. Le pongo una madre, la elijo
+> en la topología nueva y le inyecto la división. Siete entre dos, tres punto cinco.
 
 ---
 
-## Escena 11. Sin unidad central y cierre (1:45)
+## Escena 11. Sin unidad central y cierre (1:20)
 
 **Haz esto.**
 
@@ -379,14 +341,12 @@ hacen desde el panel, en las escenas 8, 9 y 11.
 
 **Di esto.**
 
-> Por último, lo más importante de ADS: nada central. Cierro el gestor. Tumbo una madre de
-> división y cierro también el panel, sin detener nada. Ya no queda ninguna herramienta abierta,
-> solo nodos, madres y GUIs. Y aun así las madres detectan la pérdida y la regeneran solas: la
-> división volvió a cinco. Nueve menos cuatro, cinco; ocho entre dos, cuatro. Este conteo sale de
-> las bitácoras de todas las madres: cada folio del video recibió exactamente una respuesta. Y
-> el proyecto tiene 201 pruebas automatizadas que levantan el sistema completo, en verde. En
-> resumen: los servicios son genes que se cargan, cambian y copian en caliente; cada operación
-> tiene folio, huella y evento; el sistema se cura solo sin crecer de más; y ninguna pieza es
+> Por último, nada central. Cierro el gestor, tumbo una madre de división y cierro el panel sin
+> detener nada. Solo quedan nodos, madres y GUIs, y aun así la pérdida se regenera sola: la
+> división volvió a cinco. Nueve menos cuatro, cinco; ocho entre dos, cuatro. Este conteo, de las
+> bitácoras de todas las madres, dice que cada folio recibió exactamente una respuesta. Y las 201
+> pruebas automatizadas están en verde. En resumen: genes que se cargan y copian en caliente,
+> folio y huella en cada operación, un sistema que se cura solo sin crecer de más, y ninguna pieza
 > indispensable. Gracias.
 
 ---
