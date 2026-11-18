@@ -1,0 +1,26 @@
+{
+  "codigo": "DIV",
+  "version": "1.0",
+  "nombre": "División",
+  "archivo": "servicio.py",
+  "sha256": "c7a4f6c003fc5b324c6992108a75488adad68ba1ee95afeb321c4c98704549b3",
+  "interfaz": 1,
+  "pruebas": [
+    [
+      7,
+      2,
+      3.5
+    ],
+    [
+      -9,
+      3,
+      -3
+    ],
+    [
+      1,
+      0,
+      null
+    ]
+  ],
+  "descripcion": "División; entre cero responde con error (prueba con esperado null)."
+}

@@ -2,9 +2,9 @@
 
 import unittest
 
-from comun import codigos, config, huella, mensajes
+from comun import codigos, config, hashes, mensajes
 
-ORIGEN = huella.de_entidad(mensajes.INTERFAZ, "GUI-1")
+ORIGEN = hashes.de_entidad(mensajes.INTERFAZ, "GUI-1")
 
 
 def sobre(**cambios) -> dict:
@@ -58,13 +58,14 @@ class TestSobre(unittest.TestCase):
 
 
 class TestControl(unittest.TestCase):
-    H = huella.generar("x")
+    H = hashes.generar("x")
 
     def test_hola_valido(self):
         self.assertIsNone(mensajes.validar_hola(
             mensajes.hola(mensajes.NODO, self.H, "Nodo 1", escucha=5001)))
         self.assertIsNone(mensajes.validar_hola(
-            mensajes.hola(mensajes.SERVIDOR, self.H, "SUM-N1", "SUM")))
+            mensajes.hola(mensajes.MADRE, self.H, "M1-N1")))
+        self.assertIsNone(mensajes.validar_hola(mensajes.hola(mensajes.GESTOR, self.H, "G-N1")))
         self.assertIsNone(mensajes.validar_hola(mensajes.hola(mensajes.INTERFAZ, self.H, "GUI")))
 
     def test_hola_invalido(self):
@@ -112,20 +113,25 @@ class TestEndpoints(unittest.TestCase):
 
 
 class TestCatalogo(unittest.TestCase):
-    def test_completo(self):
-        esperado = {f"{s}_{t}" for s in ("SUM", "SUB", "MUL", "DIV") for t in ("REQ", "ACK", "RES")}
-        esperado |= {"SRV_LAT", "SONDA_PRUEBA"}
-        self.assertEqual(set(codigos.CATALOGO), esperado)
+    def test_tipos_del_evento(self):
+        self.assertEqual(codigos.TIPOS, ("REQ", "ACK", "RES", "FIN"))
 
     def test_ida_y_vuelta(self):
-        for s in codigos.SERVICIOS:
+        for s in (*codigos.SERVICIOS, "POW", "RAIZ"):  # cualquier gen válido, no solo los 4
             for t in codigos.TIPOS:
                 self.assertEqual(codigos.separar(codigos.codigo(s, t)), (s, t))
 
     def test_separar_no_operacion(self):
-        for c in ("SRV_LAT", "SONDA_PRUEBA", "POW_REQ", "SUM_XXX", "SUM", "", None, 3):
+        for c in (*codigos.SISTEMA, "SUM_XXX", "SUM", "sum_REQ", "SUMAS_REQ", "", None, 3):
             with self.subTest(c=c):
                 self.assertIsNone(codigos.separar(c))
+
+    def test_prefijos_de_sistema_reservados(self):
+        for prefijo in ("CEL", "GEN", "CLON", "TOPO", "NODO", "SONDA"):
+            with self.subTest(prefijo=prefijo):
+                self.assertIn(prefijo, codigos.RESERVADOS)
+                self.assertFalse(codigos.es_gen(prefijo))
+        self.assertTrue(codigos.es_gen("SUM"))
 
     def test_cada_servicio_tiene_nombre_y_simbolo(self):
         for s in codigos.SERVICIOS:

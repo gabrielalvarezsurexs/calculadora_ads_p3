@@ -1,337 +1,393 @@
-# Guion del video de la Calculadora ADS
+# Guion del video de la Calculadora ADS (Tercer Parcial)
 
-Duración objetivo: entre 10 y 11 minutos, en 10 escenas. Cada escena dice qué hacer (clics, teclas y
-comandos) y qué decir. El texto de "Di esto" es una guía y lo puedes decir con tus palabras.
+Duración objetivo: unos 15 minutos, en 11 escenas. Cada escena dice qué hacer (clics y comandos),
+qué se ve y qué decir. El texto de "Di esto" es una guía; dilo con tus palabras.
 
-Haz las escenas en este orden, porque cada una deja el sistema como lo necesita la siguiente.
+Haz las escenas **en este orden**: cada una deja el sistema como lo necesita la siguiente (por
+ejemplo, la escena 9 tumba los reemplazos que nacieron en la 8). Lo que se describe en "Qué se ve"
+salió así en la verificación en vivo del 17 de noviembre; los hashes, los nombres de las titulares
+y los milisegundos cambian en cada corrida.
 
-**Qué pide el enunciado y dónde se ve** (`docs/ENUNCIADO.md`, §2 y §14):
+**Qué pide el enunciado y dónde se ve** (`docs/ENUNCIADO.md`, §9 y §10):
 
-| Evidencia | Escena |
-|---|---|
-| Los 4 nodos en malla completa | 2 |
-| Una GUI y un servidor de cada operación en cada nodo | 2 |
-| Solicitudes y respuestas con su Código de Contenido, y su propagación | 3 |
-| Asociación correcta entre solicitud y respuesta | 3 |
-| Prevención de ciclos y mensajes duplicados | 3 y 7 |
-| Suma, resta, multiplicación y división correctas | 3 y 4 |
-| Recorrido de los mensajes observable (§15) | 3 |
-| Una sola respuesta por solicitud (§9 y §11) | 5 y 6 |
-| Sin punto único de falla (§15) | 8, 9 y 10 |
-| Cualquier número de nodos y células (§6 y §10.1) | 10 |
+| Escenario (§10) | Evidencia (§9) | Escena |
+|---|---|---|
+| — Arranque y base heredada | V1 nodos · V2 células conectadas · V3 conexión y broadcast | 2 y 3 |
+| S1 Operación normal con foliado | V4 código y folio · V5 huella, ACK, mínimo, evento · V6 | 3 |
+| S2 Solicitudes simultáneas | V6 cada GUI solo lo suyo | 4 |
+| S3 Mínimo de ACK y tolerancia | V5 | 5 |
+| S4 Carga dinámica | V7 disco → memoria · V8 alta · V9 topología para elegir | 6 |
+| S5 Baja y modificación | V8 baja y cambio | 7 |
+| S6 Falla y autorrecuperación | V10 detección · V11 clonación | 8 |
+| S7 Prevención del cáncer | V12 alto de la clonación | 9 |
+| S8 Cambio de topología | V9 | 10 |
+| — Sin unidad central | V13 | 11 |
 
 ---
 
 ## Antes de grabar
 
-En una terminal de PowerShell:
+En una terminal de PowerShell, en la carpeta del proyecto:
 
 ```powershell
-cd c:\SCHOOL\COMPUTO_DISTRIBUIDO\calculadora_ads
+cd c:\SCHOOL\COMPUTO_DISTRIBUIDO\calculadora_ads_p3
 
-# 1. Revisa que no quede nada corriendo. Debe imprimir 0
-Get-CimInstance Win32_Process -Filter "Name='python.exe' OR Name='py.exe'" |
-  Where-Object CommandLine -match ' -m (nodo|servidor|interfaz|panel)( |$)' |
+# 1. Que no quede nada corriendo de antes. Debe imprimir 0
+Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
+  Where-Object CommandLine -match ' -m (nodo|madre|interfaz|gestor|panel|sonda)( |$)' |
   Measure-Object | ForEach-Object Count
 
-# 2. Guarda las bitácoras viejas para grabar con logs/ vacía
-#    (el comando de la escena 5 lee todo lo que hay en logs/)
-if (Test-Path logs) { Rename-Item logs "logs_reporte_$(Get-Date -Format yyyyMMdd_HHmm)" }
+# 2. Bitácoras viejas a un lado (la escena 11 cuenta lo que hay en logs\*.log)
+New-Item -ItemType Directory -Force logs\anteriores | Out-Null
+Move-Item logs\*.log logs\anteriores\ -ErrorAction SilentlyContinue
+
+# 3. Las pruebas (~3 min). Corre esto ANTES de abrir el panel y deja la terminal abierta:
+#    es la que se muestra al final de la escena 11
+uv run python -m unittest discover -s tests -t .
 ```
 
-En **otra** terminal, en la misma carpeta, corre las pruebas (~85 s) y déjala abierta. Es la que se
-muestra en la escena 10.
-
-```powershell
-py -m unittest discover -s tests -t .
-```
+Cuando terminen las pruebas (`Ran 201 tests` y `OK`), abre **otra** terminal en la misma carpeta;
+esa es la de la demo.
 
 Checklist:
 
-- [ ] **Prueba de audio.** Graba 10 segundos y escúchalos. El enunciado pide video con audio.
-- [ ] Grabador de **pantalla completa**, ya sea OBS Studio ("Captura de pantalla" + micrófono) o la
-  Herramienta Recortes en modo grabar con el micrófono activado. No uses la Xbox Game Bar, porque
+- [ ] **Prueba de audio.** Graba 10 segundos y escúchalos: el enunciado pide video *con audio*.
+- [ ] Grabador de **pantalla completa**: OBS Studio ("Captura de pantalla" + micrófono) o la
+  Herramienta Recortes en modo grabar con el micrófono activado. La Xbox Game Bar no sirve:
   graba una sola ventana.
-- [ ] No molestar activado (`Win` + `N`).
-- [ ] Correo, mensajería y todo lo ajeno al proyecto, cerrado.
+- [ ] No molestar activado (`Win` + `N`); correo, mensajería y todo lo ajeno al proyecto, cerrado.
 - [ ] Las terminales con letra grande (`Ctrl` + `+`).
-- [ ] La lupa de Windows a la mano (`Win` + `+` acerca, `Win` + `Esc` la cierra), para el mini log y
-  la tabla de tráfico, que tienen letra chica.
+- [ ] La lupa de Windows a la mano (`Win` + `+` acerca, `Win` + `Esc` la cierra): las bitácoras
+  y la tabla de tráfico tienen letra chica.
 - [ ] Este guion en el celular o en otra pantalla, no en la que grabas.
 
-**Dónde quedan las ventanas.** El panel las acomoda solo. Los cuatro nodos quedan en una cuadrícula
-de 2 × 2 (Nodo 1 arriba a la izquierda, Nodo 4 abajo a la derecha), las cuatro GUIs quedan en
-cascada encima de los Nodos 2 y 4, y el panel queda arriba al centro. Todas se enciman, así que para
-traer una al frente haz clic en su barra de título o en la barra de tareas. Pon la terminal sobre el
-Nodo 1 y maximízala solo para el comando de la escena 5.
+**Dónde quedan las ventanas.** El panel sale arriba al centro; los cuatro nodos, en una cuadrícula
+de 2 × 2 a la izquierda; las cuatro GUIs, en cascada a la derecha; el gestor ocupa casi toda la
+pantalla. Se enciman: para traer una al frente, clic en su barra de título o en la barra de
+tareas. Lo normal es dejar el **gestor de fondo** y traer encima la GUI o el panel que toque.
 
-**No cierres con la X la ventana de un nodo**, porque eso detiene el nodo. La caída de un nodo se
-hace en la escena 8, desde el panel.
+**No cierres con la X la ventana de un nodo ni la de una madre**: eso es una caída. Las fallas se
+hacen desde el panel, en las escenas 8, 9 y 11.
 
-**Si vas largo de tiempo**, en la escena 7 omite la sonda con `--id` y en la escena 10 omite el
-quinto nodo. Lo demás cubre lo que pide el enunciado.
+**Si vas largo de tiempo**, omite el paso del disco en la escena 6 y la sustitución rechazada
+(`SUM 9.9`) de la escena 7. Lo demás cubre lo que pide el enunciado.
 
 ---
 
-## Escena 1. Qué cambió y con qué está hecho (1:00)
+## Escena 1. Qué cambió y con qué está hecho (0:50)
 
-**Haz esto.** Muestra el diagrama de la sección "Qué hace" del `README.md`.
+**Haz esto.** Muestra el `README.md` (la tabla de las cuatro cosas nuevas).
 
 **Di esto.**
 
-> Hola, soy `<tu nombre>`. Este es el segundo parcial de Cómputo Distribuido. Es la calculadora del
-> primer parcial pasada a una arquitectura ADS. En el primer parcial todo pasaba por un middleware,
-> y si se caía, se caía todo. Aquí no hay nada central. Cuatro nodos forman el Campo de Datos en
-> malla completa, y a cada nodo se conectan cinco células, una GUI y un servidor por operación. Las
-> células no se hablan directamente. Publican mensajes sin destinatario, con un Código de Contenido
-> como `SUM_REQ`, y cada una toma solo los que le tocan. Los nodos retransmiten por broadcast y
-> evitan ciclos, pero nunca abren el contenido. Lo decidí así para que, si aparece un servicio
-> nuevo, los nodos no tengan que cambiar. Todo está en Python con la librería estándar, así que no
-> hay nada que instalar. Usé sockets TCP con mensajes JSON, uno por línea, hilos para atender varias
-> conexiones a la vez, Tkinter para las ventanas y SHA-256 para los identificadores. Cada nodo,
-> célula y mensaje genera el suyo, así que nadie tiene que asignarlos.
+> Hola, soy `<tu nombre>`. Este es el tercer parcial de Cómputo Distribuido: la calculadora ADS
+> del segundo parcial, que ya no tenía nada central, con cuatro cosas nuevas. Primero, las
+> células servidor ahora son células madre vacías: no saben sumar ni dividir; esa lógica vive en
+> microservicios, que llamo genes, y que cargan de disco mientras corren. Segundo, un gestor de
+> microservicios con base de datos que dibuja la topología y manda los genes por el mismo Campo
+> de Datos. Tercero, cada operación lleva folio y huella, y su evento tiene cuatro fases. Y
+> cuarto, si una célula muere, las demás la regeneran solas, una a la vez y sin crecer sin
+> control. No hay orquestador: el gestor es una herramienta, no un jefe. Todo está en Python con
+> la librería estándar: sockets, hilos, Tkinter, importlib para cargar los genes y sqlite3 para
+> la base de datos.
 
 ---
 
-## Escena 2. Los cuatro nodos y sus células (1:15)
+## Escena 2. Arranque: nodos, madres vacías y el gestor (1:40)
 
 **Haz esto.**
 
-1. En la terminal, corre `py -m panel` y haz clic en **"Levantar configuración mínima"**. Empieza a
-   hablar mientras salen las 8 ventanas (primero los 4 nodos y, un segundo después, las 4 GUIs).
-2. En el panel, señala la matriz de 4 × 6 con "● 1" en cada casilla y la columna "comando" de la
-   lista de procesos.
-3. Trae al frente el **Nodo 2**. Señala la tabla **"Vecinos: 3"** (Nodo 1, 3 y 4) y recorre con el
-   mouse la tabla **"Células: 5 (1 GUI + 4 servidores)"** (GUI-2, SUM-N2, SUB-N2, MUL-N2 y DIV-N2).
-4. Trae al frente, uno por uno, los **Nodos 1, 3 y 4** (clic en la barra de tareas) y señala en cada
-   uno "Vecinos: 3" y "Células: 5".
+1. En la terminal de la demo, corre `uv run python -m panel` y haz clic en **"Configuración
+   mínima — vacía"**. Salen primero los 4 nodos y, un segundo después, las 4 GUIs.
+2. En el panel, señala la fila de cada nodo: **"vivo"**, **"GUI 1"** y cuatro fichas grises
+   **"M1 · vacía" … "M4 · vacía"**. Baja a **Procesos** y señala la columna **comando**: hay
+   tres programas, `-m nodo`, `-m madre` (sin genes) y `-m interfaz`.
+3. Trae al frente una **GUI**: los operadores están grises y en **Disponibilidad** las cuatro
+   operaciones dicen **"vivas 0"** con **✗**.
+4. Trae al frente el **Nodo 2**: **"Vecinos · 3"** (Nodos 1, 3 y 4) y **"Células · 5 (1 GUI + 4
+   madres)"**.
+5. En el panel, clic en **"Gestor"** de la fila **Nodo 1**. Se abre **G-N1**. Señala en el
+   diagrama los 4 nodos con sus 6 enlaces, las 16 madres punteadas ("vacía") y las 4 GUIs; en el
+   **Catálogo**, los 6 genes de la BD con **SUM 9.9** marcado con **✘**.
+6. Clic en **"Distribuir una de cada operación por nodo"**. En menos de un segundo las 16 madres
+   se pintan del color de su gen, la pestaña **Órdenes** se llena con 16 altas `ok` y arriba del
+   diagrama queda **"SUM 4 · SUB 4 · MUL 4 · DIV 4"**. En el panel, las fichas pasan a
+   **"M1 · SUM"**, **"M2 · SUB"**, **"M3 · MUL"** y **"M4 · DIV"**, cada una de su color.
 
 **Di esto.**
 
-> Uso este panel solo para la demostración. No es parte del sistema. Lanza procesos que se podrían
-> lanzar a mano con el comando que aparece en esta lista. El servidor es el mismo programa para las
-> cuatro operaciones y se configura con `--servicio`. Son 24 procesos, 4 nodos y 20 células. Esta
-> es la ventana del Nodo 2. Tiene tres vecinos, los otros tres nodos, y cinco células, la GUI y un
-> servidor de suma, resta, multiplicación y división. Lo mismo en el Nodo 1, el 3 y el 4, así que la
-> malla está completa. Esas dos tablas son el control de conexiones activas. Cada conexión empieza
-> con un `HOLA` que dice qué entidad es. A cada nodo le di una sola semilla al azar, y el resto lo
-> descubrió solo, por gossip. Así ningún nodo es especial, y agregar uno no obliga a configurar a
-> los demás.
+> El panel es solo para la demostración, está fuera del sistema: lanza los mismos comandos que
+> escribiría a mano. Arranco en modo vacío: cuatro nodos en malla completa y, en cada uno, una
+> GUI y cuatro células madre que no tienen ningún gen. Son tres programas base: el nodo, la madre
+> y la interfaz. Por eso la calculadora todavía no puede hacer nada: no hay quién sume. El Nodo 2
+> tiene tres vecinos y cinco células; la conexión es la del segundo parcial, con un HOLA que dice
+> qué entidad es, y la malla se arma sola por gossip. Ahora abro el gestor del Nodo 1. Es una
+> célula más: se conecta a un nodo y arma este diagrama solo con los latidos que ya circulan.
+> Tiene una base de datos SQLite con seis genes; uno, la SUM 9.9, está manipulado a propósito y
+> por eso sale con una cruz: su programa no coincide con su sha256. Con un clic le pido una madre de cada operación por nodo: son dieciséis
+> órdenes de alta que viajan por el Campo de Datos. Y queda exactamente el esquema del enunciado:
+> cuatro nodos, una GUI y una célula de cada operación en cada nodo.
 
 ---
 
-## Escena 3. Una operación de punta a punta, 7 + 5 (1:45)
-
-Es la escena más importante, porque aquí se ven los 10 pasos del §12. No la apresures.
+## Escena 3. Una operación con folio, de punta a punta (1:45)
 
 **Haz esto.**
 
-1. Trae al frente la **GUI-1** y, con el mouse, haz clic en `7` `+` `5` `=`. Señala el display
-   (`12`) y la línea de estado ("titular SUM-N… · acuses 4/2 · ~510 ms").
-2. Señala en el **mini log de protocolo** la `SOLICITUD`, los cuatro `ACUSE`, el `QUÓRUM 2/2` y el
-   `RESULTADO` con "solicitud … ↔ respuesta …".
-3. Trae al frente el **Nodo 2** y marca **"pausar"** en la tabla de tráfico. Señala la fila `FWD
-   SUM_REQ` (ruta `N1→N2`), las dos `DUP SUM_REQ` y la fila `FWD SUM_RES`. Desmarca "pausar".
-4. En el panel, selecciona en la lista el servidor que respondió (el que dice la GUI, por ejemplo
-   `SUM-N4`). Señala en su bitácora `RX`, `ACUSE`, `COLA`, `TITULAR · rank 0 de 4` y `RES`.
+1. Trae al frente la **GUI-1** y haz clic en `7` `+` `5` `=`. El display dice `12` y debajo
+   sale `F-…-0001 · titular M1-N… · SUM@1.0 · ~510 ms`.
+2. En la pestaña **Evento**, recorre de arriba abajo: el **folio** `F-…-0001` con la píldora
+   **"resuelta"**, las cuatro fases en verde (**1. inicio · 2. confirmado · 3. procesado ·
+   4. finalizado**), el **sello**, **ACK 4/2** con los nombres, **esperados** (las 4 madres SUM),
+   **ausentes: ninguno**, **respondió** y el **rastro** `GUI-1 REQ → 4×ACK → M1-N… RES → GUI-1 FIN`.
+3. Clic en la pestaña **Protocolo**: `EVENTO_INICIO … SUM_REQ 7 + 5 · sello … · esperadas 4`,
+   cuatro `ACUSE`, `CONFIRMADO`, `RESULTADO … solicitud … ↔ respuesta …` y `FIN`.
+4. Trae al frente la **GUI-2**: su display no cambió y abajo **"ajenas ignoradas"** subió.
+5. Trae al frente el **Nodo 2**, marca **"pausar"** en **Tráfico** y señala `FWD SUM_REQ` (ruta
+   `N1→N2`) y las filas `DUP` (copias que llegaron por otro camino y no se reenvían). Desmarca
+   "pausar".
+6. En el panel, clic en la ficha de la madre que respondió (la que dice la GUI, por ejemplo
+   **"M1 · SUM"** de Nodo 1). En su **bitácora en vivo** señala `RX SUM_REQ … sello … ✓`,
+   `ACUSE`, `TITULAR … rank 0 de 4`, `RES … solicitud … ↔ respuesta …` y el `RX SUM_FIN`.
 
 **Di esto.**
 
-> Siete más cinco desde la GUI-1. Da doce, y aquí abajo está el recorrido. La GUI generó una
-> solicitud con un id único y el código `SUM_REQ`, y la mandó al Nodo 1. El Nodo 1 la difundió a
-> los otros tres nodos y a sus células. En el Nodo 2 se ve que llegó del Nodo 1, con la ruta N1 a
-> N2. Ese campo es el recorrido observable del mensaje. Las dos copias que llegaron después, del
-> Nodo 3 y del Nodo 4, son `DUP` y no se retransmiten. Las cuatro células de suma acusaron de
-> inmediato, que son estos cuatro acuses, y con dos ya hay quórum. Acusan al recibir y no al
-> terminar, para que una célula lenta no parezca muerta. Las demás células la ignoraron
-> por código. Respondió una sola, la titular. En su bitácora se ve que recibió, acusó, encoló y al
-> medio segundo supo que era la titular. Respondió con `SUM_RES`, un mensaje nuevo con su propio id,
-> que lleva el id de la solicitud original y el resultado. La respuesta también viajó por broadcast,
-> y solo la GUI-1 la tomó, porque el id de la operación es suyo. Esta línea muestra la asociación
-> entre la solicitud y la respuesta. El medio segundo que tarda es la espera para que las células se
-> pongan de acuerdo sin un coordinador.
+> Siete más cinco desde la GUI-1: doce. Esta tarjeta es el evento. El folio lo genera la GUI y
+> amarra todo: solicitud, acuses, respuesta y cierre. La huella tiene dos partes: un sello, que es
+> un hash del origen, el folio y la operación, y un rastro, la trayectoria lógica de quién tocó el
+> evento. El evento pasó por cuatro fases: inicio cuando la GUI publica SUM_REQ, confirmado al
+> llegar al mínimo de dos acuses, procesado con la respuesta y finalizado cuando la GUI publica
+> SUM_FIN, que les dice a todas que ya terminó. Acusaron las cuatro madres que tienen la suma.
+> La GUI-2 no muestra nada: le llegaron los mismos mensajes por broadcast, pero el folio no es
+> suyo y los cuenta como ajenas. En el Nodo 2 se ve la base heredada: la solicitud llegó del
+> Nodo 1 y las copias repetidas se descartan como duplicadas, así no hay ciclos. Y en la bitácora
+> de la madre: recibió, validó el sello, acusó, por el ranking resultó titular y respondió una
+> sola vez; las madres de resta ni la tomaron, porque deciden por Código de Contenido y folio.
 
 ---
 
-## Escena 4. Las cuatro operaciones (0:40)
-
-**Haz esto.** Con el mouse, haz una operación en cada GUI (trae cada una al frente).
-
-| GUI | Clics | Resultado |
-|---|---|---|
-| GUI-2 | `1` `0` `−` `4` `=` | `6` |
-| GUI-3 | `6` `×` `7` `=` | `42` |
-| GUI-4 | `7` `÷` `2` `=` | `3.5` |
-| GUI-4 | `1` `÷` `0` `=` | `ERROR` y, en rojo, "división entre cero" |
-
-**Di esto.**
-
-> Ahora las otras operaciones, cada una desde otra GUI. Resta, seis. Multiplicación, cuarenta y
-> dos. División, tres punto cinco. Y una división entre cero. El sistema no se cae. El servidor
-> responde con un error, que viaja igual que un resultado. Cada GUI muestra solo sus operaciones,
-> aunque por broadcast le llegan las de todas.
-
----
-
-## Escena 5. Una sola respuesta por solicitud (0:45)
-
-Esta escena incluye la diferencia con la clase sobre quién responde (reporte, sección 20).
-
-**Haz esto.** Maximiza la terminal y corre este comando. Sale una tabla con **Count = 1** en cada
-operación hecha hasta ahora.
-
-```powershell
-Select-String '\[RES\]' logs\*-N*.log |
-  ForEach-Object { ($_.Line -split ' op ')[1].Substring(0,8) } |
-  Group-Object | Select-Object Count, Name
-```
-
-**Di esto.**
-
-> Aquí cuento las respuestas en las bitácoras de todos los servidores. Cada operación tiene
-> exactamente una. Las células que acusaron calculan el mismo ranking con un hash y llegan a la
-> misma titular sin mandar mensajes extra. Las demás quedan como respaldos escalonados, por si la
-> titular falla. Aquí me aparto un poco de lo que vimos en clase, donde respondían todas y la GUI
-> tomaba la primera. El enunciado pide evitar las respuestas no deseadas, por eso responde una sola.
-> La deduplicación en la GUI se conserva como última capa.
-
----
-
-## Escena 6. Titular lenta, relevo y respuesta suprimida (1:00)
+## Escena 4. Solicitudes simultáneas (0:50)
 
 **Haz esto.**
 
-1. En el panel, escribe `4000` en **"retardo ms de los servidores (▶)"** y haz clic en **▶** de la
-   columna `+`, fila **Nodo 3**. Aparece `SUM-N3b` en la lista de procesos. Selecciónalo para ver su
-   bitácora.
-2. **Regresa el retardo a `0`** enseguida, para que el siguiente ▶ no salga lento.
-3. En la **GUI-3**, haz sumas sencillas (`1 + 1`, `2 + 2`, `3 + 3`…) hasta que una tarde **~2 s** y
-   el estado diga **"relevo 1 SUM-…"**. Es al azar, y sale 1 de cada 5 veces en promedio.
-4. En la bitácora de `SUM-N3b`, señala `[TITULAR] … rank 0 de 5` y, unos 4 s después,
-   `[SUPRIMIDA] … no envío mi respuesta (titular)`.
-5. Haz clic en **■** de la columna `+`, fila Nodo 3, para tumbar `SUM-N3b`.
+1. Acomoda la **GUI-1** y la **GUI-2** para que se vean las dos (en cascada se ve el borde de
+   cada una; basta con clic en su barra de título).
+2. Clic en **"Ráfaga ×8"** de la GUI-1 e, inmediatamente, en **"Ráfaga ×8"** de la GUI-2.
+3. En cada una, clic en la pestaña **Mis eventos**: 8 folios propios (de las cuatro operaciones)
+   que pasan de "en vuelo" a **"resuelta"** en medio segundo. Los folios de GUI-1 empiezan con un
+   hash y los de GUI-2 con otro.
 
 **Di esto.**
 
-> ¿Y si la titular se cuelga? Levanto una quinta célula de suma que tarda cuatro segundos en
-> calcular. Hago sumas hasta que el hash la elija titular... Ahí está. Tardó dos segundos y respondió
-> el relevo 1, que esperó su plazo y vio que nadie había respondido. La titular lenta terminó
-> después, pero antes de publicar volvió a revisar, vio que la operación ya estaba resuelta y
-> suprimió su respuesta. Hubo una sola respuesta, aunque la titular seguía viva. Si en lugar de
-> colgarse se cae, pasa lo mismo, y ese caso está en las pruebas automatizadas.
+> Ahora dieciséis operaciones casi a la vez: ocho desde cada GUI, de las cuatro operaciones, todas
+> en vuelo al mismo tiempo. Cada GUI recibe por broadcast las respuestas de todas, pero cada una
+> se queda solo con las de sus folios: aquí están sus ocho, todas resueltas, y ninguna de la otra.
 
 ---
 
-## Escena 7. Prevención de ciclos con la sonda (1:00)
+## Escena 5. Mínimo de ACK y una célula que no acusa (1:00)
 
 **Haz esto.**
 
-1. Trae al frente el **Nodo 2** y pon la terminal sobre el Nodo 1, sin maximizar.
-2. Corre este comando y señala en el Nodo 2 la fila `FWD SONDA_PRUEBA` con destino "0 nodo(s)" y la
-   fila `TTL`.
+1. En el panel, clic en **"+ Muda (SUM)"** de la fila **Nodo 1**. Aparece la ficha roja
+   **"SUMm · muda"** (la madre `SUM-N1m`). Es una madre que late, así que cuenta como esperada, pero nunca acusa.
+2. En la **GUI-1**, señala en **Disponibilidad** el campo **"mín. ACK"** de la suma (2) y luego
+   haz clic en `2` `+` `2` `=`.
+3. Pestaña **Evento**: **ACK 4/2**, **esperados** con 5 madres (incluida `SUM-N1m`),
+   **ausentes: SUM-N1m** y el evento **finalizado** con `4`. En **Protocolo**: `AUSENTES …
+   SUM-N1m no acusaron · ACK 4/2 de 5 esperada(s) → el evento sigue (tolerancia)`.
+
+**Di esto.**
+
+> Agrego una célula de suma muda: late, así que la GUI la espera, pero nunca manda su acuse.
+> El mínimo de acuses es configurable por operación, aquí mismo, y está en dos. Dos más dos:
+> esperaba cinco acuses, llegaron cuatro, y como pasa del mínimo el evento sigue y termina. Pero
+> el sistema sí identifica la ausencia: la GUI dice exactamente quién no acusó.
+
+---
+
+## Escena 6. Carga dinámica: una madre vacía aprende a multiplicar (1:30)
+
+**Haz esto.**
+
+1. En el panel, clic en **"+ Madre"** de la fila **Nodo 2**. Sale **"M5 · vacía"**.
+2. Trae al frente el **gestor**. En unos 2 s aparece **M5-N2** punteada junto al Nodo 2. Haz clic
+   en ella: en **Célula destino** sale **M5-N2** sin genes.
+3. En el **Catálogo**, clic en **MUL 1.0** y luego en **"Inyectar (alta)"**. Abajo dice que la
+   orden quedó `ok` y la ruta `datos/celulas/M5-N2-…/genes/MUL/1.0/`. M5-N2 se pinta de naranja.
+4. En el panel, clic en la ficha **"M5 · MUL"**. En su bitácora señala, en orden:
+   `GEN_ESCRITO … → datos\celulas\…`, `GEN_VALIDADO … sha256 … coincide`,
+   `GEN_CARGADO … en memoria con importlib` y `GEN_ACTIVO … ahora atiendo MUL_REQ`.
+5. (Opcional) En la terminal, el gen en disco:
 
    ```powershell
-   py -m sonda --nodo 127.0.0.1:5002 --ttl 1
+   Get-ChildItem datos\celulas -Directory -Filter 'M5-N2-*' | Sort-Object CreationTime |
+     Select-Object -Last 1 | Get-ChildItem -Recurse -File |
+     ForEach-Object { Resolve-Path -Relative $_.FullName }
    ```
 
-3. Corre este y señala en el Nodo 2 un `FWD` y dos `DUP` "de SONDA" con el mismo id, y el contador
-   "ids en el registro temporal".
+   Salen `manifiesto.json` y `servicio.py`.
+6. En la **GUI-1**, `6` `×` `7` `=` → `42`. En **Evento**: **esperados** con 5 madres MUL,
+   incluida **M5-N2**, y **ACK 5/2**.
+
+**Di esto.**
+
+> Agrego una madre nueva al Nodo 2. Nace vacía: es el mismo programa base, sin aritmética. En el
+> gestor aparece sola, porque late. Uso la topología para decidir: la elijo en el diagrama, elijo
+> la multiplicación en el catálogo e inyecto. La orden viaja por el Campo de Datos con un folio
+> de orden, y la madre hace el ciclo completo: escribe el gen en su propio disco, lo valida
+> contra su sha256, lo carga en memoria con importlib, le corre sus pruebas y lo activa. Aquí
+> está en disco: el manifiesto y el programa. Y sin reiniciar nada, ya multiplica: seis por
+> siete, cuarenta y dos, y M5-N2 está entre las que acusaron.
+
+---
+
+## Escena 7. Baja y cambio de versión (1:45)
+
+**Haz esto.**
+
+1. En el **gestor**, clic en **M1-N4** (la SUM del Nodo 4) y en **"Baja del gen"**. M1-N4 queda
+   punteada (vacía).
+2. En la **GUI-1**, `0` `.` `1` `+` `0` `.` `2` `=` → **`0.30000000000000004`**. En **Evento**,
+   **esperados** ya no incluye a M1-N4; **respondió … SUM@1.0**.
+3. En el gestor, **Catálogo** → clic en **SUM 2.0** → **"Sustituir en todas las que lo tengan"**.
+   En **Órdenes** salen 4 cambios `ok` (`SUM@1.0 → SUM@2.0`), también el de la muda.
+4. En la **GUI-1**, otra vez `0.1 + 0.2 =` → **`0.3`**, y **respondió … SUM@2.0**.
+5. En el gestor, clic en **M1-N1**, en el catálogo clic en **SUM 9.9** (✘) y en **"Sustituir
+   versión"**. Abajo sale en rojo: **rechazada — validar: sha256 no coincide … ; sigue activo
+   SUM@2.0**.
+6. En el panel, clic en la ficha **"M1 · SUM"** de Nodo 1 y señala en su bitácora `GEN_SUSTITUIDO SUM@1.0 →
+   SUM@2.0` y `GEN_RECHAZADO … sha256 no coincide`.
+
+**Di esto.**
+
+> Doy de baja la suma en la madre del Nodo 4: deja de atender SUM_REQ al instante, y la GUI ya
+> no la espera. Cero punto uno más cero punto dos, con la versión 1.0, que suma en punto
+> flotante: el famoso 0.30000000000000004. Ahora sustituyo la versión en todas las que tienen la
+> suma por la 2.0, que suma en decimal exacto. El cambio es atómico: la versión vieja sigue
+> atendiendo hasta que la nueva pasa todas sus pruebas. Mismo cálculo: cero punto tres. Y si
+> intento instalar la 9.9, la madre la rechaza: el programa no coincide con su firma, y se queda
+> con la 2.0. La madre decide si acepta una orden; el gestor solo la pide.
+
+---
+
+## Escena 8. Falla y autorrecuperación (1:30)
+
+**Haz esto.**
+
+1. Deja el **gestor** a la vista y, encima, solo el panel. En el panel, clic en **"Tumbar SUM de
+   Nodo 2"**. Dice **"Tumbé M1-N2. Ahora no toques nada…"**. **No toques nada.**
+2. En el gestor (se abre sola la pestaña **Regeneración**), a los ~6 s: **M1-N2** en rojo con
+   **✕** y la línea **caída**. Unos 2 s después: **clonador** (`M3-N… (rango 0) regenera a M1-N2 →
+   M1-N2·r1 en Nodo 2; copiará SUM 2.0`), **conectada** (el contorno azul "naciendo"), **gen**
+   (`M1-N… entrega SUM@2.0 …`), **listo** y **nivel ok**. En el diagrama nace **M1-N2·r1** con la
+   insignia **r1**.
+3. Mientras se regenera, en la **GUI-3**, `3` `+` `4` `=` → `7`.
+4. En el panel aparece la ficha **"M1·r1 · SUM"** en Nodo 2 y, en **Procesos**, su comando con
+   `--reemplaza … --copiar SUM@2.0:…`.
+
+**Di esto.**
+
+> Ahora mato una célula de suma, sin avisarle a nadie, y no vuelvo a tocar nada. Cada madre
+> escucha los latidos de las demás; a los seis segundos todas la dan por perdida, y como se fue
+> sin despedirse, es una pérdida y no un retiro. Ninguna manda: todas calculan el mismo ranking
+> con un hash, y la que queda primero es la clonadora; avisa con CLON_AVISO para que nadie más
+> clone, y lanza el reemplazo en el mismo nodo. El reemplazo nace vacío y pide por el Campo de
+> Datos los genes que tenía la perdida, con su hash: le llegó la SUM 2.0, no la 1.0, porque copia
+> lo que se había perdido. Mientras tanto la suma nunca dejó de funcionar: tres más cuatro, siete.
+> Al recuperar el nivel que había, todas anotan nivel OK.
+
+---
+
+## Escena 9. Prevención del cáncer: se detiene sola (1:30)
+
+**Haz esto.**
+
+1. Señala la pestaña **Regeneración** y la píldora de arriba **"regeneración: nivel ok · sin
+   clonar"**. Espera unos 10 s en silencio o hablando: **no aparece nada nuevo**. En el panel
+   sigue habiendo un solo reemplazo.
+2. En el panel, clic en **"Tumbar 3 SUM"** (tumba una SUM de los Nodos 1, 2 y 3, incluido el
+   reemplazo `M1-N2·r1`). **No toques nada.**
+3. En la **GUI-1**, el botón `+` se pone gris unos segundos y **Protocolo** dice
+   `DESHABILITADA SUM deshabilitada: 1 viva(s) < 2 mínima(s)`: solo queda la muda. Cuando nace
+   el primer reemplazo, `HABILITADA`.
+4. En el gestor, a los ~6 s: tres **caídas** juntas. Después, **uno por uno**: clonador →
+   conectada → gen → listo → **en espera** (`gradual: falta(n) …; va una a la vez`), otra vez, y
+   al tercero **nivel ok**. Nacen **M1-N1·r1**, **M1-N2·r2** y **M1-N3·r1**.
+5. La GUI-1 vuelve a habilitar la suma. Señala que hay exactamente las mismas SUM que antes.
+
+**Di esto.**
+
+> Recuperado el nivel, la clonación se detiene: diez segundos y nada más, una sola célula nueva
+> por una perdida. Ahora algo más fuerte: tumbo tres sumas a la vez, incluido el reemplazo de
+> hace rato. La suma se deshabilita en las GUIs porque solo queda la muda. Las madres no clonan
+> las tres a la vez: va una regeneración a la vez en todo el sistema, con una pausa entre una y
+> otra, y cada pérdida tiene a lo más un reemplazo. Hay ocho límites contra el cáncer: solo se
+> regenera por pérdida, uno a uno, un clonador por pérdida, el reemplazo en curso cuenta, una a
+> la vez, topes duros por gen y en total, telómeros, que impiden clones de clones sin fin, y un
+> cupo por madre. Este de aquí es r2: clon de un clon, generación dos. Y al llegar a las mismas
+> tres sumas que había, nivel OK y se detiene.
+
+---
+
+## Escena 10. Cambio de topología: un quinto nodo (1:10)
+
+**Haz esto.**
+
+1. En el panel, clic en **"+ Nodo"** (arriba). Sale la ventana del **Nodo 5** con **"Vecinos ·
+   4"**, y en el panel una fila nueva **Nodo 5**. En **Procesos**, su comando tiene una sola
+   `--semillas`.
+2. En el **gestor**, el diagrama se redibuja con **5 nodos** y los enlaces del nuevo.
+3. En el panel, clic en **"+ Madre"** de la fila **Nodo 5**. En el gestor aparece **M1-N5**
+   vacía. Clic en ella → catálogo **DIV 1.0** → **"Inyectar (alta)"**.
+4. En la **GUI-4**, `7` `÷` `2` `=` → `3.5`. En **Evento**, **esperados** con 5 madres DIV,
+   incluida **M1-N5**.
+
+**Di esto.**
+
+> El número de nodos no está fijo. Agrego un quinto nodo con una sola semilla: descubre a los
+> demás por gossip y en un momento tiene cuatro vecinos, sin cambiar código ni reiniciar a nadie.
+> El gestor no tiene una lista de nodos: lo dibuja porque le llegó su latido. Le pongo una madre,
+> el gestor la ve en el Nodo 5, la elijo con la topología nueva y le inyecto la división. Siete
+> entre dos, tres punto cinco, y ya participa la madre del Nodo 5.
+
+---
+
+## Escena 11. Sin unidad central y cierre (1:45)
+
+**Haz esto.**
+
+1. Cierra el **gestor** con su **X**.
+2. En el panel, clic en la ficha **"M4 · DIV"** de la fila **Nodo 3** y luego en **"Tumbar
+   seleccionado"**.
+3. Cierra el **panel** con su **X**. A "¿Detener también todos los procesos?" contesta **No**.
+4. Trae al frente la **GUI-4**. En **Disponibilidad**, **División** baja de **vivas 5** a
+   **vivas 4** (~6 s) y unos 2 s después vuelve a **vivas 5**.
+5. En la **GUI-2**, `9` `−` `4` `=` → `5`; en la **GUI-4**, `8` `÷` `2` `=` → `4`. En el
+   **Evento** de la GUI-4, **esperados** incluye a **M4-N3·r1**, el reemplazo que nació sin
+   gestor ni panel.
+6. En la terminal de la demo, maximizada, corre esto. Sale **1** en "respuestas por folio" para
+   todos los folios del video:
 
    ```powershell
-   py -m sonda --nodo 127.0.0.1:5002 --repetir 3
+   Select-String '\[RES\] \w+_RES \w+ (F-\w{8}-\d{4})' logs\*.log |
+     ForEach-Object { $_.Matches[0].Groups[1].Value } | Group-Object | Group-Object Count |
+     Select-Object @{n='respuestas por folio';e={$_.Name}}, @{n='folios';e={$_.Count}}
    ```
 
-4. Corre estos dos seguidos (el segundo antes de que pasen 60 s). Trae al frente el **Nodo 3** y
-   señala la última fila, `DUP SONDA_PRUEBA … de SONDA`.
-
-   ```powershell
-   $id = (py -m sonda --nodo 127.0.0.1:5002 | Select-String '^id=').Line.Substring(3)
-   py -m sonda --nodo 127.0.0.1:5003 --id $id
-   ```
+7. Trae al frente la terminal de las pruebas: `Ran 201 tests in …s` y `OK`.
 
 **Di esto.**
 
-> Una malla completa está llena de ciclos. Para mostrar las defensas uso una sonda, que inyecta un
-> mensaje de prueba que ninguna célula procesa. Con TTL de 1, el Nodo 2 lo entrega a sus células
-> pero no lo reenvía a ningún nodo. Si mando la misma copia tres veces, procesa una y descarta dos
-> como duplicadas, y esas nunca salen del nodo. El registro de ids es temporal y guarda cada uno 60
-> segundos. Si reinyecto por el Nodo 3 un id que ya circuló, el Nodo 3 también lo descarta. Además,
-> ningún nodo devuelve un mensaje por donde llegó, y cada célula tiene su propio registro.
-
----
-
-## Escena 8. Se cae un nodo y sus células hacen failover (1:00)
-
-**Haz esto.**
-
-1. Deja a la vista la **GUI-1** y el **Nodo 2**.
-2. En el panel, haz clic en **■** de la columna **Nodo**, fila **Nodo 1**. La ventana del Nodo 1
-   desaparece.
-3. Señala la línea de arriba de la GUI-1. Pasa a ámbar ("se perdió Nodo 1; buscando otro nodo…") y
-   en unos 3 s a verde ("failover → Nodo 2").
-4. Señala en el Nodo 2 **"Vecinos: 2"** y **"Células: 10 (2 GUI + 8 servidores)"**.
-5. En la GUI-1, haz clic en `9` `×` `9` `=`. Debe dar `81`.
-
-**Di esto.**
-
-> Ahora tumbo el Nodo 1 sin avisarle a nadie, como una caída real. Sus cinco células se quedan sin
-> nodo. La GUI-1 lo detecta, busca otro nodo en la lista que recibió al conectarse y en unos tres
-> segundos se pasa al Nodo 2. Sus servidores hacen lo mismo. El Nodo 2 ahora tiene dos vecinos y
-> diez células. Nueve por nueve, ochenta y uno. Ningún nodo es indispensable.
-
----
-
-## Escena 9. Disponibilidad por latidos (1:00)
-
-Esta escena incluye la diferencia con la clase sobre la disponibilidad (reporte, sección 20).
-
-**Haz esto.**
-
-1. En el panel, haz clic en **■** de la columna `÷` en las filas **Nodo 1, Nodo 2 y Nodo 3**. Queda
-   una sola célula de división (`DIV-N4`).
-2. Trae al frente la **GUI-2** y espera unos 6 s. En "Disponibilidad (latidos)", la fila de División
-   pasa a "vivas: 1" con **✗** rojo, el botón `÷` queda gris y el mini log dice `DESHABILITADA`.
-3. En la GUI-2, teclea `8` y luego `/` en el teclado. La línea de estado dice en rojo "DIV no
-   disponible".
-4. Revisa que el retardo del panel esté en `0` y haz clic en **▶** de la columna `÷`, fila **Nodo
-   2**. Nace `DIV-N2b`, y la GUI-2 muestra al instante `HABILITADA … 2/2 (nueva: DIV-N2b · …)`.
-5. El `8` sigue en el display de la GUI-2. Haz clic en `÷` `2` `=`. Debe dar `4`.
-
-**Di esto.**
-
-> Cada servidor manda un latido cada dos segundos. Tumbo tres de las cuatro células de división. A
-> los seis segundos las GUIs las dan por muertas. Queda una y el mínimo de acuses es dos, así que la
-> división se deshabilita. Si intento dividir, me avisa en lugar de mandar una solicitud que no se
-> completaría. Levanto una célula nueva... y con su primer latido se habilita otra vez. Ocho entre
-> dos, cuatro. Esta es la otra diferencia con la clase, donde la disponibilidad se conocía solo por
-> los acuses. Con latidos la GUI lo sabe antes de pedir. Los acuses se conservan y también cuentan
-> como señal de vida.
-
----
-
-## Escena 10. Escalar, cerrar el panel y cierre (1:15)
-
-**Haz esto.**
-
-1. En el panel, haz clic en **▶** de la columna **Nodo**, fila **Nodo 1**. El Nodo 1 regresa con 3
-   vecinos.
-2. Haz clic en **"+ Nodo"**. Su ventana sale encima del Nodo 1. Señala **"Vecinos: 4"** y, en el
-   panel, su `--semillas` con un solo nodo.
-3. En la GUI-3, haz clic en `2` `+` `2` `=`. Señala en el tráfico del Nodo 5 un `FWD SUM_REQ` y tres
-   `DUP`.
-4. Cierra el panel con su **X**. Cuando pregunte "¿Detener también todos los procesos?", contesta
-   **No**. En la GUI-4, haz clic en `3` `×` `3` `=`. Debe dar `9`.
-5. Trae al frente la terminal de las pruebas (`Ran 106 tests in …s` y `OK`).
-
-**Di esto.**
-
-> El protocolo no depende del número de nodos. Regreso el Nodo 1, que vuelve solo a la malla, y
-> agrego un quinto nodo con una sola semilla. Al instante tiene cuatro vecinos, sin cambiar código
-> ni reiniciar a nadie. Dos más dos, y el Nodo 5 ya la procesa y descarta tres copias. Ahora cierro
-> el panel sin detener los procesos. Tres por tres, nueve. El sistema nunca dependió de él. Por
-> último, el proyecto tiene 106 pruebas automatizadas que levantan el sistema completo, y que
-> encontraron tres errores reales documentados en el reporte. En resumen, no hay componente
-> central, cada solicitud recibe una sola respuesta y nada es indispensable. Gracias.
+> Por último, lo más importante de ADS: nada central. Cierro el gestor. Tumbo una madre de
+> división y cierro también el panel, sin detener nada. Ya no queda ninguna herramienta abierta,
+> solo nodos, madres y GUIs. Y aun así las madres detectan la pérdida y la regeneran solas: la
+> división volvió a cinco. Nueve menos cuatro, cinco; ocho entre dos, cuatro. Este conteo sale de
+> las bitácoras de todas las madres: cada folio del video recibió exactamente una respuesta. Y
+> el proyecto tiene 201 pruebas automatizadas que levantan el sistema completo, en verde. En
+> resumen: los servicios son genes que se cargan, cambian y copian en caliente; cada operación
+> tiene folio, huella y evento; el sistema se cura solo sin crecer de más; y ninguna pieza es
+> indispensable. Gracias.
 
 ---
 
@@ -341,13 +397,14 @@ No cortes la grabación. Explica lo que pasó y corrígelo en cámara.
 
 | Qué pasó | Qué decir | Qué hacer |
 |---|---|---|
-| En la escena 6, la lenta no sale titular tras varias sumas | "Es al azar. El hash la elige una de cada cinco veces" | Sigue sumando. Revisa en el panel que `SUM-N3b` esté `vivo` |
-| Después de la escena 6, algunas sumas tardan ~2 s | "Es la célula lenta, y la está relevando un respaldo" | ■ en `+`, fila Nodo 3 (tumba `SUM-N3b`) |
-| `DIV-N2b` salió lenta (escena 9) | Nada | El retardo no estaba en 0. ■ en `÷`, fila Nodo 2, pon 0 y ▶ otra vez |
-| Una GUI dice `REINTENTO` o `FALLIDA` | "No llegó el quórum a tiempo. La GUI reintenta sola con el mismo id de operación" | Repite la operación |
-| En el panel, un nodo sale `terminado (1)` | "El puerto está ocupado por un proceso que quedó de antes" | Cierra todo, corre la limpieza de abajo y vuelve a levantar |
-| Cerraste por error la ventana de un nodo | "Esto es justo una caída real", y explica el failover | ▶ en la columna Nodo de esa fila |
-| Una ventana tapa lo que quieres mostrar | Nada | Clic en la barra de tareas, o la lupa (`Win` + `+`) para acercar |
+| Al abrir el gestor, el diagrama sale vacío o incompleto | "Arma la topología con los latidos; en dos segundos están todos" | Espera, o clic en **"Consultar topología (TOPO_REQ)"** |
+| "Distribuir" dice que no hay nada que distribuir | "Ya tienen sus genes" | Nada: sigue con la escena 3 |
+| Una GUI dice `REINTENTO` o `FALLIDA` | "No llegó el mínimo de acuses a tiempo; la GUI reintenta sola con el mismo folio" | Repite la operación |
+| Un operador sigue gris tras "Distribuir" | "Espera el primer latido de su madre" | Espera 2 s |
+| En la escena 8 o 9 tarda más de 15 s en aparecer el clonador | "Primero tiene que dar por muerta a la célula y esperar su turno" | Espera; no toques nada |
+| En el panel, un nodo sale `terminado (1)` | "El puerto está ocupado por un proceso de antes" | Cierra todo, corre la limpieza de abajo y vuelve a empezar |
+| Cerraste por error la ventana de un nodo o de una madre | "Esto es justo una caída real" | Si fue una madre, deja que se regenere; si fue un nodo, ▶ en su fila del panel |
+| Una ventana tapa lo que quieres mostrar | Nada | Clic en la barra de tareas, o la lupa (`Win` + `+`) |
 
 ---
 
@@ -355,30 +412,31 @@ No cortes la grabación. Explica lo que pasó y corrígelo en cámara.
 
 ### Limpieza
 
-Con el panel cerrado, los procesos siguen vivos. Para detenerlos todos:
+Con el panel cerrado, los procesos siguen vivos (también los reemplazos). Para detenerlos todos:
 
 ```powershell
-Get-CimInstance Win32_Process -Filter "Name='python.exe' OR Name='py.exe'" |
-  Where-Object CommandLine -match ' -m (nodo|servidor|interfaz|panel)( |$)' |
+Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
+  Where-Object CommandLine -match ' -m (nodo|madre|interfaz|gestor|panel|sonda)( |$)' |
   ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+Remove-Item run\*.json -ErrorAction SilentlyContinue
 ```
 
 ### Minutos
 
 Mira el video completo y anota en "Minutos por escena" el minuto en que empieza cada escena. Si una
-evidencia aparece bastante después del inicio de su escena, escribe su minuto en la columna "Minuto"
-de "Matriz del reporte". Si no, déjala vacía y se usa el de la escena.
+evidencia aparece bastante después del inicio de su escena, escribe su minuto en la columna
+"Minuto" de "Matriz del reporte"; si no, déjala vacía y se usa el de la escena.
 
 Después corre:
 
 ```powershell
-py docs/llenar_minutos.py --revisar   # muestra qué minuto va en cada fila, sin escribir
-py docs/llenar_minutos.py             # lo escribe en la columna "Video" del §2 del reporte
-py docs/md_a_docx.py                  # regenera el .docx
+uv run python docs/llenar_minutos.py --revisar   # muestra qué minuto va en cada fila, sin escribir
+uv run python docs/llenar_minutos.py             # lo escribe en la columna "Video" del §2 del reporte
+uv run python docs/md_a_docx.py                  # regenera el .docx
 ```
 
 El script revisa que las filas de "Matriz del reporte" coincidan con las de la matriz del reporte
-(mismo § y mismo requisito, en el mismo orden) y no escribe nada si falta un minuto. Lo puedes
+(mismo ID y mismo requisito, en el mismo orden) y no escribe nada si falta un minuto. Lo puedes
 volver a correr si corriges alguno.
 
 #### Minutos por escena
@@ -386,66 +444,77 @@ volver a correr si corriges alguno.
 | Escena | Título | Minuto |
 |---|---|---|
 | 1 | Qué cambió y con qué está hecho | `<mm:ss>` |
-| 2 | Los cuatro nodos y sus células | `<mm:ss>` |
-| 3 | Una operación de punta a punta | `<mm:ss>` |
-| 4 | Las cuatro operaciones | `<mm:ss>` |
-| 5 | Una sola respuesta por solicitud | `<mm:ss>` |
-| 6 | Titular lenta, relevo y respuesta suprimida | `<mm:ss>` |
-| 7 | Prevención de ciclos con la sonda | `<mm:ss>` |
-| 8 | Failover | `<mm:ss>` |
-| 9 | Disponibilidad por latidos | `<mm:ss>` |
-| 10 | Escalar, cerrar el panel y cierre | `<mm:ss>` |
+| 2 | Arranque: nodos, madres vacías y el gestor | `<mm:ss>` |
+| 3 | Una operación con folio, de punta a punta | `<mm:ss>` |
+| 4 | Solicitudes simultáneas | `<mm:ss>` |
+| 5 | Mínimo de ACK y una célula que no acusa | `<mm:ss>` |
+| 6 | Carga dinámica | `<mm:ss>` |
+| 7 | Baja y cambio de versión | `<mm:ss>` |
+| 8 | Falla y autorrecuperación | `<mm:ss>` |
+| 9 | Prevención del cáncer | `<mm:ss>` |
+| 10 | Cambio de topología | `<mm:ss>` |
+| 11 | Sin unidad central y cierre | `<mm:ss>` |
 
 #### Matriz del reporte
 
 Son las filas de la matriz de trazabilidad (§2 del reporte) que se demuestran en el video, en el
 mismo orden.
 
-| § | Requisito | Escena | Minuto |
+| ID | Requisito | Escena | Minuto |
 |---|---|---|---|
-| 1 | Cualquier lenguaje | 1 | |
-| 4 | Suma, resta, multiplicación y división vía Campo de Datos, broadcast y código | 4 | |
-| 5 | Célula cliente (GUI): captura, genera la solicitud, recibe la respuesta | 3 | |
-| 5 | Célula servidor configurable por servicio | 2 | |
-| 5 | Nodo: forma la malla, acepta conexiones, retransmite por broadcast | 2 | |
-| 6 | 4 nodos en malla completa | 2 | |
-| 6 | 5 células por nodo (20 en total) | 2 | |
-| 6 | Sin límite de nodos ni de células; sin cambiar el código | 10 | |
-| 7 | Toda solicitud y respuesta lleva Código de Contenido | 3 | |
-| 7 | La respuesta es un mensaje nuevo con el id de la solicitud original y el resultado | 3 | |
-| 9 | Broadcast por el Campo de Datos | 3 | |
-| 9 | Evitar múltiples respuestas no deseadas (estrategia documentada) | 5 | |
-| 9 | Respuestas difundidas con su código de respuesta | 3 | |
-| 10.1 | Conectar los nodos en malla | 2 | |
-| 10.1 | Conectar GUIs y servidores a cada nodo | 2 | |
-| 10.1 | Identificar el tipo de entidad y controlar las conexiones activas | 2 | |
-| 10.1 | Independiente del número de instancias | 10 | |
-| 10.2 | Broadcast entre nodos y células | 3 | |
-| 10.2 | Transporta los códigos de solicitud y de respuesta | 3 | |
-| 10.2 | Impide la circulación indefinida | 7 | |
-| 10.2 | Detecta mensajes ya recibidos | 7 | |
-| 10.2 | Asocia la respuesta con su solicitud | 3 | |
-| 11 | Registro **temporal** de ids procesados | 7 | |
-| 11 | No retransmitir un id repetido | 7 | |
-| 11 | La respuesta tiene id propio y conserva el de la solicitud | 3 | |
-| 11 | Estrategia contra respuestas duplicadas con varios servidores | 6 | |
-| 12 | Flujo general de 10 pasos | 3 | |
-| 14 | Nodos 1 a 4 ejecutándose en malla completa | 2 | |
-| 14 | Una GUI y un servidor de cada operación por nodo | 2 | |
-| 14 | Solicitudes y respuestas con Código de Contenido | 3 | |
-| 14 | Asociación correcta solicitud ↔ respuesta | 3 | |
-| 14 | Prevención de ciclos y de mensajes duplicados | 7 | |
-| 14 | Ejecución correcta de las 4 operaciones | 4 | |
-| 15 | Sin nodo central ni punto único de falla | 8 | |
-| 15 | Recorrido de los mensajes observable | 3 | |
+| B1 | Suma, resta, multiplicación y división | 4 | |
+| B2 | Tres programas base | 2 | |
+| B3 | 4 nodos en malla completa | 2 | |
+| B4 | Cuatro GUIs | 2 | |
+| B5 | Cuatro células por operación | 2 | |
+| B6 | Por nodo: una GUI y una célula de cada operación | 2 | |
+| B7 | Conexión entre nodos | 2 | |
+| B8 | Conexión entre células y nodos | 2 | |
+| B9 | Comunicación por Código de Contenido | 3 | |
+| B10 | Broadcast sin ciclado | 3 | |
+| B11 | Sin límite de nodos ni de células | 10 | |
+| B12 | Sin unidad central ni nodo maestro | 11 | |
+| F1 | Folio que correlaciona eventos, ACK y respuestas | 3 | |
+| F2 | La GUI reconoce sus respuestas | 3 | |
+| F3 | Folio + Código de Contenido para atender o ignorar | 3 | |
+| F4 | Huella (origen y trayectoria lógica) | 3 | |
+| F5 | ACK de recepción y participación | 3 | |
+| F6 | Mínimo de ACK | 5 | |
+| F7 | Tolerancia si no responden todas | 5 | |
+| F8 | Evento: inicio, confirmación, procesamiento y finalización | 3 | |
+| M1 | Microservicios en disco | 6 | |
+| M2 | Carga en memoria durante la ejecución | 6 | |
+| M3 | Programa base sin la lógica de las operaciones | 6 | |
+| M4 | Los genes cambian en operación mediante el gestor | 7 | |
+| A1 | Detectar la baja de disponibilidad | 8 | |
+| A2 | Las células deciden cuándo generar otra instancia | 8 | |
+| A3 | La nueva célula recupera sus genes | 8 | |
+| A4 | Sin controlador central | 8 | |
+| A5 | Detener la clonación al nivel requerido | 9 | |
+| A6 | Impedir la generación ilimitada (cáncer) | 9 | |
+| A7 | Una falla local no pierde el servicio | 8 | |
+| G1 | Arrancar sin microservicios | 2 | |
+| G2 | Alta de un servicio | 6 | |
+| G3 | Baja de un servicio | 7 | |
+| G4 | Modificar o sustituir un servicio | 7 | |
+| G5 | Usar la topología para decidir | 6 | |
+| G6 | Topología con nodos, células y servicios activos | 2 | |
+| G7 | No depender del gestor | 11 | |
+| G8 | Alta, baja y cambio se reflejan en la carga dinámica | 7 | |
+| P1 | Sin unidad central indispensable | 11 | |
+| P3 | Nodos y células flexibles | 10 | |
+| P4 | Protocolos con altas, bajas, fallas y nuevas instancias | 10 | |
+| P5 | La pérdida de una célula no es punto único de falla | 8 | |
+| P6 | Recuperación gradual y controlada | 9 | |
+| C1 | Esquema de la Figura 1 del enunciado | 2 | |
 
 ### Antes de subirlo
 
 - [ ] El audio se escucha durante todo el video, no solo al principio.
-- [ ] Las 10 escenas tienen su minuto y `py docs/llenar_minutos.py` corrió sin errores.
+- [ ] Las 11 escenas tienen su minuto y `uv run python docs/llenar_minutos.py` corrió sin errores.
 - [ ] El texto de las ventanas se lee al ver el video en pantalla completa.
 - [ ] No se ve información personal, contraseñas ni ventanas ajenas.
 - [ ] El video está subido con acceso para cualquiera con el enlace (YouTube como *no listado*, o
   Drive), y la liga abre en una ventana de incógnito.
 - [ ] La liga del video ya está en la portada del reporte (`<LIGA AL VIDEO>`) y el `.docx` se
-  regeneró.
+  regeneró (sigue en 30 páginas o menos).

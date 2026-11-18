@@ -9,12 +9,12 @@ import sys
 
 from comun.bitacora import preparar_consola
 from panel.gui import VentanaPanel
-from panel.procesos import Gestor
+from panel.procesos import Procesos
 
 
 def main() -> int:
     preparar_consola()
-    VentanaPanel(Gestor()).ejecutar()
+    VentanaPanel(Procesos()).ejecutar()
     return 0
 
 

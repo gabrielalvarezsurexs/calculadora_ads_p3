@@ -1,0 +1,26 @@
+{
+  "codigo": "SUB",
+  "version": "1.0",
+  "nombre": "Resta",
+  "archivo": "servicio.py",
+  "sha256": "aa90f363715d5aab95fd99389741b84e8d62c4ddc9603d844c94b46b4c9214fd",
+  "interfaz": 1,
+  "pruebas": [
+    [
+      10,
+      4,
+      6
+    ],
+    [
+      0,
+      5,
+      -5
+    ],
+    [
+      2.5,
+      0.5,
+      2
+    ]
+  ],
+  "descripcion": "Resta en punto flotante."
+}

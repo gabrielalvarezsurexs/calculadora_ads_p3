@@ -19,15 +19,22 @@ Lo que resuelve esta clase, para que el servidor y la GUI solo pongan su lógica
   descarta copias que pueden llegar repetidas después de un failover.
 * **Publicar sin conexión** devuelve None y se registra; ese mensaje se pierde
   y lo absorben los reintentos de la GUI.
+* **Latido** (``CEL_LAT``): al conectarse y cada ``LATIDO`` s, si la subclase
+  define ``cuerpo_latido``. Es la única forma en que los demás saben que una
+  célula vive y qué ofrece; nadie lleva un registro central.
+* **Consulta de topología** (``TOPO_REQ``): toda célula que late contesta con
+  ``TOPO_RES`` = su latido, para que un gestor no tenga que esperar al
+  siguiente. No hay a quién preguntarle la topología: se le pregunta a todos.
 
-Las subclases implementan ``procesar(m)`` y, si quieren, ``al_conectar`` y
-``al_desconectar``. ``procesar`` corre en el hilo lector del enlace.
+Las subclases implementan ``procesar(m)`` y, si quieren, ``al_conectar``,
+``al_desconectar``, ``cuerpo_latido`` y ``al_latir``. ``procesar`` corre en el
+hilo lector del enlace.
 """
 
 import socket
 import threading
 
-from comun import config, huella, mensajes
+from comun import codigos, config, hashes, mensajes
 from comun.bitacora import Bitacora
 from comun.protocolo import Enlace
 from comun.vistos import RegistroVistos
@@ -45,7 +52,7 @@ class Celula:
         self.entidad = entidad
         self.nombre = nombre
         self.servicio = servicio
-        self.hash = huella.de_entidad(entidad, nombre, servicio)
+        self.hash = hashes.de_entidad(entidad, nombre, servicio)
         self.bitacora = bitacora or Bitacora(nombre, self.hash)
         self.eventos = eventos
 
@@ -66,13 +73,16 @@ class Celula:
 
     def iniciar(self) -> None:
         self._activo.set()
-        self.log("INICIO", f"{self.entidad} {self.nombre} · {huella.corto(self.hash)}"
+        self.log("INICIO", f"{self.entidad} {self.nombre} · {hashes.corto(self.hash)}"
                            f"{' · ' + self.servicio if self.servicio else ''}"
                            f" · nodo inicial {self._ep_actual}")
         threading.Thread(target=self._mantener, name=f"{self.nombre}-conector",
                          daemon=True).start()
+        threading.Thread(target=self._latir_siempre, name=f"{self.nombre}-latido",
+                         daemon=True).start()
 
-    def detener(self) -> None:
+    def detener(self, *, vaciar: bool = False) -> None:
+        """``vaciar``: enviar primero lo ya publicado (p. ej. un ``CEL_ADIOS``)."""
         if not self._activo.is_set():
             return
         self._activo.clear()
@@ -81,8 +91,8 @@ class Celula:
         with self._lock:
             enlace = self._enlace
         if enlace is not None:
-            enlace.cerrar("célula detenida")
-        self.log("FIN", f"{self.nombre} detenida")
+            enlace.cerrar("célula detenida", vaciar=vaciar)
+        self.log("DETENIDA", f"{self.nombre} detenida")
 
     @property
     def activo(self) -> bool:
@@ -104,6 +114,44 @@ class Celula:
     def al_desconectar(self, motivo: str | None) -> None:
         """Se perdió el enlace con su nodo; el conector ya está buscando otro."""
 
+    def cuerpo_latido(self) -> dict | None:
+        """Lo que la célula anuncia en su ``CEL_LAT``. None: no late."""
+        return None
+
+    def al_latir(self) -> None:
+        """Tarea periódica de la subclase (cada ``LATIDO`` s, haya o no conexión)."""
+
+    # --------------------------------------------------------------- latido
+
+    def latir(self) -> dict | None:
+        """Publica ``CEL_LAT`` ya (p. ej. justo después de cargar un gen)."""
+        cuerpo = self.latido_completo()
+        if cuerpo is None or not self.conectado:
+            return None
+        return self.publicar(codigos.CEL_LAT, cuerpo)
+
+    def latido_completo(self) -> dict | None:
+        """``cuerpo_latido`` + el nodo al que está conectada ahora."""
+        cuerpo = self.cuerpo_latido()
+        if cuerpo is None:
+            return None
+        nodo = self.nodo_actual or {}
+        return {**cuerpo, "nodo": nodo.get("hash"), "nodo_nombre": nodo.get("nombre")}
+
+    def _contestar_topologia(self, m: dict) -> None:
+        cuerpo = self.latido_completo()
+        if cuerpo is not None:
+            self.publicar(codigos.TOPO_RES, {**cuerpo, "consulta": m["cuerpo"].get("consulta"),
+                                             "para": m["origen"]})
+
+    def _latir_siempre(self) -> None:
+        while not self._parar.wait(config.LATIDO):
+            try:
+                self.latir()
+                self.al_latir()
+            except Exception as e:
+                self.log("ERROR", f"latido: {e!r}")
+
     # ------------------------------------------------------------- publicar
 
     def publicar(self, codigo: str, cuerpo: dict, *, ttl: int | None = None) -> dict | None:
@@ -116,7 +164,7 @@ class Celula:
         if enlace is None or not enlace.enviar(m):
             self.contadores["perdidos"] += 1
             if codigo not in config.CODIGOS_SILENCIOSOS:
-                self.log("PERDIDO", f"{codigo} {huella.corto(m['id'])} no salió: "
+                self.log("PERDIDO", f"{codigo} {hashes.corto(m['id'])} no salió: "
                                     f"sin conexión al Campo de Datos")
             return None
         self.contadores["publicados"] += 1
@@ -216,11 +264,12 @@ class Celula:
         else:
             como, evento = FAILOVER, "FAILOVER"
         flecha = "→ " if como == FAILOVER else ""
-        self.log(evento, f"{flecha}{nodo['nombre']} ({huella.corto(nodo['hash'])}) en {ep}"
+        self.log(evento, f"{flecha}{nodo['nombre']} ({hashes.corto(nodo['hash'])}) en {ep}"
                          f" · candidatos: {', '.join(self.candidatos)}")
         self._emitir("conexion", {"estado": como, "nodo": nodo["nombre"], "endpoint": ep})
         try:
             self.al_conectar(dict(nodo), como)
+            self.latir()  # presentación inmediata: los demás la ven viva al instante
         except Exception as e:
             self.log("ERROR", f"al_conectar: {e!r}")
 
@@ -308,10 +357,13 @@ class Celula:
             return  # eco de algo que yo publiqué
         if not self.vistos.marcar_si_nuevo(m["id"]):
             self.contadores["duplicados"] += 1
-            self.log("DUP", f"{m['codigo']} {huella.corto(m['id'])} ya procesado; se descarta",
+            self.log("DUP", f"{m['codigo']} {hashes.corto(m['id'])} ya procesado; se descarta",
                      consola=m["codigo"] not in config.CODIGOS_SILENCIOSOS)
             return
         self.contadores["recibidos"] += 1
+        if m["codigo"] == codigos.TOPO_REQ:
+            self._contestar_topologia(m)
+            return
         self.procesar(m)
 
     # ------------------------------------------------------------- utilidades

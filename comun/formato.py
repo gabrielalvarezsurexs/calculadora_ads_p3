@@ -1,8 +1,9 @@
 """Presentación: cómo se escriben números y operaciones para un humano.
 
-Adaptado del primer parcial. Cambios: los flotantes se muestran con 12 cifras
-significativas (así 0.1 + 0.2 se ve como 0.3) y solo se muestran como entero
-si caben sin notación científica.
+Los flotantes se muestran **exactos** (``repr``: la representación más corta
+que vuelve al mismo número). Antes se redondeaban a 12 cifras, pero eso
+escondía justo lo que demuestra el gen ``SUM 2.0``: en ``SUM 1.0``,
+0.1 + 0.2 = 0.30000000000000004. Los enteros se muestran sin ``.0``.
 
 Este módulo no decide nada: solo formatea.
 """
@@ -11,7 +12,7 @@ from comun import codigos
 
 
 def numero(valor) -> str:
-    """7.0 -> '7'; 0.30000000000000004 -> '0.3'; 1e20 -> '1e+20'."""
+    """7.0 -> '7'; 0.1 + 0.2 -> '0.30000000000000004'; 1e20 -> '1e+20'."""
     if valor is None:
         return "?"
     if isinstance(valor, bool):
@@ -19,9 +20,9 @@ def numero(valor) -> str:
     if isinstance(valor, int):
         return str(valor)
     if isinstance(valor, float):
-        if valor.is_integer() and abs(valor) < 1e15:
+        if valor.is_integer() and abs(valor) < 1e16:
             return str(int(valor))
-        return format(valor, ".12g")
+        return repr(valor)
     return str(valor)
 
 

@@ -19,16 +19,21 @@ Sobre::
 import re
 import time
 
-from comun import config, huella
+from comun import config, hashes
 
 VERSION = 1
 
 # Tipos de entidad que se presentan ante un nodo.
 NODO = "NODO"
-INTERFAZ = "INTERFAZ"
-SERVIDOR = "SERVIDOR"
+INTERFAZ = "INTERFAZ"   # célula cliente (GUI de la calculadora)
+MADRE = "MADRE"         # célula madre: servidor genérico que carga genes
+GESTOR = "GESTOR"       # gestor de microservicios (herramienta administrativa)
 SONDA = "SONDA"
-ENTIDADES = (NODO, INTERFAZ, SERVIDOR, SONDA)
+ENTIDADES = (NODO, INTERFAZ, MADRE, GESTOR, SONDA)
+
+# El único dato que ORIGINA un nodo: su latido (para la topología del gestor).
+# Vive aquí y no en ``codigos`` porque el nodo no importa el catálogo.
+NODO_LAT = "NODO_LAT"
 
 # Mensajes de control.
 HOLA = "HOLA"
@@ -86,7 +91,7 @@ def nuevo(codigo: str, origen: str, tipo_origen: str, nombre_origen: str,
           cuerpo: dict, ttl: int | None = None) -> dict:
     """Sobre de datos recién creado, con id de mensaje propio."""
     return {
-        "id": huella.de_mensaje(origen),
+        "id": hashes.de_mensaje(origen),
         "codigo": codigo,
         "origen": origen,
         "tipo_origen": tipo_origen,

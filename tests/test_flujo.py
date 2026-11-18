@@ -1,23 +1,30 @@
-"""Sistema completo en proceso: 4 nodos, 16 servidores, 4 interfaces y una
-célula espía que cuenta los ACK y RES de cada operación (§5, §9, §11).
+"""Sistema completo en proceso: 4 nodos, 16 células madre (una por gen en cada
+nodo), 4 interfaces y una célula espía que cuenta los ACK, RES y FIN de cada
+folio (§5, §9, §11).
 
 Las aserciones de "exactamente un RES" esperan a que venzan TODOS los relevos
 posibles (``asentar``): si hubiera una respuesta de más, el espía la vería.
 
 Para provocar una titular lenta o muerta se usa un gancho en su bitácora: al
-registrar TITULAR para esa operación, se le pone retardo o se detiene. Es el
+registrar TITULAR para ese folio, se le pone retardo o se detiene. Es el
 mismo camino de código que ``--retardo-ms`` o que tumbar el proceso, pero sin
 depender de a quién le toque ser titular.
 """
 
+import itertools
+import operator
 import time
 import unittest
 from unittest import mock
 
-from comun import codigos, config, huella, mensajes
+from comun import codigos, config, foliado, hashes, mensajes, microservicios
 from interfaz.nucleo import EN_VUELO, FALLIDA, RESUELTA, Interfaz, Operacion
-from servidor import nucleo as srv
+from madre import rondas as rnd
 from tests.apoyo import Espia, Registro, Sistema, acortar, esperar
+
+OPERADORES = {"SUM": operator.add, "SUB": operator.sub, "MUL": operator.mul,
+              "DIV": operator.truediv}
+_numeros = itertools.count(1)   # folios del espía: únicos en toda la corrida
 
 
 def asentar() -> None:
@@ -36,27 +43,47 @@ class BaseFlujo(unittest.TestCase):
         assert esperar(lambda: cls.espia.conectado, 5)
 
     def operar(self, gui: Interfaz, servicio: str, a, b, plazo: float = 15.0) -> dict:
-        op, texto = gui.solicitar(servicio, a, b)
-        self.assertIsNotNone(op, texto)
-        self.assertTrue(esperar(lambda: gui.operacion(op)["estado"] != EN_VUELO, plazo))
-        return gui.operacion(op)
+        folio, texto = gui.solicitar(servicio, a, b)
+        self.assertIsNotNone(folio, texto)
+        self.assertTrue(esperar(lambda: gui.operacion(folio)["estado"] != EN_VUELO, plazo))
+        return gui.operacion(folio)
+
+    def finalizado(self, gui: Interfaz, folio: str, plazo: float = 5.0) -> dict:
+        self.assertTrue(esperar(lambda: gui.operacion(folio)["finalizado"], plazo))
+        return gui.operacion(folio)
 
     def servidores(self, servicio: str):
-        return [s for s in self.sis.servidores if s.servicio == servicio and s.activo]
+        return self.sis.con_gen(servicio)
 
     def reg(self, celula) -> Registro:
         return self.sis.registros[celula.nombre]
 
-    def contar(self, servicio: str, evento: str, op: str) -> int:
-        return sum(self.reg(s).contar(evento, f"op {huella.corto(op)}")
-                   for s in self.sis.servidores if s.servicio == servicio)
+    def contar(self, servicio: str, evento: str, folio: str) -> int:
+        return sum(self.reg(s).contar(evento, folio)
+                   for s in self.sis.madres if s.nombre.startswith(f"{servicio}-"))
 
-    def afirmar_un_res(self, op: str, intento: int | None = None) -> dict:
-        res = self.espia.respuestas(op)
+    def afirmar_un_res(self, folio: str, intento: int | None = None) -> dict:
+        res = self.espia.respuestas(folio)
         self.assertEqual(len(res), 1, [(m["nombre_origen"], m["cuerpo"]) for m in res])
         if intento is not None:
             self.assertEqual(res[0]["cuerpo"]["intento"], intento)
         return res[0]
+
+    # ------------------------------------------------ mensajes a mano (espía)
+
+    def nuevo_folio(self) -> str:
+        return foliado.folio(self.espia.hash, next(_numeros))
+
+    def publicar(self, servicio: str, tipo: str, folio: str, intento: int, *,
+                 huella: dict | None = None, **extra) -> dict:
+        """Publica como el espía. Un REQ lleva una huella válida salvo que se dé otra."""
+        cuerpo = {"folio": folio, "intento": intento, **extra}
+        if tipo == codigos.REQ:
+            cuerpo["huella"] = huella or foliado.huella(self.espia.hash, None, folio, servicio,
+                                                        extra["a"], extra["b"], "ESPIA")
+        m = self.espia.publicar(codigos.codigo(servicio, tipo), cuerpo)
+        self.assertIsNotNone(m)
+        return m
 
 
 class TestFlujo(BaseFlujo):
@@ -68,44 +95,68 @@ class TestFlujo(BaseFlujo):
 
     # ----------------------------------------------------- operaciones normales
 
-    def test_cuatro_operaciones_un_solo_res(self):
+    def test_cuatro_operaciones_un_solo_res_y_evento_completo(self):
         casos = [("SUM", 7, 5, 12), ("SUB", 10, 4, 6), ("MUL", 6, 7, 42), ("DIV", 7, 2, 3.5)]
-        ids = []
+        folios = []
         for gui, (s, a, b, _) in zip(self.sis.guis, casos, strict=True):
-            op, texto = gui.solicitar(s, a, b)  # las cuatro a la vez, una por GUI
-            self.assertIsNotNone(op, texto)
-            ids.append(op)
-        self.assertTrue(esperar(lambda: all(g.operacion(op)["estado"] != EN_VUELO
-                                            for g, op in zip(self.sis.guis, ids, strict=True)), 15))
+            folio, texto = gui.solicitar(s, a, b)  # las cuatro a la vez, una por GUI
+            self.assertIsNotNone(folio, texto)
+            self.assertTrue(foliado.es_folio(folio))
+            self.assertTrue(folio.startswith(f"F-{hashes.corto(gui.hash)}-"))
+            folios.append(folio)
+        self.assertTrue(esperar(lambda: all(g.operacion(f)["finalizado"]
+                                            for g, f in zip(self.sis.guis, folios, strict=True)),
+                                15))
         asentar()
-        for gui, op, (s, a, b, esperado) in zip(self.sis.guis, ids, casos, strict=True):
+        for gui, folio, (s, a, b, esperado) in zip(self.sis.guis, folios, casos, strict=True):
             with self.subTest(gui=gui.nombre, servicio=s):
-                fila = gui.operacion(op)
+                fila = gui.operacion(folio)
                 self.assertEqual(fila["estado"], RESUELTA)
+                self.assertEqual(fila["fase"], foliado.FINALIZADO)
                 self.assertEqual(fila["resultado"], esperado)
                 self.assertIsNone(fila["error"])
-                self.assertGreaterEqual(fila["acuses"], config.ACUSES_MIN_DEFECTO)
-                self.assertEqual(len(self.espia.acusadores(op)), 4, "acusan las 4 células")
-                res = self.afirmar_un_res(op, 1)
+                self.assertEqual(fila["gen"], f"{s}@1.0")
+                self.assertEqual(fila["acuses"], 4)
+                self.assertEqual(sorted(fila["esperados"]), sorted(fila["acusaron"]))
+                self.assertEqual(fila["ausentes"], [])
+                self.assertEqual(len(self.espia.acusadores(folio)), 4, "acusan las 4 células")
+                res = self.afirmar_un_res(folio, 1)
                 # Asociación solicitud ↔ respuesta (§10.2, §11).
                 self.assertEqual(fila["id_respuesta"], res["id"])
                 self.assertEqual(fila["id_solicitud"], res["cuerpo"]["id_solicitud"])
                 self.assertNotEqual(fila["id_respuesta"], fila["id_solicitud"])
                 self.assertEqual(fila["rol"], "titular")
+                # Huella: el sello de la GUI viaja intacto; el rastro cuenta la historia.
+                self.assertEqual(res["cuerpo"]["huella"]["sello"], fila["sello"])
+                self.assertEqual(res["cuerpo"]["huella"]["origen"], gui.hash)
+                pasos = [p[2] for p in fila["rastro"]]
+                self.assertEqual(fila["rastro"][0], [hashes.corto(gui.hash), gui.nombre, "REQ"])
+                self.assertEqual(pasos[-2:], ["RES", "FIN"])
+                self.assertGreaterEqual(pasos.count("ACK"), config.ACUSES_MIN_DEFECTO)
+                self.assertEqual(fila["rastro"][-2][1], res["nombre_origen"])
+                # X_FIN: uno por folio, y cada madre del gen cierra sus rondas.
+                fines = self.espia.fines(folio)
+                self.assertEqual(len(fines), 1)
+                self.assertEqual(fines[0]["cuerpo"]["estado"], RESUELTA)
+                self.assertEqual(fines[0]["cuerpo"]["id_respuesta"], res["id"])
+                self.assertEqual(self.contar(s, "FIN", folio), 4)
+                for m in self.servidores(s):
+                    self.assertIn(m.rondas.tabla[(s, folio, 1)].estado, rnd.TERMINADAS)
                 # En las bitácoras: 1 TITULAR, 3 respaldos que se liberan o se retiran.
-                self.assertEqual(self.contar(s, "TITULAR", op), 1)
-                self.assertEqual(self.contar(s, "LIBERADO", op) + self.contar(s, "RETIRADA", op),
-                                 3)
-                self.assertEqual(self.contar(s, "ACUSE", op), 4)
-                self.assertEqual(self.contar(s, "RES", op), 1)
-                # Las otras GUIs no registran la operación ajena.
+                self.assertEqual(self.contar(s, "TITULAR", folio), 1)
+                self.assertEqual(self.contar(s, "LIBERADO", folio)
+                                 + self.contar(s, "RETIRADA", folio), 3)
+                self.assertEqual(self.contar(s, "ACUSE", folio), 4)
+                self.assertEqual(self.contar(s, "RES", folio), 1)
+                # Las otras GUIs no registran el folio ajeno.
                 for otra in self.sis.guis:
                     if otra is not gui:
-                        self.assertIsNone(otra.operacion(op), otra.nombre)
+                        self.assertIsNone(otra.operacion(folio), otra.nombre)
         for gui in self.sis.guis:
-            self.assertGreater(self.reg(gui).contar("IGNORA", "no es para una GUI"), 0,
+            self.assertGreater(self.reg(gui).contar("IGNORA", "evento de otra GUI"), 0,
                                f"{gui.nombre} ve los REQ ajenos y los ignora")
-            self.assertGreater(self.reg(gui).contar("IGNORA", "operación ajena"), 0)
+            self.assertGreater(self.reg(gui).contar("IGNORA", "folio ajeno"), 0)
+            self.assertGreater(gui.ajenas, 0)
 
     def test_division_entre_cero(self):
         fila = self.operar(self.sis.guis[1], "DIV", 1, 0)
@@ -113,12 +164,36 @@ class TestFlujo(BaseFlujo):
         self.assertIsNone(fila["resultado"])
         self.assertEqual(fila["error"], "división entre cero")
         asentar()
-        res = self.afirmar_un_res(fila["id"])
+        res = self.afirmar_un_res(fila["folio"])
         self.assertEqual(res["cuerpo"]["error"], "división entre cero")
 
     def test_flotantes_y_negativos(self):
         fila = self.operar(self.sis.guis[2], "SUM", 0.1, -0.3)
         self.assertAlmostEqual(fila["resultado"], -0.2)
+
+    def test_rafagas_simultaneas_un_res_por_folio(self):
+        """Escenario 2: dos GUIs con varias operaciones en vuelo a la vez."""
+        g1, g2 = self.sis.guis[0], self.sis.guis[1]
+        folios = {g1: g1.rafaga(8, semilla=1), g2: g2.rafaga(8, semilla=2)}
+        for gui, propios in folios.items():
+            self.assertEqual(len(propios), 8)
+            self.assertEqual(len(set(propios)), 8)
+        self.assertGreater(len(g1.en_vuelo()) + len(g2.en_vuelo()), 1,
+                           "hubo varias operaciones en vuelo a la vez")
+        self.assertTrue(esperar(lambda: all(g.operacion(f)["finalizado"]
+                                            for g, fs in folios.items() for f in fs), 20))
+        asentar()
+        for gui, propios in folios.items():
+            otra = g2 if gui is g1 else g1
+            for folio in propios:
+                with self.subTest(gui=gui.nombre, folio=folio):
+                    fila = gui.operacion(folio)
+                    self.assertEqual(fila["estado"], RESUELTA)
+                    esperado = OPERADORES[fila["servicio"]](fila["a"], fila["b"])
+                    self.assertEqual(fila["resultado"], esperado)
+                    self.afirmar_un_res(folio)
+                    self.assertEqual(len(self.espia.fines(folio)), 1)
+                    self.assertIsNone(otra.operacion(folio))
 
     # -------------------------------------------------------- respuesta única
 
@@ -126,29 +201,30 @@ class TestFlujo(BaseFlujo):
         gui = self.sis.guis[0]
         lentas = []
 
-        def gancho(s, op8):
+        def gancho(s, folio):
             def f(evento, texto):
-                if evento == "TITULAR" and f"op {op8}" in texto:
+                if evento == "TITULAR" and folio in texto:
                     s.retardo_ms = int((config.RELEVO * 2 + 1) * 1000)
                     lentas.append(s)
             return f
 
-        op, _ = gui.solicitar("MUL", 9, 9)
-        self.assertIsNotNone(op)
+        folio, _ = gui.solicitar("MUL", 9, 9)
+        self.assertIsNotNone(folio)
         mul = self.servidores("MUL")
         for s in mul:
-            self.reg(s).ganchos.append(gancho(s, huella.corto(op)))
+            self.reg(s).ganchos.append(gancho(s, folio))
         try:
-            self.assertTrue(esperar(lambda: gui.operacion(op)["estado"] != EN_VUELO, 15))
-            fila = gui.operacion(op)
+            self.assertTrue(esperar(lambda: gui.operacion(folio)["estado"] != EN_VUELO, 15))
+            fila = gui.operacion(folio)
             self.assertEqual(fila["estado"], RESUELTA)
             self.assertEqual(fila["resultado"], 81)
             self.assertEqual(fila["rol"], "relevo 1")
             time.sleep(config.RELEVO * 2 + 1.5)  # que la lenta termine de calcular
-            self.afirmar_un_res(op)
+            self.afirmar_un_res(folio)
             self.assertEqual(len(lentas), 1)
-            self.assertEqual(self.reg(lentas[0]).contar("SUPRIMIDA", f"op {huella.corto(op)}"), 1)
-            self.assertEqual(self.contar("MUL", "RELEVO", op), 1)
+            # La lenta suprime su respuesta: la ronda ya estaba resuelta (o cerrada por el FIN).
+            self.assertEqual(self.reg(lentas[0]).contar("SUPRIMIDA", folio), 1)
+            self.assertEqual(self.contar("MUL", "RELEVO", folio), 1)
         finally:
             for s in mul:
                 self.reg(s).ganchos.clear()
@@ -156,50 +232,41 @@ class TestFlujo(BaseFlujo):
 
     # --------------------------------------------- rondas inyectadas a mano
 
-    def publicar(self, servicio: str, tipo: str, op: str, intento: int, **extra) -> dict:
-        m = self.espia.publicar(codigos.codigo(servicio, tipo),
-                                {"id_operacion": op, "intento": intento, **extra})
-        self.assertIsNotNone(m)
-        return m
-
-    def nueva_op(self, servicio: str) -> str:
-        return huella.de_operacion(self.espia.hash, servicio, 0, 0)
-
-    def test_reintento_mismo_id_operacion_atendido(self):
+    def test_reintento_mismo_folio_atendido(self):
         """Regla ≤ k: el RES del intento 1 NO resuelve el intento 2. Un
         reintento significa que esa GUI no recibió la respuesta."""
-        op = self.nueva_op("SUB")
-        self.publicar("SUB", codigos.REQ, op, 1, a=5, b=3)
-        self.assertTrue(esperar(lambda: len(self.espia.respuestas(op)) == 1, 10))
-        self.publicar("SUB", codigos.REQ, op, 2, a=5, b=3)
-        self.assertTrue(esperar(lambda: len(self.espia.respuestas(op)) == 2, 10))
+        folio = self.nuevo_folio()
+        self.publicar("SUB", codigos.REQ, folio, 1, a=5, b=3)
+        self.assertTrue(esperar(lambda: len(self.espia.respuestas(folio)) == 1, 10))
+        self.publicar("SUB", codigos.REQ, folio, 2, a=5, b=3)
+        self.assertTrue(esperar(lambda: len(self.espia.respuestas(folio)) == 2, 10))
         asentar()
-        res = self.espia.respuestas(op)
+        res = self.espia.respuestas(folio)
         self.assertEqual([m["cuerpo"]["intento"] for m in res], [1, 2])
         self.assertEqual([m["cuerpo"]["resultado"] for m in res], [2, 2])
 
     def test_req_repetido_de_una_ronda_resuelta_no_responde(self):
-        op = self.nueva_op("SUB")
-        self.publicar("SUB", codigos.REQ, op, 1, a=1, b=1)
-        self.assertTrue(esperar(lambda: len(self.espia.respuestas(op)) == 1, 10))
-        self.publicar("SUB", codigos.REQ, op, 1, a=1, b=1)  # otra copia con id nuevo
+        folio = self.nuevo_folio()
+        self.publicar("SUB", codigos.REQ, folio, 1, a=1, b=1)
+        self.assertTrue(esperar(lambda: len(self.espia.respuestas(folio)) == 1, 10))
+        self.publicar("SUB", codigos.REQ, folio, 1, a=1, b=1)  # otra copia con id nuevo
         asentar()
-        self.afirmar_un_res(op, 1)
-        repetidos = sum(self.reg(s).contar("RX", f"op {huella.corto(op)} · intento 1 repetido")
+        self.afirmar_un_res(folio, 1)
+        repetidos = sum(self.reg(s).contar("RX", f"{folio} · intento 1 repetido")
                         for s in self.servidores("SUB"))
         self.assertEqual(repetidos, 4, "cada SUB lo reconoce como repetido y no vuelve a acusar")
 
     def test_ronda_vieja_superada_sin_respuesta_extra(self):
         """El reintento llega mientras la ronda 1 sigue en cola: la 1 queda
         superada y solo responde la 2."""
-        op = self.nueva_op("DIV")
-        self.publicar("DIV", codigos.REQ, op, 1, a=8, b=2)
-        self.publicar("DIV", codigos.REQ, op, 2, a=8, b=2)
-        self.assertTrue(esperar(lambda: self.espia.respuestas(op), 10))
+        folio = self.nuevo_folio()
+        self.publicar("DIV", codigos.REQ, folio, 1, a=8, b=2)
+        self.publicar("DIV", codigos.REQ, folio, 2, a=8, b=2)
+        self.assertTrue(esperar(lambda: self.espia.respuestas(folio), 10))
         asentar()
-        res = self.afirmar_un_res(op, 2)
+        res = self.afirmar_un_res(folio, 2)
         self.assertEqual(res["cuerpo"]["resultado"], 4)
-        self.assertEqual(self.contar("DIV", "SUPERADA", op), 4)
+        self.assertEqual(self.contar("DIV", "SUPERADA", folio), 4)
 
     def test_req_viejo_que_llega_despues_del_nuevo(self):
         """Desorden en la malla: el REQ del intento 2 llega antes que el del 1.
@@ -207,48 +274,98 @@ class TestFlujo(BaseFlujo):
 
         Sin la regla, el RES de más dependía de una carrera de milisegundos (se
         vio en 1 de 6 operaciones); por eso, además de contar respuestas, se
-        exige que cada servidor marque el REQ tardío como SUPERADA."""
-        ops = [self.nueva_op("DIV") for _ in range(6)]
-        for op in ops:
-            self.publicar("DIV", codigos.REQ, op, 2, a=9, b=3)
-            self.publicar("DIV", codigos.REQ, op, 1, a=9, b=3)
-        self.assertTrue(esperar(lambda: all(self.espia.respuestas(op) for op in ops), 15))
+        exige que cada madre marque el REQ tardío como SUPERADA."""
+        folios = [self.nuevo_folio() for _ in range(6)]
+        for folio in folios:
+            self.publicar("DIV", codigos.REQ, folio, 2, a=9, b=3)
+            self.publicar("DIV", codigos.REQ, folio, 1, a=9, b=3)
+        self.assertTrue(esperar(lambda: all(self.espia.respuestas(f) for f in folios), 15))
         asentar()
-        for op in ops:
-            with self.subTest(op=huella.corto(op)):
-                self.afirmar_un_res(op, 2)
-                self.assertEqual(self.contar("DIV", "SUPERADA", op), 4)
-                self.assertEqual(self.contar("DIV", "TITULAR", op), 1)
-                self.assertEqual(len(self.espia.acusadores(op, 1)), 0, "el tardío no se acusa")
+        for folio in folios:
+            with self.subTest(folio=folio):
+                self.afirmar_un_res(folio, 2)
+                self.assertEqual(self.contar("DIV", "SUPERADA", folio), 4)
+                self.assertEqual(self.contar("DIV", "TITULAR", folio), 1)
+                self.assertEqual(len(self.espia.acusadores(folio, 1)), 0, "el tardío no se acusa")
 
     def test_ack_antes_del_req_ranking_correcto(self):
         """El ACK llega antes que el REQ (viajan por caminos distintos): se crea
         una ronda esqueleto que el REQ completa. El acusador "fantasma" entra al
-        ranking; se elige una operación donde le toca rank 0, así que la titular
+        ranking; se elige un folio donde le toca rank 0, así que la titular
         nunca responde y lo hace el rank 1 con su relevo."""
         sumas = {s.hash: s for s in self.servidores("SUM")}
         while True:
-            op = self.nueva_op("SUM")
-            orden = huella.ranking({self.espia.hash, *sumas}, op, 1)
+            folio = self.nuevo_folio()
+            orden = hashes.ranking({self.espia.hash, *sumas}, folio, 1)
             if orden[0] == self.espia.hash:
                 break
-        self.publicar("SUM", codigos.ACK, op, 1)
+        self.publicar("SUM", codigos.ACK, folio, 1)
         self.assertTrue(esperar(lambda: all(
-            (op, 1) in s.rondas and s.rondas[(op, 1)].estado == srv.ESQUELETO
+            ("SUM", folio, 1) in s.rondas.tabla
+            and s.rondas.tabla[("SUM", folio, 1)].estado == rnd.ESQUELETO
             for s in sumas.values()), 5))
         for s in sumas.values():
-            self.assertEqual(s.rondas[(op, 1)].acusadores, {self.espia.hash})
+            self.assertEqual(s.rondas.tabla[("SUM", folio, 1)].acusadores, {self.espia.hash})
             self.assertEqual(self.reg(s).contar("RX", "ronda esqueleto"), 1)
-        self.publicar("SUM", codigos.REQ, op, 1, a=2, b=3)
-        self.assertTrue(esperar(lambda: self.espia.respuestas(op), 10))
+        self.publicar("SUM", codigos.REQ, folio, 1, a=2, b=3)
+        self.assertTrue(esperar(lambda: self.espia.respuestas(folio), 10))
         asentar()
-        res = self.afirmar_un_res(op, 1)
+        res = self.afirmar_un_res(folio, 1)
         self.assertEqual(res["origen"], orden[1])
         self.assertEqual(res["cuerpo"]["rol"], "relevo 1")
         self.assertEqual(res["cuerpo"]["resultado"], 5)
         for s in sumas.values():
-            self.assertIn("de 5 [", " ".join(self.reg(s).eventos("RESPALDO", huella.corto(op))
-                                              + self.reg(s).eventos("TITULAR", huella.corto(op))))
+            self.assertIn("de 5 [", " ".join(self.reg(s).eventos("RESPALDO", folio)
+                                              + self.reg(s).eventos("TITULAR", folio)))
+
+    # ------------------------------------------------------------- foliado
+
+    def test_huella_invalida_no_se_acusa(self):
+        """Regla 2 de atención: sello que no cuadra con los datos, o huella a
+        nombre de otra GUI → ``DROP huella inválida`` y ni un acuse."""
+        alterado = self.nuevo_folio()
+        huella = foliado.huella(self.espia.hash, None, alterado, "MUL", 2, 2, "ESPIA")
+        self.publicar("MUL", codigos.REQ, alterado, 1, a=2, b=3, huella=huella)  # b cambió
+        suplantado = self.nuevo_folio()
+        gui = self.sis.guis[0]
+        ajena = foliado.huella(gui.hash, None, suplantado, "MUL", 2, 2, gui.nombre)
+        self.publicar("MUL", codigos.REQ, suplantado, 1, a=2, b=2, huella=ajena)
+        sin_huella = self.nuevo_folio()
+        self.espia.publicar("MUL_REQ", {"folio": sin_huella, "intento": 1, "a": 1, "b": 1})
+        time.sleep(config.VENTANA_ELECCION + 1.0)
+        for folio, motivo in ((alterado, "no coincide"), (suplantado, "origen"),
+                              (sin_huella, "sin huella")):
+            with self.subTest(motivo=motivo):
+                self.assertEqual(self.espia.acusadores(folio), set())
+                self.assertEqual(self.espia.respuestas(folio), [])
+                self.assertEqual(self.contar("MUL", "DROP", folio), 4)
+                for m in self.servidores("MUL"):
+                    self.assertIn(motivo, " ".join(self.reg(m).eventos("DROP", folio)))
+        self.assertTrue(all(m.rondas.invalidas >= 3 for m in self.servidores("MUL")))
+
+    def test_fin_cierra_las_rondas_del_folio(self):
+        """Un ``X_FIN`` que llega antes de la elección cierra todo: nadie
+        responde, y una copia tardía del REQ ya no se acusa."""
+        folio = self.nuevo_folio()
+        self.publicar("SUB", codigos.REQ, folio, 1, a=9, b=1)
+        self.publicar("SUB", codigos.FIN, folio, 1, estado=FALLIDA)
+        asentar()
+        self.assertEqual(self.espia.respuestas(folio), [])
+        self.assertEqual(self.contar("SUB", "FIN", folio), 4)
+        # Lo normal es RETIRADA (el FIN llegó antes de la elección); si en alguna madre el
+        # FIN se adelantó al REQ por otro camino de la malla, ni siquiera acusa.
+        self.assertEqual(self.contar("SUB", "RETIRADA", folio)
+                         + self.contar("SUB", "RX", f"{folio} · intento 1 de ESPIA: ya está "
+                                                    f"cerrada"), 4)
+        for m in self.servidores("SUB"):
+            self.assertEqual(m.rondas.tabla[("SUB", folio, 1)].estado, rnd.CERRADA)
+            self.assertIsNone(m.rondas.tabla[("SUB", folio, 1)].gen, "la ronda soltó el gen")
+        self.publicar("SUB", codigos.REQ, folio, 2, a=9, b=1)
+        time.sleep(config.VENTANA_ELECCION + 0.5)
+        self.assertEqual(self.espia.acusadores(folio, 2), set())
+        self.assertEqual(sum(self.reg(m).contar("RX", f"{folio} · intento 2 de ESPIA: ya está "
+                                                      f"cerrada")
+                             for m in self.servidores("SUB")), 4)
 
 
 class TestFallas(BaseFlujo):
@@ -266,31 +383,60 @@ class TestFallas(BaseFlujo):
         gui = self.sis.guis[2]
         muertas = []
 
-        def gancho(s, op8):
+        def gancho(s, folio):
             def f(evento, texto):
-                if evento == "TITULAR" and f"op {op8}" in texto:
+                if evento == "TITULAR" and folio in texto:
                     muertas.append(s)
-                    s.detener()  # ya acusó; muere antes de publicar su RES
+                    s.tumbar()  # ya acusó; muere antes de publicar su RES
             return f
 
-        op, _ = gui.solicitar("MUL", 3, 4)
-        self.assertIsNotNone(op)
+        folio, _ = gui.solicitar("MUL", 3, 4)
+        self.assertIsNotNone(folio)
         for s in self.servidores("MUL"):
-            self.reg(s).ganchos.append(gancho(s, huella.corto(op)))
-        self.assertTrue(esperar(lambda: gui.operacion(op)["estado"] != EN_VUELO, 15))
-        fila = gui.operacion(op)
+            self.reg(s).ganchos.append(gancho(s, folio))
+        self.assertTrue(esperar(lambda: gui.operacion(folio)["estado"] != EN_VUELO, 15))
+        fila = gui.operacion(folio)
         self.assertEqual((fila["estado"], fila["resultado"]), (RESUELTA, 12))
         self.assertEqual(fila["rol"], "relevo 1")
         asentar()
-        self.afirmar_un_res(op)
+        self.afirmar_un_res(folio)
         self.assertEqual(len(muertas), 1)
-        self.assertEqual(self.reg(muertas[0]).contar("PERDIDO"), 1, "la titular no alcanzó a responder")
-        self.assertNotEqual(self.espia.respuestas(op)[0]["origen"], muertas[0].hash)
+        self.assertEqual(self.reg(muertas[0]).contar("PERDIDO"), 1,
+                         "la titular no alcanzó a responder")
+        self.assertNotEqual(self.espia.respuestas(folio)[0]["origen"], muertas[0].hash)
+
+    def test_madre_muda_sale_en_ausentes_y_el_evento_sigue(self):
+        """Escenario 3: una madre esperada no acusa. Con el mínimo alcanzado el
+        evento termina (tolerancia) y la muda queda en AUSENTES; si el mínimo
+        exige a todas, el evento falla y el FIN lo dice."""
+        self.sis.madre(self.sis.nodos[0], "SUM-N1m", ["SUM@1.0"], mudo=True)
+        gui = self.sis.guis[0]
+        self.assertTrue(esperar(lambda: gui.disponibilidad()["SUM"]["vivas"] == 5, 5))
+        fila = self.operar(gui, "SUM", 2, 2)
+        self.assertEqual((fila["estado"], fila["resultado"]), (RESUELTA, 4))
+        fila = self.finalizado(gui, fila["folio"])
+        self.assertEqual(len(fila["esperados"]), 5)
+        self.assertEqual(fila["acuses"], 4)
+        self.assertEqual(fila["ausentes"], ["SUM-N1m"])
+        self.assertEqual(self.reg(gui).contar("AUSENTES", "tolerancia"), 1)
+        self.assertTrue(esperar(lambda: self.espia.fines(fila["folio"]), 3))
+        self.assertEqual(self.espia.fines(fila["folio"])[0]["cuerpo"]["ausentes"], ["SUM-N1m"])
+
+        gui.ajustar_minimo("SUM", 5)   # ahora hacen falta las cinco: nunca se confirma
+        fila = self.operar(gui, "SUM", 3, 3)
+        self.assertEqual(fila["estado"], FALLIDA)
+        self.assertIn("acuses insuficientes (4/5)", fila["motivo"])
+        self.assertEqual(fila["intento"], config.MAX_INTENTOS)
+        self.assertTrue(fila["finalizado"])
+        self.assertTrue(esperar(lambda: self.espia.fines(fila["folio"]), 3))
+        fin = self.espia.fines(fila["folio"])[0]["cuerpo"]
+        self.assertEqual((fin["estado"], fin["ausentes"]), (FALLIDA, ["SUM-N1m"]))
+        self.assertTrue(esperar(lambda: self.contar("SUM", "FIN", fila["folio"]) == 4, 3))
 
     def test_tres_sum_tumbadas_deshabilita_y_una_nueva_habilita(self):
         sumas = self.servidores("SUM")
         for s in sumas[:3]:
-            s.detener()
+            s.tumbar()
         guis = self.sis.guis
         self.assertTrue(esperar(lambda: not any(g.habilitadas["SUM"] for g in guis),
                                 config.LATIDO_CADUCIDAD + 3))
@@ -298,18 +444,18 @@ class TestFallas(BaseFlujo):
             self.assertEqual(g.disponibilidad()["SUM"]["vivas"], 1)
             self.assertTrue(all(g.habilitadas[s] for s in ("SUB", "MUL", "DIV")))
             self.assertEqual(self.reg(g).contar("DESHABILITADA", "SUM"), 1)
-        op, texto = guis[0].solicitar("SUM", 1, 1)
-        self.assertIsNone(op)
+        folio, texto = guis[0].solicitar("SUM", 1, 1)
+        self.assertIsNone(folio)
         self.assertIn("no disponible", texto)
 
-        self.sis.servidor("SUM", self.sis.nodos[0], "SUM-NUEVA")
+        self.sis.madre(self.sis.nodos[0], "SUM-NUEVA", ["SUM@1.0"])
         self.assertTrue(esperar(lambda: all(g.habilitadas["SUM"] for g in guis), 5))
         for g in guis:
             self.assertEqual(self.reg(g).contar("HABILITADA", "SUM-NUEVA"), 1)
         fila = self.operar(guis[0], "SUM", 1, 1)
         self.assertEqual((fila["estado"], fila["resultado"]), (RESUELTA, 2))
         asentar()
-        self.afirmar_un_res(fila["id"])
+        self.afirmar_un_res(fila["folio"])
 
     def test_nodo_tumbado_failover_y_el_servicio_sigue(self):
         # Caducidad real (6 s): el failover (~3 s) debe completarse sin que ninguna
@@ -319,8 +465,8 @@ class TestFallas(BaseFlujo):
         self.addCleanup(parche.stop)
         n1 = self.sis.nodos[0]
         del1 = [c for c in self.sis.celulas if c.nodo_actual and c.nodo_actual["hash"] == n1.hash]
-        self.assertEqual(len(del1), 5, "1 GUI + 4 servidores en el Nodo 1")
-        hashes = {c.hash for c in del1}
+        self.assertEqual(len(del1), 5, "1 GUI + 4 madres en el Nodo 1")
+        propios = {c.hash for c in del1}
         n1.detener()
 
         def migradas():
@@ -332,7 +478,7 @@ class TestFallas(BaseFlujo):
         en_tablas = set()
         for n in self.sis.nodos[1:]:
             en_tablas |= set(n.celulas)
-        self.assertLessEqual(hashes, en_tablas)
+        self.assertLessEqual(propios, en_tablas)
 
         gui1 = self.sis.guis[0]
         for g in self.sis.guis:
@@ -342,7 +488,63 @@ class TestFallas(BaseFlujo):
             fila = self.operar(gui1, s, a, b)
             self.assertEqual((fila["estado"], fila["resultado"]), (RESUELTA, r))
         asentar()
-        self.afirmar_un_res(fila["id"])
+        self.afirmar_un_res(fila["folio"])
+        # La huella dice por qué nodo entró ahora la GUI (ya no el Nodo 1).
+        self.assertEqual(self.espia.respuestas(fila["folio"])[0]["cuerpo"]["huella"]["nodo"],
+                         gui1.nodo_actual["hash"])
+
+
+class TestGenesEnVivo(BaseFlujo):
+    """Las madres cambian de genes con el sistema andando (sin red de por medio
+    para la orden: eso es S3; aquí se llama al método de la madre)."""
+
+    @classmethod
+    def setUpClass(cls):
+        acortar(cls)
+
+    def setUp(self):
+        self.armar()
+        self.addCleanup(self.sis.apagar)
+
+    def test_madre_vacia_late_pero_no_acusa(self):
+        vacia = self.sis.madre(self.sis.nodos[2], "M-VACIA")
+        self.assertTrue(esperar(lambda: vacia.conectado, 5))
+        fila = self.operar(self.sis.guis[0], "SUM", 2, 2)
+        self.assertEqual((fila["estado"], fila["resultado"]), (RESUELTA, 4))
+        asentar()
+        self.assertNotIn(vacia.hash, self.espia.acusadores(fila["folio"]))
+        self.assertEqual(len(self.espia.acusadores(fila["folio"])), 4)
+        self.assertGreater(self.reg(vacia).contar("IGNORA", "no tengo el gen SUM"), 0)
+        for g in self.sis.guis:
+            self.assertEqual(g.disponibilidad()["SUM"]["vivas"], 4, "la vacía no cuenta")
+
+    def test_baja_en_vivo_deja_de_acusar_al_instante(self):
+        sub = self.servidores("SUB")[0]
+        self.assertTrue(sub.dar_de_baja("SUB").ok)
+        self.assertTrue(esperar(lambda: all(g.disponibilidad()["SUB"]["vivas"] == 3
+                                            for g in self.sis.guis), 3),
+                        "las GUIs lo saben por el latido inmediato, sin esperar la caducidad")
+        fila = self.operar(self.sis.guis[1], "SUB", 9, 4)
+        self.assertEqual((fila["estado"], fila["resultado"]), (RESUELTA, 5))
+        asentar()
+        self.assertEqual(len(self.espia.acusadores(fila["folio"])), 3)
+        self.assertNotIn(sub.hash, self.espia.acusadores(fila["folio"]))
+        self.assertEqual(self.sis.guis[1].operacion(fila["folio"])["ausentes"], [],
+                         "dada de baja no es esperada: no es ausente")
+        self.assertTrue(esperar(lambda: self.reg(sub).contar("GEN_LIBERADO", "SUB@1.0") == 1, 5))
+
+    def test_sustitucion_en_vivo_cambia_el_resultado(self):
+        fila = self.operar(self.sis.guis[0], "SUM", 0.1, 0.2)
+        self.assertEqual(fila["resultado"], 0.30000000000000004, "SUM 1.0: punto flotante")
+        asentar()
+        banco = microservicios.leer(config.DIR_MICROSERVICIOS / "SUM" / "2.0")
+        for m in self.servidores("SUM"):
+            self.assertEqual(m.instalar(banco, "prueba").sustituyo, "SUM@1.0")
+        fila = self.operar(self.sis.guis[0], "SUM", 0.1, 0.2)
+        self.assertEqual(fila["resultado"], 0.3, "SUM 2.0: decimal exacta")
+        self.assertEqual(fila["gen"], "SUM@2.0")
+        asentar()
+        self.assertEqual(self.afirmar_un_res(fila["folio"])["cuerpo"]["gen"], "SUM@2.0")
 
 
 class TestReglasInterfaz(unittest.TestCase):
@@ -351,31 +553,44 @@ class TestReglasInterfaz(unittest.TestCase):
     def setUp(self):
         self.registro = Registro("GUI-T")
         self.gui = Interfaz("GUI-T", "127.0.0.1:1", bitacora=self.registro.bitacora)
-        self.celulas = {n: huella.de_entidad(mensajes.SERVIDOR, n, "SUM") for n in "ABC"}
+        self.celulas = {n: hashes.de_entidad(mensajes.MADRE, n) for n in "ABC"}
 
     def msg(self, quien: str, tipo: str, cuerpo: dict, servicio: str = "SUM") -> dict:
         return mensajes.nuevo(codigos.codigo(servicio, tipo), self.celulas[quien],
-                              mensajes.SERVIDOR, f"SUM-{quien}", cuerpo)
+                              mensajes.MADRE, f"SUM-{quien}", cuerpo)
 
-    def ack(self, quien, op, intento):
-        self.gui.procesar(self.msg(quien, codigos.ACK, {"id_operacion": op.id,
-                                                        "intento": intento}))
+    def ack(self, quien, op, intento, huella=None, servicio="SUM"):
+        self.gui.procesar(self.msg(quien, codigos.ACK, {
+            "folio": op.folio, "intento": intento, "huella": huella or op.huella}, servicio))
 
-    def res(self, quien, op, intento, resultado):
+    def res(self, quien, op, intento, resultado, huella=None):
         self.gui.procesar(self.msg(quien, codigos.RES, {
-            "id_operacion": op.id, "intento": intento, "resultado": resultado, "error": None,
-            "rol": "titular", "id_solicitud": "x"}))
+            "folio": op.folio, "intento": intento, "resultado": resultado, "error": None,
+            "rol": "titular", "id_solicitud": "x", "gen": "SUM@1.0",
+            "huella": huella or foliado.con_paso(op.huella, self.celulas[quien], f"SUM-{quien}",
+                                                 foliado.RES)}))
 
     def en_vuelo(self, servicio="SUM") -> Operacion:
-        op = Operacion(huella.de_operacion(self.gui.hash, servicio, 1, 2), servicio, 1, 2)
+        """Una operación registrada como si se hubiera publicado (sin red)."""
         with self.gui._lock_ops:
-            self.gui.operaciones[op.id] = op
-            self.gui.en_vuelo = op.id
-        return op
+            return self.gui._registrar(servicio, 1, 2)
 
     def vencer(self, op):
         with self.gui._lock_ops:
             self.gui._vencer(op, "prueba")
+
+    def cerrar_ventana(self, op):
+        """Como si hubiera pasado ``VENTANA_ACUSES``: lo revisa el reloj de la GUI."""
+        op.enviado_en -= config.VENTANA_ACUSES
+        self.gui._revisar()
+
+    def test_folios_propios_y_consecutivos(self):
+        a, b = self.en_vuelo(), self.en_vuelo("MUL")
+        corto = hashes.corto(self.gui.hash)
+        self.assertEqual((a.folio, b.folio), (f"F-{corto}-0001", f"F-{corto}-0002"))
+        self.assertEqual(a.huella["origen"], self.gui.hash)
+        self.assertEqual(a.sello, foliado.sello(self.gui.hash, a.folio, "SUM", 1, 2))
+        self.assertEqual(sorted(self.gui.en_vuelo()), [a.folio, b.folio], "dos en vuelo a la vez")
 
     def test_quorum_por_intento_y_res_retenido(self):
         op = self.en_vuelo()
@@ -387,14 +602,15 @@ class TestReglasInterfaz(unittest.TestCase):
         self.assertEqual(op.acuses(), 0)
         self.ack("A", op, 2)
         self.assertEqual(op.acuses(), 1)
-        self.assertIsNone(op.t_quorum, "un acuse viejo no completa el quórum")
+        self.assertIsNone(op.t_confirmado, "un acuse viejo no confirma el evento")
         self.res("A", op, 2, 3)
-        self.assertEqual(op.estado, EN_VUELO, "RES antes del quórum: se retiene")
+        self.assertEqual(op.estado, EN_VUELO, "RES antes de confirmar: se retiene")
         self.assertEqual(self.registro.contar("RETENIDA"), 1)
         self.ack("C", op, 2)
-        self.assertIsNotNone(op.t_quorum)
-        self.assertEqual((op.estado, op.resultado), (RESUELTA, 3), "con quórum se acepta el retenido")
-        self.assertIsNone(self.gui.en_vuelo)
+        self.assertIsNotNone(op.t_confirmado)
+        self.assertEqual((op.estado, op.resultado), (RESUELTA, 3),
+                         "confirmado, se acepta el retenido")
+        self.assertEqual(self.gui.en_vuelo(), [])
         self.res("B", op, 2, 3)
         self.assertEqual(self.registro.contar("DUPLICADA"), 1)
         self.assertEqual(op.respondio, "SUM-A")
@@ -405,7 +621,9 @@ class TestReglasInterfaz(unittest.TestCase):
             self.vencer(op)
         self.assertEqual(op.estado, FALLIDA)
         self.assertEqual(op.intento, config.MAX_INTENTOS)
-        self.assertIsNone(self.gui.en_vuelo)
+        self.assertEqual(self.gui.en_vuelo(), [])
+        self.assertTrue(op.finalizado)
+        self.assertEqual(self.registro.contar("FIN", "fallida"), 1)
         self.ack("A", op, 3)
         self.res("A", op, 3, 3)
         self.assertEqual(self.registro.contar("TARDÍA"), 1)
@@ -415,29 +633,108 @@ class TestReglasInterfaz(unittest.TestCase):
         op = self.en_vuelo()
         self.ack("A", op, 1)
         self.ack("B", op, 1)
-        self.gui.procesar(self.msg("A", codigos.RES, {"id_operacion": op.id, "intento": 1,
-                                                      "resultado": "NaN", "error": None}))
+        self.res("A", op, 1, "NaN")
         self.assertEqual(op.estado, RESUELTA)
         self.assertIsNone(op.resultado)
         self.assertIn("sin resultado válido", op.error)
 
     def test_ajenos_se_ignoran(self):
         op = self.en_vuelo()
-        otra = huella.de_operacion("otra-gui", "SUM", 1, 2)
-        self.gui.procesar(self.msg("A", codigos.REQ, {"id_operacion": otra, "intento": 1}))
-        self.gui.procesar(self.msg("A", codigos.ACK, {"id_operacion": otra, "intento": 1}))
-        self.gui.procesar(self.msg("A", codigos.RES, {"id_operacion": otra, "intento": 1}))
-        self.gui.procesar(self.msg("A", codigos.ACK, {"id_operacion": op.id, "intento": 1},
-                                   servicio="MUL"))  # mismo id, otro servicio
-        self.assertEqual(self.gui.ignorados, 4)
+        otra = Operacion(foliado.folio(hashes.de_entidad("INTERFAZ", "otra"), 1), "SUM", 1, 2,
+                         op.huella)
+        self.gui.procesar(self.msg("A", codigos.REQ, {"folio": otra.folio, "intento": 1}))
+        self.gui.procesar(self.msg("A", codigos.FIN, {"folio": otra.folio, "intento": 1}))
+        self.ack("A", otra, 1)
+        self.res("A", otra, 1, 3)
+        self.ack("A", op, 1, servicio="MUL")  # mi folio, pero otro servicio
+        self.assertEqual(self.gui.ajenas, 5)
         self.assertEqual(op.acuses(), 0)
-        self.assertNotIn(otra, self.gui.operaciones)
+        self.assertNotIn(otra.folio, self.gui.operaciones)
+        self.assertEqual(self.registro.contar("IGNORA", "folio ajeno"), 3)
+
+    def test_sello_alterado_u_origen_ajeno_se_ignoran(self):
+        op = self.en_vuelo()
+        alterada = {**op.huella, "sello": "0" * 64}
+        de_otro = {**op.huella, "origen": self.celulas["C"]}
+        self.ack("A", op, 1, huella=alterada)
+        self.ack("B", op, 1, huella=de_otro)
+        self.res("A", op, 1, 3, huella=alterada)
+        self.gui.procesar(self.msg("B", codigos.ACK, {"folio": op.folio, "intento": 1}))
+        self.assertEqual(op.acuses(), 0)
+        self.assertEqual(op.estado, EN_VUELO)
+        self.assertEqual(self.gui.ajenas, 4)
+        self.assertEqual(self.registro.contar("SELLO"), 4)
+        self.assertEqual(self.registro.contar("SELLO", "alterado"), 2)
+        self.assertEqual(self.registro.contar("SELLO", "otro origen"), 1)
+
+    def test_esperados_ausentes_y_fases(self):
+        for quien in "ABC":
+            self.latido(quien, "SUM")
+        op = self.en_vuelo()
+        self.assertEqual(sorted(op.esperados.values()), ["M-A", "M-B", "M-C"])
+        self.assertEqual(op.fase, foliado.INICIO)
+        self.ack("A", op, 1)
+        self.ack("B", op, 1)
+        self.assertEqual(op.fase, foliado.CONFIRMADO)
+        self.res("A", op, 1, 3)
+        self.assertEqual(op.fase, foliado.PROCESADO)
+        self.assertFalse(op.finalizado, "el FIN espera a que cierre la ventana de confirmación")
+        self.cerrar_ventana(op)
+        self.assertEqual(op.ausentes, ["M-C"])
+        self.assertEqual(op.fase, foliado.FINALIZADO)
+        self.assertEqual(self.registro.contar("AUSENTES", "M-C no acusaron"), 1)
+        self.assertEqual(self.registro.contar("AUSENTES", "tolerancia"), 1)
+        fila = self.gui.operacion(op.folio)
+        self.assertEqual([p[2] for p in fila["rastro"]], ["REQ", "RES", "FIN"])
+        self.assertEqual(fila["ausentes"], ["M-C"])
+
+    def test_si_acusan_todas_la_ventana_cierra_antes(self):
+        for quien in "AB":
+            self.latido(quien, "SUM")
+        op = self.en_vuelo()
+        self.ack("A", op, 1)
+        self.assertFalse(op.ventana_cerrada)
+        self.ack("B", op, 1)
+        self.assertTrue(op.ventana_cerrada)
+        self.assertEqual(op.ausentes, [])
+        self.res("B", op, 1, 3)
+        self.assertTrue(op.finalizado, "sin ausentes posibles, el FIN sale con la respuesta")
+        self.assertEqual(self.registro.contar("AUSENTES"), 0)
+
+    def test_sin_minimo_al_cerrar_la_ventana_reintenta(self):
+        for quien in "ABC":
+            self.latido(quien, "SUM")
+        op = self.en_vuelo()
+        self.ack("A", op, 1)
+        self.cerrar_ventana(op)
+        self.assertEqual(op.intento, 2)
+        self.assertEqual(self.registro.contar("AUSENTES", "sin el mínimo"), 1)
+        self.assertEqual(self.registro.contar("REINTENTO", op.folio), 1)
+        self.assertFalse(op.ventana_cerrada, "el intento nuevo abre su propia ventana")
+
+    def latido(self, quien: str, *genes: str) -> None:
+        cuerpo = {"tipo": mensajes.MADRE, "nodo_nombre": "Nodo 1",
+                  "genes": [{"codigo": g, "version": "1.0", "sha8": "0" * 8} for g in genes]}
+        self.gui.procesar(mensajes.nuevo(codigos.CEL_LAT, self.celulas[quien], mensajes.MADRE,
+                                         f"M-{quien}", cuerpo))
+
+    def test_disponibilidad_por_genes_anunciados(self):
+        self.latido("A", "SUM", "MUL")
+        self.latido("B", "SUM", "MUL")
+        self.assertTrue(self.gui.habilitadas["SUM"] and self.gui.habilitadas["MUL"])
+        self.latido("B", "SUM")  # B dio de baja MUL: deja de contar al instante
+        self.assertTrue(self.gui.habilitadas["SUM"])
+        self.assertFalse(self.gui.habilitadas["MUL"])
+        self.assertEqual(self.registro.contar("SIN_GEN", "MUL M-B"), 1)
+        self.gui.procesar(mensajes.nuevo(codigos.CEL_ADIOS, self.celulas["A"], mensajes.MADRE,
+                                         "M-A", {"motivo": "prueba"}))
+        self.assertFalse(self.gui.habilitadas["SUM"], "A se despidió: queda 1 < 2")
+        self.latido("C")  # madre vacía: no cuenta para nada
+        self.assertEqual(self.gui.disponibilidad()["SUM"]["vivas"], 1)
 
     def test_disponibilidad_por_latidos(self):
         def latido(quien):
-            self.gui.procesar(mensajes.nuevo(codigos.SRV_LAT, self.celulas[quien],
-                                             mensajes.SERVIDOR, f"SUM-{quien}",
-                                             {"servicio": "SUM", "nodo_nombre": "Nodo 1"}))
+            self.latido(quien, "SUM")
 
         self.assertFalse(self.gui.habilitadas["SUM"])
         latido("A")

@@ -1,6 +1,7 @@
 """Identificadores únicos (SHA-256) y el ranking de elección.
 
-TODO en el sistema tiene un hash: nodos, células, mensajes y operaciones.
+TODO en el sistema tiene un hash: nodos, células y mensajes (las operaciones
+llevan folio, que se arma con el hash de su GUI; ver ``comun/foliado.py``).
 Cada entidad genera el suyo al arrancar y lo presenta en su HOLA; nadie
 asigna identidades, así que no hay un punto central que pueda fallar.
 
@@ -41,29 +42,25 @@ def de_mensaje(origen: str) -> str:
     return generar("mensaje", origen)
 
 
-def de_operacion(interfaz: str, servicio: str, a, b) -> str:
-    return generar("operacion", interfaz, servicio, a, b)
-
-
 def corto(h: str | None) -> str:
     """Solo para mostrar. La identidad es siempre el hash completo."""
     return (h or "")[:8]
 
 
-def prioridad(celula: str, id_operacion: str, intento: int) -> str:
+def prioridad(celula: str, folio: str, intento: int) -> str:
     """Peso de una célula para una ronda (rendezvous hashing / HRW).
 
     Es determinista: cualquier célula que conozca el mismo conjunto de
     acusadores calcula el mismo orden, sin intercambiar mensajes. El intento
     entra al hash, así que un reintento puede tocarle a otra titular.
     """
-    return hashlib.sha256(f"{celula}|{id_operacion}|{intento}".encode()).hexdigest()
+    return hashlib.sha256(f"{celula}|{folio}|{intento}".encode()).hexdigest()
 
 
-def ranking(celulas, id_operacion: str, intento: int) -> list[str]:
+def ranking(celulas, folio: str, intento: int) -> list[str]:
     """Células ordenadas de titular a último respaldo.
 
     El desempate por hash de célula es imposible en la práctica (dos SHA-256
     iguales), pero deja el orden definido pase lo que pase.
     """
-    return sorted(celulas, key=lambda c: (prioridad(c, id_operacion, intento), c))
+    return sorted(celulas, key=lambda c: (prioridad(c, folio, intento), c))

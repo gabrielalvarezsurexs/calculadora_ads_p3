@@ -1,5 +1,8 @@
 logs/
 logs_*/
+datos/
+run/
 __pycache__/
 .venv/
+.ruff_cache/
 *.pyc

@@ -11,7 +11,7 @@ import socket
 import time
 import unittest
 
-from comun import codigos, config, huella, mensajes
+from comun import codigos, config, hashes, mensajes
 from comun.protocolo import enviar, leer_mensajes, serializar
 from sonda.__main__ import main as sonda
 from tests.apoyo import Receptor, Sistema, acortar, esperar
@@ -43,10 +43,10 @@ class TestBroadcast(unittest.TestCase):
         return self.sis.registros[nodo.nombre]
 
     def fwd(self, nodo, id_mensaje) -> int:
-        return self.reg(nodo).contar("FWD", f"#{huella.corto(id_mensaje)}")
+        return self.reg(nodo).contar("FWD", f"#{hashes.corto(id_mensaje)}")
 
     def dup(self, nodo, id_mensaje) -> int:
-        return self.reg(nodo).contar("DUP", f"#{huella.corto(id_mensaje)}")
+        return self.reg(nodo).contar("DUP", f"#{hashes.corto(id_mensaje)}")
 
     def esperar_a_todos(self, id_mensaje):
         self.assertTrue(esperar(lambda: all(r.con_id(id_mensaje) for r in self.rec), 5))
@@ -59,7 +59,7 @@ class TestBroadcast(unittest.TestCase):
         self.esperar_a_todos(id_m)
         for r in self.rec:
             self.assertEqual(len(r.con_id(id_m)), 1, r.nombre)
-            self.assertEqual(r.registro.contar("DUP", huella.corto(id_m)), 0,
+            self.assertEqual(r.registro.contar("DUP", hashes.corto(id_m)), 0,
                              f"{r.nombre}: el nodo no debe entregarle copias repetidas")
         for n in self.nodos:
             self.assertEqual(self.fwd(n, id_m), 1, f"{n.nombre} lo reenvía una sola vez")
@@ -91,18 +91,18 @@ class TestBroadcast(unittest.TestCase):
         for r in self.rec[1:]:
             self.assertEqual(r.con_id(id_m), [], r.nombre)
         self.assertEqual(self.fwd(self.nodos[0], id_m), 1)
-        self.assertEqual(self.reg(self.nodos[0]).contar("TTL", huella.corto(id_m)), 1)
+        self.assertEqual(self.reg(self.nodos[0]).contar("TTL", hashes.corto(id_m)), 1)
         for n in self.nodos[1:]:
             self.assertEqual(self.fwd(n, id_m) + self.dup(n, id_m), 0, n.nombre)
 
     def test_ttl_0_no_llega_a_nadie(self):
         id_m = inyectar(self.nodos[0], "--ttl", 0)
         self.assertTrue(esperar(
-            lambda: self.reg(self.nodos[0]).contar("TTL", huella.corto(id_m)) == 1, 3))
+            lambda: self.reg(self.nodos[0]).contar("TTL", hashes.corto(id_m)) == 1, 3))
         time.sleep(0.8)
         for r in self.rec:
             self.assertEqual(r.con_id(id_m), [])
-        self.assertIn("ttl=0", self.reg(self.nodos[0]).eventos("TTL", huella.corto(id_m))[0])
+        self.assertIn("ttl=0", self.reg(self.nodos[0]).eventos("TTL", hashes.corto(id_m))[0])
         for n in self.nodos:
             self.assertEqual(self.fwd(n, id_m), 0)
 
@@ -119,7 +119,7 @@ class TestBroadcast(unittest.TestCase):
         id_m = inyectar(self.nodos[0], "--repetir", 3)
         self.esperar_a_todos(id_m)
         self.assertEqual(self.fwd(self.nodos[0], id_m), 1)
-        self.assertEqual(self.reg(self.nodos[0]).contar("DUP", f"#{huella.corto(id_m)} de SONDA"), 2)
+        self.assertEqual(self.reg(self.nodos[0]).contar("DUP", f"#{hashes.corto(id_m)} de SONDA"), 2)
         for r in self.rec:
             self.assertEqual(len(r.con_id(id_m)), 1)
 
@@ -140,7 +140,7 @@ class TestBroadcast(unittest.TestCase):
         """Una línea basura se descarta (DROP) y el enlace SIGUE vivo; datos antes
         del HOLA tampoco se procesan."""
         n1 = self.nodos[0]
-        mi_hash = huella.de_entidad(mensajes.SONDA, "SUCIA")
+        mi_hash = hashes.de_entidad(mensajes.SONDA, "SUCIA")
         with socket.create_connection(("127.0.0.1", n1.puerto), timeout=3) as s:
             antes = self.reg(n1).contar("DROP")
             previo = mensajes.nuevo(codigos.SONDA_PRUEBA, mi_hash, mensajes.SONDA, "SUCIA", {})

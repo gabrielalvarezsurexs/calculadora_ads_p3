@@ -1,0 +1,536 @@
+17:08:24.457 [INICIO] INTERFAZ GUI-1 · 07b96e1e · nodo inicial 127.0.0.1:5001
+17:08:24.459 [ESPERANDO] operadores deshabilitados: esperando latidos…
+17:08:24.460 [INICIO] INTERFAZ GUI-2 · bc15ee47 · nodo inicial 127.0.0.1:5002
+17:08:24.460 [ESPERANDO] operadores deshabilitados: esperando latidos…
+17:08:24.461 [INICIO] INTERFAZ GUI-3 · d7956da8 · nodo inicial 127.0.0.1:5003
+17:08:24.462 [ESPERANDO] operadores deshabilitados: esperando latidos…
+17:08:24.463 [INICIO] INTERFAZ GUI-4 · 678fa433 · nodo inicial 127.0.0.1:5004
+17:08:24.464 [ESPERANDO] operadores deshabilitados: esperando latidos…
+17:08:24.496 [CONEXION] Nodo 3 (4319a2dc) en 127.0.0.1:5003 · candidatos: 127.0.0.1:5001, 127.0.0.1:5002, 127.0.0.1:5003, 127.0.0.1:5004
+17:08:24.498 [CONEXION] Nodo 4 (9dbd5217) en 127.0.0.1:5004 · candidatos: 127.0.0.1:5001, 127.0.0.1:5002, 127.0.0.1:5003, 127.0.0.1:5004
+17:08:24.498 [CONEXION] Nodo 1 (5b1c564e) en 127.0.0.1:5001 · candidatos: 127.0.0.1:5001, 127.0.0.1:5002, 127.0.0.1:5003, 127.0.0.1:5004
+17:08:24.498 [CONEXION] Nodo 2 (dc92a54a) en 127.0.0.1:5002 · candidatos: 127.0.0.1:5001, 127.0.0.1:5002, 127.0.0.1:5003, 127.0.0.1:5004
+17:08:24.837 [BD] importé 6 gen(es) de microservicios/ → 6 en la BD · ✘ manipulado(s): SUM@9.9
+17:08:24.837 [INICIO] GESTOR G-N1 · c7d0cf83 · nodo inicial 127.0.0.1:5001
+17:08:24.867 [CONEXION] Nodo 1 (5b1c564e) en 127.0.0.1:5001 · candidatos: 127.0.0.1:5001, 127.0.0.1:5002, 127.0.0.1:5003, 127.0.0.1:5004
+17:08:24.867 [CONEXION] conectado a Nodo 1 (127.0.0.1:5001); pido la topología a todos (TOPO_REQ)
+17:08:39.021 [ORDEN] O-c7d0cf83-0001 · GEN_INYECTA alta SUM@1.0 → M1-N1 (4acf4b5d, en Nodo 1)
+17:08:39.025 [GEN_ACK] O-c7d0cf83-0001: M1-N1 recibió la orden (16 ms)
+17:08:39.030 [ORDEN] O-c7d0cf83-0002 · GEN_INYECTA alta SUB@1.0 → M2-N1 (4f735c5a, en Nodo 1)
+17:08:39.038 [GEN_ACK] O-c7d0cf83-0002: M2-N1 recibió la orden (16 ms)
+17:08:39.040 [VIVA] SUM M1-N1 (4acf4b5d) en Nodo 1
+17:08:39.040 [VIVA] SUM M1-N1 (4acf4b5d) en Nodo 1
+17:08:39.040 [VIVA] SUM M1-N1 (4acf4b5d) en Nodo 1
+17:08:39.041 [VIVA] SUM M1-N1 (4acf4b5d) en Nodo 1
+17:08:39.042 [ORDEN] O-c7d0cf83-0003 · GEN_INYECTA alta MUL@1.0 → M3-N1 (60089362, en Nodo 1)
+17:08:39.047 [VIVA] SUB M2-N1 (4f735c5a) en Nodo 1
+17:08:39.048 [VIVA] SUB M2-N1 (4f735c5a) en Nodo 1
+17:08:39.048 [VIVA] SUB M2-N1 (4f735c5a) en Nodo 1
+17:08:39.048 [VIVA] SUB M2-N1 (4f735c5a) en Nodo 1
+17:08:39.053 [ORDEN] O-c7d0cf83-0004 · GEN_INYECTA alta DIV@1.0 → M4-N1 (901751c9, en Nodo 1)
+17:08:39.058 [ORDEN_OK] O-c7d0cf83-0001 · alta SUM@1.0 en M1-N1: activo · datos/celulas/M1-N1-4acf4b5d/genes/SUM/1.0/ · 15 ms en la madre
+17:08:39.058 [GEN_ACK] O-c7d0cf83-0003: M3-N1 recibió la orden (20 ms)
+17:08:39.061 [VIVA] MUL M3-N1 (60089362) en Nodo 1
+17:08:39.061 [VIVA] MUL M3-N1 (60089362) en Nodo 1
+17:08:39.062 [VIVA] MUL M3-N1 (60089362) en Nodo 1
+17:08:39.063 [VIVA] MUL M3-N1 (60089362) en Nodo 1
+17:08:39.064 [ORDEN] O-c7d0cf83-0005 · GEN_INYECTA alta SUM@1.0 → M1-N2 (8610fb2c, en Nodo 2)
+17:08:39.069 [VIVA] DIV M4-N1 (901751c9) en Nodo 1
+17:08:39.070 [VIVA] DIV M4-N1 (901751c9) en Nodo 1
+17:08:39.070 [VIVA] DIV M4-N1 (901751c9) en Nodo 1
+17:08:39.071 [VIVA] DIV M4-N1 (901751c9) en Nodo 1
+17:08:39.075 [VIVA] SUM M1-N2 (8610fb2c) en Nodo 2
+17:08:39.075 [HABILITADA] SUM habilitada: 2/2 (nueva: M1-N2 · 8610fb2c)
+17:08:39.076 [VIVA] SUM M1-N2 (8610fb2c) en Nodo 2
+17:08:39.076 [VIVA] SUM M1-N2 (8610fb2c) en Nodo 2
+17:08:39.076 [ORDEN] O-c7d0cf83-0006 · GEN_INYECTA alta SUB@1.0 → M2-N2 (884fb07a, en Nodo 2)
+17:08:39.076 [HABILITADA] SUM habilitada: 2/2 (nueva: M1-N2 · 8610fb2c)
+17:08:39.076 [VIVA] SUM M1-N2 (8610fb2c) en Nodo 2
+17:08:39.077 [HABILITADA] SUM habilitada: 2/2 (nueva: M1-N2 · 8610fb2c)
+17:08:39.077 [HABILITADA] SUM habilitada: 2/2 (nueva: M1-N2 · 8610fb2c)
+17:08:39.082 [ORDEN_OK] O-c7d0cf83-0002 · alta SUB@1.0 en M2-N1: activo · datos/celulas/M2-N1-4f735c5a/genes/SUB/1.0/ · 14 ms en la madre
+17:08:39.082 [GEN_ACK] O-c7d0cf83-0004: M4-N1 recibió la orden (34 ms)
+17:08:39.087 [VIVA] SUB M2-N2 (884fb07a) en Nodo 2
+17:08:39.087 [HABILITADA] SUB habilitada: 2/2 (nueva: M2-N2 · 884fb07a)
+17:08:39.087 [ORDEN] O-c7d0cf83-0007 · GEN_INYECTA alta MUL@1.0 → M3-N2 (f23d9e91, en Nodo 2)
+17:08:39.087 [VIVA] SUB M2-N2 (884fb07a) en Nodo 2
+17:08:39.087 [VIVA] SUB M2-N2 (884fb07a) en Nodo 2
+17:08:39.088 [VIVA] SUB M2-N2 (884fb07a) en Nodo 2
+17:08:39.088 [HABILITADA] SUB habilitada: 2/2 (nueva: M2-N2 · 884fb07a)
+17:08:39.088 [HABILITADA] SUB habilitada: 2/2 (nueva: M2-N2 · 884fb07a)
+17:08:39.088 [HABILITADA] SUB habilitada: 2/2 (nueva: M2-N2 · 884fb07a)
+17:08:39.100 [ORDEN] O-c7d0cf83-0008 · GEN_INYECTA alta DIV@1.0 → M4-N2 (d87fcd40, en Nodo 2)
+17:08:39.100 [VIVA] MUL M3-N2 (f23d9e91) en Nodo 2
+17:08:39.100 [HABILITADA] MUL habilitada: 2/2 (nueva: M3-N2 · f23d9e91)
+17:08:39.101 [VIVA] MUL M3-N2 (f23d9e91) en Nodo 2
+17:08:39.101 [HABILITADA] MUL habilitada: 2/2 (nueva: M3-N2 · f23d9e91)
+17:08:39.101 [VIVA] MUL M3-N2 (f23d9e91) en Nodo 2
+17:08:39.101 [HABILITADA] MUL habilitada: 2/2 (nueva: M3-N2 · f23d9e91)
+17:08:39.102 [VIVA] MUL M3-N2 (f23d9e91) en Nodo 2
+17:08:39.102 [HABILITADA] MUL habilitada: 2/2 (nueva: M3-N2 · f23d9e91)
+17:08:39.106 [ORDEN_OK] O-c7d0cf83-0003 · alta MUL@1.0 en M3-N1: activo · datos/celulas/M3-N1-60089362/genes/MUL/1.0/ · 17 ms en la madre
+17:08:39.106 [GEN_ACK] O-c7d0cf83-0005: M1-N2 recibió la orden (47 ms)
+17:08:39.111 [VIVA] DIV M4-N2 (d87fcd40) en Nodo 2
+17:08:39.111 [HABILITADA] DIV habilitada: 2/2 (nueva: M4-N2 · d87fcd40)
+17:08:39.111 [ORDEN] O-c7d0cf83-0009 · GEN_INYECTA alta SUM@1.0 → M1-N3 (c3340f85, en Nodo 3)
+17:08:39.112 [VIVA] DIV M4-N2 (d87fcd40) en Nodo 2
+17:08:39.112 [VIVA] DIV M4-N2 (d87fcd40) en Nodo 2
+17:08:39.112 [VIVA] DIV M4-N2 (d87fcd40) en Nodo 2
+17:08:39.112 [HABILITADA] DIV habilitada: 2/2 (nueva: M4-N2 · d87fcd40)
+17:08:39.112 [HABILITADA] DIV habilitada: 2/2 (nueva: M4-N2 · d87fcd40)
+17:08:39.113 [HABILITADA] DIV habilitada: 2/2 (nueva: M4-N2 · d87fcd40)
+17:08:39.123 [VIVA] SUM M1-N3 (c3340f85) en Nodo 3
+17:08:39.123 [ORDEN] O-c7d0cf83-0010 · GEN_INYECTA alta SUB@1.0 → M2-N3 (a61b63a0, en Nodo 3)
+17:08:39.123 [VIVA] SUM M1-N3 (c3340f85) en Nodo 3
+17:08:39.124 [VIVA] SUM M1-N3 (c3340f85) en Nodo 3
+17:08:39.124 [VIVA] SUM M1-N3 (c3340f85) en Nodo 3
+17:08:39.129 [ORDEN_OK] O-c7d0cf83-0004 · alta DIV@1.0 en M4-N1: activo · datos/celulas/M4-N1-901751c9/genes/DIV/1.0/ · 14 ms en la madre
+17:08:39.134 [ORDEN] O-c7d0cf83-0011 · GEN_INYECTA alta MUL@1.0 → M3-N3 (1b7ccc69, en Nodo 3)
+17:08:39.134 [VIVA] SUB M2-N3 (a61b63a0) en Nodo 3
+17:08:39.134 [VIVA] SUB M2-N3 (a61b63a0) en Nodo 3
+17:08:39.135 [VIVA] SUB M2-N3 (a61b63a0) en Nodo 3
+17:08:39.135 [VIVA] SUB M2-N3 (a61b63a0) en Nodo 3
+17:08:39.139 [ORDEN_OK] O-c7d0cf83-0005 · alta SUM@1.0 en M1-N2: activo · datos/celulas/M1-N2-8610fb2c/genes/SUM/1.0/ · 10 ms en la madre
+17:08:39.140 [GEN_ACK] O-c7d0cf83-0006: M2-N2 recibió la orden (68 ms)
+17:08:39.146 [ORDEN] O-c7d0cf83-0012 · GEN_INYECTA alta DIV@1.0 → M4-N3 (c9270d2b, en Nodo 3)
+17:08:39.146 [VIVA] MUL M3-N3 (1b7ccc69) en Nodo 3
+17:08:39.146 [VIVA] MUL M3-N3 (1b7ccc69) en Nodo 3
+17:08:39.147 [VIVA] MUL M3-N3 (1b7ccc69) en Nodo 3
+17:08:39.147 [VIVA] MUL M3-N3 (1b7ccc69) en Nodo 3
+17:08:39.159 [ORDEN] O-c7d0cf83-0013 · GEN_INYECTA alta SUM@1.0 → M1-N4 (be9db0a8, en Nodo 4)
+17:08:39.159 [VIVA] DIV M4-N3 (c9270d2b) en Nodo 3
+17:08:39.159 [VIVA] DIV M4-N3 (c9270d2b) en Nodo 3
+17:08:39.159 [VIVA] DIV M4-N3 (c9270d2b) en Nodo 3
+17:08:39.160 [VIVA] DIV M4-N3 (c9270d2b) en Nodo 3
+17:08:39.165 [ORDEN_OK] O-c7d0cf83-0006 · alta SUB@1.0 en M2-N2: activo · datos/celulas/M2-N2-884fb07a/genes/SUB/1.0/ · 9 ms en la madre
+17:08:39.165 [GEN_ACK] O-c7d0cf83-0007: M3-N2 recibió la orden (83 ms)
+17:08:39.171 [ORDEN] O-c7d0cf83-0014 · GEN_INYECTA alta SUB@1.0 → M2-N4 (cb272dc6, en Nodo 4)
+17:08:39.174 [VIVA] SUM M1-N4 (be9db0a8) en Nodo 4
+17:08:39.175 [VIVA] SUM M1-N4 (be9db0a8) en Nodo 4
+17:08:39.175 [VIVA] SUM M1-N4 (be9db0a8) en Nodo 4
+17:08:39.175 [VIVA] SUM M1-N4 (be9db0a8) en Nodo 4
+17:08:39.183 [ORDEN] O-c7d0cf83-0015 · GEN_INYECTA alta MUL@1.0 → M3-N4 (e3ed6de9, en Nodo 4)
+17:08:39.185 [VIVA] SUB M2-N4 (cb272dc6) en Nodo 4
+17:08:39.185 [VIVA] SUB M2-N4 (cb272dc6) en Nodo 4
+17:08:39.185 [VIVA] SUB M2-N4 (cb272dc6) en Nodo 4
+17:08:39.186 [VIVA] SUB M2-N4 (cb272dc6) en Nodo 4
+17:08:39.189 [ORDEN_OK] O-c7d0cf83-0007 · alta MUL@1.0 en M3-N2: activo · datos/celulas/M3-N2-f23d9e91/genes/MUL/1.0/ · 10 ms en la madre
+17:08:39.189 [GEN_ACK] O-c7d0cf83-0008: M4-N2 recibió la orden (95 ms)
+17:08:39.195 [ORDEN] O-c7d0cf83-0016 · GEN_INYECTA alta DIV@1.0 → M4-N4 (22edd37c, en Nodo 4)
+17:08:39.195 [DISTRIBUIR] Distribuir: 16 orden(es) en 4 nodo(s)
+17:08:39.198 [VIVA] MUL M3-N4 (e3ed6de9) en Nodo 4
+17:08:39.198 [VIVA] MUL M3-N4 (e3ed6de9) en Nodo 4
+17:08:39.198 [VIVA] MUL M3-N4 (e3ed6de9) en Nodo 4
+17:08:39.199 [VIVA] MUL M3-N4 (e3ed6de9) en Nodo 4
+17:08:39.216 [ORDEN_OK] O-c7d0cf83-0008 · alta DIV@1.0 en M4-N2: activo · datos/celulas/M4-N2-d87fcd40/genes/DIV/1.0/ · 10 ms en la madre
+17:08:39.216 [GEN_ACK] O-c7d0cf83-0009: M1-N3 recibió la orden (110 ms)
+17:08:39.217 [VIVA] DIV M4-N4 (22edd37c) en Nodo 4
+17:08:39.218 [VIVA] DIV M4-N4 (22edd37c) en Nodo 4
+17:08:39.218 [VIVA] DIV M4-N4 (22edd37c) en Nodo 4
+17:08:39.218 [VIVA] DIV M4-N4 (22edd37c) en Nodo 4
+17:08:39.227 [ORDEN_OK] O-c7d0cf83-0009 · alta SUM@1.0 en M1-N3: activo · datos/celulas/M1-N3-c3340f85/genes/SUM/1.0/ · 8 ms en la madre
+17:08:39.227 [GEN_ACK] O-c7d0cf83-0010: M2-N3 recibió la orden (110 ms)
+17:08:39.237 [ORDEN_OK] O-c7d0cf83-0010 · alta SUB@1.0 en M2-N3: activo · datos/celulas/M2-N3-a61b63a0/genes/SUB/1.0/ · 9 ms en la madre
+17:08:39.237 [GEN_ACK] O-c7d0cf83-0011: M3-N3 recibió la orden (108 ms)
+17:08:39.247 [ORDEN_OK] O-c7d0cf83-0011 · alta MUL@1.0 en M3-N3: activo · datos/celulas/M3-N3-1b7ccc69/genes/MUL/1.0/ · 10 ms en la madre
+17:08:39.247 [GEN_ACK] O-c7d0cf83-0012: M4-N3 recibió la orden (107 ms)
+17:08:39.256 [ORDEN_OK] O-c7d0cf83-0012 · alta DIV@1.0 en M4-N3: activo · datos/celulas/M4-N3-c9270d2b/genes/DIV/1.0/ · 11 ms en la madre
+17:08:39.256 [GEN_ACK] O-c7d0cf83-0013: M1-N4 recibió la orden (103 ms)
+17:08:39.260 [GEN_ACK] O-c7d0cf83-0014: M2-N4 recibió la orden (95 ms)
+17:08:39.269 [ORDEN_OK] O-c7d0cf83-0013 · alta SUM@1.0 en M1-N4: activo · datos/celulas/M1-N4-be9db0a8/genes/SUM/1.0/ · 13 ms en la madre
+17:08:39.269 [GEN_ACK] O-c7d0cf83-0015: M3-N4 recibió la orden (92 ms)
+17:08:39.278 [ORDEN_OK] O-c7d0cf83-0014 · alta SUB@1.0 en M2-N4: activo · datos/celulas/M2-N4-cb272dc6/genes/SUB/1.0/ · 11 ms en la madre
+17:08:39.278 [GEN_ACK] O-c7d0cf83-0016: M4-N4 recibió la orden (89 ms)
+17:08:39.286 [ORDEN_OK] O-c7d0cf83-0015 · alta MUL@1.0 en M3-N4: activo · datos/celulas/M3-N4-e3ed6de9/genes/MUL/1.0/ · 12 ms en la madre
+17:08:39.290 [ORDEN_OK] O-c7d0cf83-0016 · alta DIV@1.0 en M4-N4: activo · datos/celulas/M4-N4-22edd37c/genes/DIV/1.0/ · 19 ms en la madre
+17:08:54.885 [EVENTO_INICIO] F-07b96e1e-0001 · SUM_REQ 7 + 5 · sello b501b200 · esperadas 4: M1-N1, M1-N2, M1-N3, M1-N4
+17:08:54.886 [ACUSE] F-07b96e1e-0001 · 1/2 de M1-N1 (4acf4b5d) · intento 1
+17:08:54.887 [ACUSE] F-07b96e1e-0001 · 2/2 de M1-N4 (be9db0a8) · intento 1
+17:08:54.887 [CONFIRMADO] F-07b96e1e-0001 · ACK 2/2 de 4 esperada(s) · intento 1: evento aceptado
+17:08:54.888 [ACUSE] F-07b96e1e-0001 · 3/2 de M1-N3 (c3340f85) · intento 1
+17:08:54.889 [ACUSE] F-07b96e1e-0001 · 4/2 de M1-N2 (8610fb2c) · intento 1
+17:08:55.398 [RESULTADO] F-07b96e1e-0001 · 7 + 5 = 12 · titular M1-N1 · SUM@1.0 · solicitud 261b0d8a ↔ respuesta 4b700224 · 514 ms
+17:08:55.399 [FIN] F-07b96e1e-0001 · resuelta · rastro: GUI-1 REQ → M1-N1 ACK → M1-N4 ACK → M1-N3 ACK → M1-N2 ACK → M1-N1 RES → GUI-1 FIN
+17:09:04.885 [EVENTO_INICIO] F-07b96e1e-0002 · SUM_REQ 90 + 47 · sello 7e3df316 · esperadas 4: M1-N1, M1-N2, M1-N3, M1-N4
+17:09:04.885 [EVENTO_INICIO] F-07b96e1e-0003 · SUB_REQ 91 − 76 · sello 755ed686 · esperadas 4: M2-N1, M2-N2, M2-N3, M2-N4
+17:09:04.886 [EVENTO_INICIO] F-07b96e1e-0004 · MUL_REQ 94 × 54 · sello 5c8caab2 · esperadas 4: M3-N1, M3-N2, M3-N3, M3-N4
+17:09:04.886 [EVENTO_INICIO] F-07b96e1e-0005 · DIV_REQ 16 ÷ 27 · sello d318abaa · esperadas 4: M4-N1, M4-N2, M4-N3, M4-N4
+17:09:04.886 [EVENTO_INICIO] F-07b96e1e-0006 · SUM_REQ 26 + 49 · sello c363e659 · esperadas 4: M1-N1, M1-N2, M1-N3, M1-N4
+17:09:04.887 [EVENTO_INICIO] F-07b96e1e-0007 · SUB_REQ 47 − 45 · sello dc6179da · esperadas 4: M2-N1, M2-N2, M2-N3, M2-N4
+17:09:04.888 [EVENTO_INICIO] F-07b96e1e-0008 · MUL_REQ 66 × 90 · sello d5482bdc · esperadas 4: M3-N1, M3-N2, M3-N3, M3-N4
+17:09:04.889 [EVENTO_INICIO] F-07b96e1e-0009 · DIV_REQ 45 ÷ 16 · sello 3b2ddad1 · esperadas 4: M4-N1, M4-N2, M4-N3, M4-N4
+17:09:04.890 [ACUSE] F-07b96e1e-0002 · 1/2 de M1-N1 (4acf4b5d) · intento 1
+17:09:04.895 [ACUSE] F-07b96e1e-0003 · 1/2 de M2-N1 (4f735c5a) · intento 1
+17:09:04.896 [ACUSE] F-07b96e1e-0004 · 1/2 de M3-N1 (60089362) · intento 1
+17:09:04.897 [ACUSE] F-07b96e1e-0002 · 2/2 de M1-N2 (8610fb2c) · intento 1
+17:09:04.897 [CONFIRMADO] F-07b96e1e-0002 · ACK 2/2 de 4 esperada(s) · intento 1: evento aceptado
+17:09:04.899 [ACUSE] F-07b96e1e-0003 · 2/2 de M2-N2 (884fb07a) · intento 1
+17:09:04.900 [CONFIRMADO] F-07b96e1e-0003 · ACK 2/2 de 4 esperada(s) · intento 1: evento aceptado
+17:09:04.898 [EVENTO_INICIO] F-bc15ee47-0001 · SUM_REQ 97 + 75 · sello 36cce7e7 · esperadas 4: M1-N1, M1-N2, M1-N3, M1-N4
+17:09:04.902 [ACUSE] F-07b96e1e-0002 · 3/2 de M1-N4 (be9db0a8) · intento 1
+17:09:04.903 [ACUSE] F-07b96e1e-0002 · 4/2 de M1-N3 (c3340f85) · intento 1
+17:09:04.902 [EVENTO_INICIO] F-bc15ee47-0002 · SUB_REQ 89 − 59 · sello a1d9891d · esperadas 4: M2-N1, M2-N2, M2-N3, M2-N4
+17:09:04.904 [ACUSE] F-07b96e1e-0003 · 3/2 de M2-N4 (cb272dc6) · intento 1
+17:09:04.906 [EVENTO_INICIO] F-bc15ee47-0003 · MUL_REQ 71 × 41 · sello 8b4a581c · esperadas 4: M3-N1, M3-N2, M3-N3, M3-N4
+17:09:04.907 [EVENTO_INICIO] F-bc15ee47-0004 · DIV_REQ 35 ÷ 22 · sello 1ae7a4a3 · esperadas 4: M4-N1, M4-N2, M4-N3, M4-N4
+17:09:04.907 [ACUSE] F-07b96e1e-0005 · 1/2 de M4-N1 (901751c9) · intento 1
+17:09:04.908 [EVENTO_INICIO] F-bc15ee47-0005 · SUM_REQ 58 + 58 · sello d781ef5b · esperadas 4: M1-N1, M1-N2, M1-N3, M1-N4
+17:09:04.909 [ACUSE] F-07b96e1e-0003 · 4/2 de M2-N3 (a61b63a0) · intento 1
+17:09:04.912 [ACUSE] F-07b96e1e-0004 · 2/2 de M3-N4 (e3ed6de9) · intento 1
+17:09:04.913 [CONFIRMADO] F-07b96e1e-0004 · ACK 2/2 de 4 esperada(s) · intento 1: evento aceptado
+17:09:04.914 [ACUSE] F-07b96e1e-0004 · 3/2 de M3-N2 (f23d9e91) · intento 1
+17:09:04.914 [ACUSE] F-07b96e1e-0005 · 2/2 de M4-N4 (22edd37c) · intento 1
+17:09:04.912 [EVENTO_INICIO] F-bc15ee47-0006 · SUB_REQ 1 − 19 · sello d366d0ce · esperadas 4: M2-N1, M2-N2, M2-N3, M2-N4
+17:09:04.916 [EVENTO_INICIO] F-bc15ee47-0007 · MUL_REQ 53 × 25 · sello 407dc84a · esperadas 4: M3-N1, M3-N2, M3-N3, M3-N4
+17:09:04.919 [CONFIRMADO] F-07b96e1e-0005 · ACK 2/2 de 4 esperada(s) · intento 1: evento aceptado
+17:09:04.920 [ACUSE] F-07b96e1e-0005 · 3/2 de M4-N2 (d87fcd40) · intento 1
+17:09:04.918 [EVENTO_INICIO] F-bc15ee47-0008 · DIV_REQ 21 ÷ 6 · sello 87218b4c · esperadas 4: M4-N1, M4-N2, M4-N3, M4-N4
+17:09:04.922 [ACUSE] F-07b96e1e-0005 · 4/2 de M4-N3 (c9270d2b) · intento 1
+17:09:04.924 [ACUSE] F-07b96e1e-0004 · 4/2 de M3-N3 (1b7ccc69) · intento 1
+17:09:04.925 [ACUSE] F-bc15ee47-0001 · 1/2 de M1-N2 (8610fb2c) · intento 1
+17:09:04.926 [ACUSE] F-07b96e1e-0006 · 1/2 de M1-N1 (4acf4b5d) · intento 1
+17:09:04.926 [ACUSE] F-07b96e1e-0007 · 1/2 de M2-N1 (4f735c5a) · intento 1
+17:09:04.927 [ACUSE] F-07b96e1e-0008 · 1/2 de M3-N1 (60089362) · intento 1
+17:09:04.928 [ACUSE] F-07b96e1e-0006 · 2/2 de M1-N4 (be9db0a8) · intento 1
+17:09:04.928 [CONFIRMADO] F-07b96e1e-0006 · ACK 2/2 de 4 esperada(s) · intento 1: evento aceptado
+17:09:04.929 [ACUSE] F-bc15ee47-0002 · 1/2 de M2-N2 (884fb07a) · intento 1
+17:09:04.931 [ACUSE] F-bc15ee47-0001 · 2/2 de M1-N4 (be9db0a8) · intento 1
+17:09:04.932 [CONFIRMADO] F-bc15ee47-0001 · ACK 2/2 de 4 esperada(s) · intento 1: evento aceptado
+17:09:04.933 [ACUSE] F-07b96e1e-0009 · 1/2 de M4-N1 (901751c9) · intento 1
+17:09:04.935 [ACUSE] F-bc15ee47-0003 · 1/2 de M3-N2 (f23d9e91) · intento 1
+17:09:04.935 [ACUSE] F-07b96e1e-0007 · 2/2 de M2-N4 (cb272dc6) · intento 1
+17:09:04.936 [CONFIRMADO] F-07b96e1e-0007 · ACK 2/2 de 4 esperada(s) · intento 1: evento aceptado
+17:09:04.937 [ACUSE] F-07b96e1e-0006 · 3/2 de M1-N3 (c3340f85) · intento 1
+17:09:04.938 [ACUSE] F-07b96e1e-0006 · 4/2 de M1-N2 (8610fb2c) · intento 1
+17:09:04.938 [ACUSE] F-bc15ee47-0001 · 3/2 de M1-N1 (4acf4b5d) · intento 1
+17:09:04.940 [ACUSE] F-07b96e1e-0008 · 2/2 de M3-N4 (e3ed6de9) · intento 1
+17:09:04.940 [ACUSE] F-bc15ee47-0004 · 1/2 de M4-N2 (d87fcd40) · intento 1
+17:09:04.941 [CONFIRMADO] F-07b96e1e-0008 · ACK 2/2 de 4 esperada(s) · intento 1: evento aceptado
+17:09:04.941 [ACUSE] F-07b96e1e-0007 · 3/2 de M2-N3 (a61b63a0) · intento 1
+17:09:04.942 [ACUSE] F-bc15ee47-0005 · 1/2 de M1-N2 (8610fb2c) · intento 1
+17:09:04.942 [ACUSE] F-07b96e1e-0008 · 3/2 de M3-N3 (1b7ccc69) · intento 1
+17:09:04.943 [ACUSE] F-bc15ee47-0006 · 1/2 de M2-N2 (884fb07a) · intento 1
+17:09:04.944 [ACUSE] F-07b96e1e-0007 · 4/2 de M2-N2 (884fb07a) · intento 1
+17:09:04.944 [ACUSE] F-bc15ee47-0001 · 4/2 de M1-N3 (c3340f85) · intento 1
+17:09:04.945 [ACUSE] F-07b96e1e-0009 · 2/2 de M4-N4 (22edd37c) · intento 1
+17:09:04.945 [CONFIRMADO] F-07b96e1e-0009 · ACK 2/2 de 4 esperada(s) · intento 1: evento aceptado
+17:09:04.946 [ACUSE] F-bc15ee47-0002 · 2/2 de M2-N4 (cb272dc6) · intento 1
+17:09:04.946 [CONFIRMADO] F-bc15ee47-0002 · ACK 2/2 de 4 esperada(s) · intento 1: evento aceptado
+17:09:04.947 [ACUSE] F-bc15ee47-0002 · 3/2 de M2-N1 (4f735c5a) · intento 1
+17:09:04.947 [ACUSE] F-07b96e1e-0009 · 3/2 de M4-N3 (c9270d2b) · intento 1
+17:09:04.948 [ACUSE] F-bc15ee47-0007 · 1/2 de M3-N2 (f23d9e91) · intento 1
+17:09:04.948 [ACUSE] F-bc15ee47-0008 · 1/2 de M4-N2 (d87fcd40) · intento 1
+17:09:04.948 [ACUSE] F-07b96e1e-0008 · 4/2 de M3-N2 (f23d9e91) · intento 1
+17:09:04.948 [ACUSE] F-bc15ee47-0003 · 2/2 de M3-N4 (e3ed6de9) · intento 1
+17:09:04.949 [CONFIRMADO] F-bc15ee47-0003 · ACK 2/2 de 4 esperada(s) · intento 1: evento aceptado
+17:09:04.949 [ACUSE] F-07b96e1e-0009 · 4/2 de M4-N2 (d87fcd40) · intento 1
+17:09:04.950 [ACUSE] F-bc15ee47-0002 · 4/2 de M2-N3 (a61b63a0) · intento 1
+17:09:04.951 [ACUSE] F-bc15ee47-0003 · 3/2 de M3-N1 (60089362) · intento 1
+17:09:04.951 [ACUSE] F-bc15ee47-0004 · 2/2 de M4-N1 (901751c9) · intento 1
+17:09:04.951 [CONFIRMADO] F-bc15ee47-0004 · ACK 2/2 de 4 esperada(s) · intento 1: evento aceptado
+17:09:04.952 [ACUSE] F-bc15ee47-0005 · 2/2 de M1-N1 (4acf4b5d) · intento 1
+17:09:04.952 [CONFIRMADO] F-bc15ee47-0005 · ACK 2/2 de 4 esperada(s) · intento 1: evento aceptado
+17:09:04.953 [ACUSE] F-bc15ee47-0006 · 2/2 de M2-N1 (4f735c5a) · intento 1
+17:09:04.954 [CONFIRMADO] F-bc15ee47-0006 · ACK 2/2 de 4 esperada(s) · intento 1: evento aceptado
+17:09:04.954 [ACUSE] F-bc15ee47-0004 · 3/2 de M4-N4 (22edd37c) · intento 1
+17:09:04.954 [ACUSE] F-bc15ee47-0003 · 4/2 de M3-N3 (1b7ccc69) · intento 1
+17:09:04.955 [ACUSE] F-bc15ee47-0007 · 2/2 de M3-N1 (60089362) · intento 1
+17:09:04.955 [CONFIRMADO] F-bc15ee47-0007 · ACK 2/2 de 4 esperada(s) · intento 1: evento aceptado
+17:09:04.955 [ACUSE] F-bc15ee47-0008 · 2/2 de M4-N1 (901751c9) · intento 1
+17:09:04.955 [CONFIRMADO] F-bc15ee47-0008 · ACK 2/2 de 4 esperada(s) · intento 1: evento aceptado
+17:09:04.955 [ACUSE] F-bc15ee47-0005 · 3/2 de M1-N4 (be9db0a8) · intento 1
+17:09:04.956 [ACUSE] F-bc15ee47-0004 · 4/2 de M4-N3 (c9270d2b) · intento 1
+17:09:04.956 [ACUSE] F-bc15ee47-0006 · 3/2 de M2-N4 (cb272dc6) · intento 1
+17:09:04.956 [ACUSE] F-bc15ee47-0005 · 4/2 de M1-N3 (c3340f85) · intento 1
+17:09:04.956 [ACUSE] F-bc15ee47-0007 · 3/2 de M3-N4 (e3ed6de9) · intento 1
+17:09:04.957 [ACUSE] F-bc15ee47-0006 · 4/2 de M2-N3 (a61b63a0) · intento 1
+17:09:04.957 [ACUSE] F-bc15ee47-0007 · 4/2 de M3-N3 (1b7ccc69) · intento 1
+17:09:04.957 [ACUSE] F-bc15ee47-0008 · 3/2 de M4-N4 (22edd37c) · intento 1
+17:09:04.957 [ACUSE] F-bc15ee47-0008 · 4/2 de M4-N3 (c9270d2b) · intento 1
+17:09:05.398 [RESULTADO] F-07b96e1e-0003 · 91 − 76 = 15 · titular M2-N1 · SUB@1.0 · solicitud 5a239db0 ↔ respuesta 348c553d · 513 ms
+17:09:05.399 [FIN] F-07b96e1e-0003 · resuelta · rastro: GUI-1 REQ → M2-N1 ACK → M2-N2 ACK → M2-N4 ACK → M2-N3 ACK → M2-N1 RES → GUI-1 FIN
+17:09:05.401 [RESULTADO] F-07b96e1e-0004 · 94 × 54 = 5076 · titular M3-N3 · MUL@1.0 · solicitud faafd261 ↔ respuesta 22c870c0 · 515 ms
+17:09:05.401 [FIN] F-07b96e1e-0004 · resuelta · rastro: GUI-1 REQ → M3-N3 ACK → M3-N1 ACK → M3-N2 ACK → M3-N4 ACK → M3-N3 RES → GUI-1 FIN
+17:09:05.401 [RESULTADO] F-07b96e1e-0002 · 90 + 47 = 137 · titular M1-N1 · SUM@1.0 · solicitud 2246b2f5 ↔ respuesta 65b637eb · 516 ms
+17:09:05.401 [FIN] F-07b96e1e-0002 · resuelta · rastro: GUI-1 REQ → M1-N1 ACK → M1-N2 ACK → M1-N4 ACK → M1-N3 ACK → M1-N1 RES → GUI-1 FIN
+17:09:05.402 [RESULTADO] F-07b96e1e-0005 · 16 ÷ 27 = 0.5925925925925926 · titular M4-N3 · DIV@1.0 · solicitud 2dbec151 ↔ respuesta e4dc9cd2 · 516 ms
+17:09:05.402 [FIN] F-07b96e1e-0005 · resuelta · rastro: GUI-1 REQ → M4-N3 ACK → M4-N2 ACK → M4-N1 ACK → M4-N4 ACK → M4-N3 RES → GUI-1 FIN
+17:09:05.411 [RESULTADO] F-07b96e1e-0007 · 47 − 45 = 2 · titular M2-N4 · SUB@1.0 · solicitud 838d42fd ↔ respuesta 3741a2ac · 524 ms
+17:09:05.411 [FIN] F-07b96e1e-0007 · resuelta · rastro: GUI-1 REQ → M2-N4 ACK → M2-N1 ACK → M2-N2 ACK → M2-N3 ACK → M2-N4 RES → GUI-1 FIN
+17:09:05.412 [RESULTADO] F-07b96e1e-0009 · 45 ÷ 16 = 2.8125 · titular M4-N4 · DIV@1.0 · solicitud 2a7de5a0 ↔ respuesta ac27b6e2 · 523 ms
+17:09:05.413 [FIN] F-07b96e1e-0009 · resuelta · rastro: GUI-1 REQ → M4-N4 ACK → M4-N1 ACK → M4-N3 ACK → M4-N2 ACK → M4-N4 RES → GUI-1 FIN
+17:09:05.413 [RESULTADO] F-bc15ee47-0001 · 97 + 75 = 172 · titular M1-N1 · SUM@1.0 · solicitud 614d50c4 ↔ respuesta d6cc7a29 · 516 ms
+17:09:05.414 [FIN] F-bc15ee47-0001 · resuelta · rastro: GUI-2 REQ → M1-N1 ACK → M1-N2 ACK → M1-N4 ACK → M1-N3 ACK → M1-N1 RES → GUI-2 FIN
+17:09:05.414 [RESULTADO] F-07b96e1e-0008 · 66 × 90 = 5940 · titular M3-N4 · MUL@1.0 · solicitud a8e65627 ↔ respuesta 85e73724 · 527 ms
+17:09:05.415 [FIN] F-07b96e1e-0008 · resuelta · rastro: GUI-1 REQ → M3-N4 ACK → M3-N1 ACK → M3-N2 ACK → M3-N3 ACK → M3-N4 RES → GUI-1 FIN
+17:09:05.416 [RESULTADO] F-07b96e1e-0006 · 26 + 49 = 75 · titular M1-N3 · SUM@1.0 · solicitud c8c4c9a4 ↔ respuesta 0b52662a · 530 ms
+17:09:05.417 [RESULTADO] F-bc15ee47-0003 · 71 × 41 = 2911 · titular M3-N2 · MUL@1.0 · solicitud 9f0b3a67 ↔ respuesta 6aae1f6f · 512 ms
+17:09:05.417 [FIN] F-07b96e1e-0006 · resuelta · rastro: GUI-1 REQ → M1-N3 ACK → M1-N1 ACK → M1-N4 ACK → M1-N2 ACK → M1-N3 RES → GUI-1 FIN
+17:09:05.418 [FIN] F-bc15ee47-0003 · resuelta · rastro: GUI-2 REQ → M3-N2 ACK → M3-N4 ACK → M3-N1 ACK → M3-N3 ACK → M3-N2 RES → GUI-2 FIN
+17:09:05.419 [RESULTADO] F-bc15ee47-0002 · 89 − 59 = 30 · titular M2-N4 · SUB@1.0 · solicitud fca0712c ↔ respuesta f82dac60 · 517 ms
+17:09:05.420 [FIN] F-bc15ee47-0002 · resuelta · rastro: GUI-2 REQ → M2-N4 ACK → M2-N2 ACK → M2-N1 ACK → M2-N3 ACK → M2-N4 RES → GUI-2 FIN
+17:09:05.425 [RESULTADO] F-bc15ee47-0006 · 1 − 19 = -18 · titular M2-N2 · SUB@1.0 · solicitud d4650aa2 ↔ respuesta 3501f72e · 514 ms
+17:09:05.426 [FIN] F-bc15ee47-0006 · resuelta · rastro: GUI-2 REQ → M2-N2 ACK → M2-N1 ACK → M2-N4 ACK → M2-N3 ACK → M2-N2 RES → GUI-2 FIN
+17:09:05.428 [RESULTADO] F-bc15ee47-0007 · 53 × 25 = 1325 · titular M3-N2 · MUL@1.0 · solicitud 1147fa57 ↔ respuesta 1a517d82 · 512 ms
+17:09:05.429 [FIN] F-bc15ee47-0007 · resuelta · rastro: GUI-2 REQ → M3-N2 ACK → M3-N1 ACK → M3-N4 ACK → M3-N3 ACK → M3-N2 RES → GUI-2 FIN
+17:09:05.430 [RESULTADO] F-bc15ee47-0005 · 58 + 58 = 116 · titular M1-N4 · SUM@1.0 · solicitud 49ec33ae ↔ respuesta 07e70efc · 522 ms
+17:09:05.430 [FIN] F-bc15ee47-0005 · resuelta · rastro: GUI-2 REQ → M1-N4 ACK → M1-N2 ACK → M1-N1 ACK → M1-N3 ACK → M1-N4 RES → GUI-2 FIN
+17:09:05.431 [RESULTADO] F-bc15ee47-0008 · 21 ÷ 6 = 3.5 · titular M4-N2 · DIV@1.0 · solicitud 104f9ec5 ↔ respuesta 4b1fa3aa · 513 ms
+17:09:05.432 [FIN] F-bc15ee47-0008 · resuelta · rastro: GUI-2 REQ → M4-N2 ACK → M4-N1 ACK → M4-N4 ACK → M4-N3 ACK → M4-N2 RES → GUI-2 FIN
+17:09:05.432 [RESULTADO] F-bc15ee47-0004 · 35 ÷ 22 = 1.5909090909090908 · titular M4-N3 · DIV@1.0 · solicitud 3ef326d6 ↔ respuesta 3f29685f · 526 ms
+17:09:05.433 [FIN] F-bc15ee47-0004 · resuelta · rastro: GUI-2 REQ → M4-N3 ACK → M4-N2 ACK → M4-N4 ACK → M4-N1 ACK → M4-N3 RES → GUI-2 FIN
+17:09:20.144 [VIVA] SUM SUM-N1m (b9e31988) en Nodo 1
+17:09:20.144 [VIVA] SUM SUM-N1m (b9e31988) en Nodo 1
+17:09:20.145 [VIVA] SUM SUM-N1m (b9e31988) en Nodo 1
+17:09:20.145 [VIVA] SUM SUM-N1m (b9e31988) en Nodo 1
+17:09:27.888 [EVENTO_INICIO] F-07b96e1e-0010 · SUM_REQ 2 + 2 · sello 3def18d2 · esperadas 5: M1-N1, M1-N2, M1-N3, M1-N4, SUM-N1m
+17:09:27.891 [ACUSE] F-07b96e1e-0010 · 1/2 de M1-N1 (4acf4b5d) · intento 1
+17:09:27.893 [ACUSE] F-07b96e1e-0010 · 2/2 de M1-N4 (be9db0a8) · intento 1
+17:09:27.893 [CONFIRMADO] F-07b96e1e-0010 · ACK 2/2 de 5 esperada(s) · intento 1: evento aceptado
+17:09:27.894 [ACUSE] F-07b96e1e-0010 · 3/2 de M1-N2 (8610fb2c) · intento 1
+17:09:27.894 [ACUSE] F-07b96e1e-0010 · 4/2 de M1-N3 (c3340f85) · intento 1
+17:09:28.390 [RESULTADO] F-07b96e1e-0010 · 2 + 2 = 4 · titular M1-N1 · SUM@1.0 · solicitud e46431fe ↔ respuesta 7bc9bf0e · 502 ms
+17:09:29.484 [AUSENTES] F-07b96e1e-0010 · intento 1: SUM-N1m no acusaron · ACK 4/2 de 5 esperada(s) → el evento sigue (tolerancia)
+17:09:29.485 [FIN] F-07b96e1e-0010 · resuelta · rastro: GUI-1 REQ → M1-N1 ACK → M1-N4 ACK → M1-N2 ACK → M1-N3 ACK → M1-N1 RES → GUI-1 FIN
+17:09:42.899 [ORDEN] O-c7d0cf83-0017 · GEN_INYECTA alta MUL@1.0 → M5-N2 (542dbce1, en Nodo 2)
+17:09:42.902 [GEN_ACK] O-c7d0cf83-0017: M5-N2 recibió la orden (15 ms)
+17:09:42.910 [VIVA] MUL M5-N2 (542dbce1) en Nodo 2
+17:09:42.911 [VIVA] MUL M5-N2 (542dbce1) en Nodo 2
+17:09:42.911 [VIVA] MUL M5-N2 (542dbce1) en Nodo 2
+17:09:42.912 [VIVA] MUL M5-N2 (542dbce1) en Nodo 2
+17:09:42.916 [ORDEN_OK] O-c7d0cf83-0017 · alta MUL@1.0 en M5-N2: activo · datos/celulas/M5-N2-542dbce1/genes/MUL/1.0/ · 10 ms en la madre
+17:09:48.969 [EVENTO_INICIO] F-07b96e1e-0011 · MUL_REQ 6 × 7 · sello fa71fc68 · esperadas 5: M3-N1, M3-N2, M3-N3, M3-N4, M5-N2
+17:09:48.971 [ACUSE] F-07b96e1e-0011 · 1/2 de M3-N1 (60089362) · intento 1
+17:09:48.971 [ACUSE] F-07b96e1e-0011 · 2/2 de M3-N4 (e3ed6de9) · intento 1
+17:09:48.972 [CONFIRMADO] F-07b96e1e-0011 · ACK 2/2 de 5 esperada(s) · intento 1: evento aceptado
+17:09:48.973 [ACUSE] F-07b96e1e-0011 · 3/2 de M3-N3 (1b7ccc69) · intento 1
+17:09:48.973 [ACUSE] F-07b96e1e-0011 · 4/2 de M3-N2 (f23d9e91) · intento 1
+17:09:48.976 [ACUSE] F-07b96e1e-0011 · 5/2 de M5-N2 (542dbce1) · intento 1
+17:09:49.472 [RESULTADO] F-07b96e1e-0011 · 6 × 7 = 42 · titular M3-N2 · MUL@1.0 · solicitud 2af9844c ↔ respuesta 2d905778 · 503 ms
+17:09:49.472 [FIN] F-07b96e1e-0011 · resuelta · rastro: GUI-1 REQ → M3-N2 ACK → M5-N2 ACK → M3-N1 ACK → M3-N4 ACK → M3-N3 ACK → M3-N2 RES → GUI-1 FIN
+17:09:56.901 [ORDEN] O-c7d0cf83-0018 · GEN_BAJA baja SUM → M1-N4 (be9db0a8, en Nodo 4)
+17:09:56.905 [GEN_ACK] O-c7d0cf83-0018: M1-N4 recibió la orden (22 ms)
+17:09:56.908 [SIN_GEN] SUM M1-N4 (be9db0a8) ya no tiene el gen
+17:09:56.908 [SIN_GEN] SUM M1-N4 (be9db0a8) ya no tiene el gen
+17:09:56.909 [SIN_GEN] SUM M1-N4 (be9db0a8) ya no tiene el gen
+17:09:56.910 [SIN_GEN] SUM M1-N4 (be9db0a8) ya no tiene el gen
+17:09:56.917 [ORDEN_OK] O-c7d0cf83-0018 · baja SUM en M1-N4: dado de baja · 0 ms en la madre
+17:10:01.885 [EVENTO_INICIO] F-07b96e1e-0012 · SUM_REQ 0.1 + 0.2 · sello 6441b70b · esperadas 4: M1-N1, M1-N2, M1-N3, SUM-N1m
+17:10:01.887 [ACUSE] F-07b96e1e-0012 · 1/2 de M1-N1 (4acf4b5d) · intento 1
+17:10:01.891 [ACUSE] F-07b96e1e-0012 · 2/2 de M1-N3 (c3340f85) · intento 1
+17:10:01.891 [CONFIRMADO] F-07b96e1e-0012 · ACK 2/2 de 4 esperada(s) · intento 1: evento aceptado
+17:10:01.891 [ACUSE] F-07b96e1e-0012 · 3/2 de M1-N2 (8610fb2c) · intento 1
+17:10:02.402 [RESULTADO] F-07b96e1e-0012 · 0.1 + 0.2 = 0.30000000000000004 · titular M1-N3 · SUM@1.0 · solicitud d8a1def2 ↔ respuesta 145746f7 · 517 ms
+17:10:03.401 [AUSENTES] F-07b96e1e-0012 · intento 1: SUM-N1m no acusaron · ACK 3/2 de 4 esperada(s) → el evento sigue (tolerancia)
+17:10:03.401 [FIN] F-07b96e1e-0012 · resuelta · rastro: GUI-1 REQ → M1-N3 ACK → M1-N1 ACK → M1-N2 ACK → M1-N3 RES → GUI-1 FIN
+17:10:06.893 [ORDEN] O-c7d0cf83-0019 · GEN_INYECTA cambio SUM@2.0 → M1-N1 (4acf4b5d, en Nodo 1)
+17:10:06.895 [GEN_ACK] O-c7d0cf83-0019: M1-N1 recibió la orden (14 ms)
+17:10:06.901 [ORDEN] O-c7d0cf83-0020 · GEN_INYECTA cambio SUM@2.0 → M1-N2 (8610fb2c, en Nodo 2)
+17:10:06.907 [GEN_ACK] O-c7d0cf83-0020: M1-N2 recibió la orden (14 ms)
+17:10:06.914 [ORDEN] O-c7d0cf83-0021 · GEN_INYECTA cambio SUM@2.0 → M1-N3 (c3340f85, en Nodo 3)
+17:10:06.919 [GEN_ACK] O-c7d0cf83-0021: M1-N3 recibió la orden (12 ms)
+17:10:06.925 [ORDEN] O-c7d0cf83-0022 · GEN_INYECTA cambio SUM@2.0 → SUM-N1m (b9e31988, en Nodo 1)
+17:10:06.933 [GEN_ACK] O-c7d0cf83-0022: SUM-N1m recibió la orden (14 ms)
+17:10:06.947 [ORDEN_OK] O-c7d0cf83-0019 · cambio SUM@2.0 en M1-N1: SUM@1.0 → SUM@2.0 · activo · datos/celulas/M1-N1-4acf4b5d/genes/SUM/2.0/ · 32 ms en la madre
+17:10:06.954 [ORDEN_OK] O-c7d0cf83-0021 · cambio SUM@2.0 en M1-N3: SUM@1.0 → SUM@2.0 · activo · datos/celulas/M1-N3-c3340f85/genes/SUM/2.0/ · 17 ms en la madre
+17:10:06.959 [ORDEN_OK] O-c7d0cf83-0020 · cambio SUM@2.0 en M1-N2: SUM@1.0 → SUM@2.0 · activo · datos/celulas/M1-N2-8610fb2c/genes/SUM/2.0/ · 37 ms en la madre
+17:10:06.965 [ORDEN_OK] O-c7d0cf83-0022 · cambio SUM@2.0 en SUM-N1m: SUM@1.0 → SUM@2.0 · activo · datos/celulas/SUM-N1m-b9e31988/genes/SUM/2.0/ · 18 ms en la madre
+17:10:14.880 [EVENTO_INICIO] F-07b96e1e-0013 · SUM_REQ 0.1 + 0.2 · sello 53726522 · esperadas 4: M1-N1, M1-N2, M1-N3, SUM-N1m
+17:10:14.884 [ACUSE] F-07b96e1e-0013 · 1/2 de M1-N1 (4acf4b5d) · intento 1
+17:10:14.886 [ACUSE] F-07b96e1e-0013 · 2/2 de M1-N2 (8610fb2c) · intento 1
+17:10:14.886 [CONFIRMADO] F-07b96e1e-0013 · ACK 2/2 de 4 esperada(s) · intento 1: evento aceptado
+17:10:14.887 [ACUSE] F-07b96e1e-0013 · 3/2 de M1-N3 (c3340f85) · intento 1
+17:10:14.924 [ORDEN] O-c7d0cf83-0023 · GEN_INYECTA cambio SUM@9.9 → M1-N1 (4acf4b5d, en Nodo 1)
+17:10:14.926 [GEN_ACK] O-c7d0cf83-0023: M1-N1 recibió la orden (33 ms)
+17:10:14.942 [RECHAZADA] O-c7d0cf83-0023 · cambio SUM@9.9 en M1-N1: validar: sha256 no coincide (declarado 448394e6, real 5ba78374); sigue activo SUM@2.0 · 9 ms en la madre
+17:10:15.397 [RESULTADO] F-07b96e1e-0013 · 0.1 + 0.2 = 0.3 · titular M1-N3 · SUM@2.0 · solicitud 828b61f7 ↔ respuesta 403f343b · 516 ms
+17:10:16.472 [AUSENTES] F-07b96e1e-0013 · intento 1: SUM-N1m no acusaron · ACK 3/2 de 4 esperada(s) → el evento sigue (tolerancia)
+17:10:16.472 [FIN] F-07b96e1e-0013 · resuelta · rastro: GUI-1 REQ → M1-N3 ACK → M1-N1 ACK → M1-N2 ACK → M1-N3 RES → GUI-1 FIN
+17:10:29.014 [CADUCA] SUM M1-N2 (8610fb2c) sin latido en 6 s; se da por muerta
+17:10:29.014 [CADUCA] SUM M1-N2 (8610fb2c) sin latido en 6 s; se da por muerta
+17:10:29.014 [CADUCA] SUM M1-N2 (8610fb2c) sin latido en 6 s; se da por muerta
+17:10:29.014 [CADUCA] SUM M1-N2 (8610fb2c) sin latido en 6 s; se da por muerta
+17:10:29.318 [CAIDA] célula M1-N2 sin latido en 6 s
+17:10:29.318 [CAIDA] M1-N2 (SUM 2.0) dejó de latir sin CEL_ADIOS: es una pérdida
+17:10:31.053 [CLON_AVISO] M3-N1 (rango 0) regenera a M1-N2 → M1-N2·r1 en Nodo 2; copiará SUM 2.0 (intento 1)
+17:10:31.289 [CONECTADA] M1-N2·r1 late en Nodo 2: nació vacía, copia sus genes…
+17:10:31.290 [GEN_PIDE] M1-N2·r1 pide SUM@2.0 (P-50f95a39-0001): lo tengo en la BD
+17:10:31.358 [ENTREGA] M1-N1 entrega SUM@2.0 a M1-N2·r1 (de su disco, por el Campo de Datos)
+17:10:31.359 [ENTREGA] SUM-N1m entrega SUM@2.0 a M1-N2·r1 (de su disco, por el Campo de Datos); sobra: el reemplazo ya usó la primera
+17:10:31.376 [VIVA] SUM M1-N2·r1 (50f95a39) en Nodo 2
+17:10:31.376 [VIVA] SUM M1-N2·r1 (50f95a39) en Nodo 2
+17:10:31.377 [VIVA] SUM M1-N2·r1 (50f95a39) en Nodo 2
+17:10:31.378 [CLON_LISTO] M1-N2·r1 reemplaza a M1-N2: SUM@2.0 de M1-N1 (disco → memoria)
+17:10:31.378 [VIVA] SUM M1-N2·r1 (50f95a39) en Nodo 2
+17:10:31.379 [NIVEL_OK] nivel recuperado (SUM 3 · SUB 4 · MUL 5 · DIV 4): las madres dejan de clonar
+17:11:05.142 [CADUCA] SUM M1-N1 (4acf4b5d) sin latido en 6 s; se da por muerta
+17:11:05.142 [CADUCA] SUM M1-N1 (4acf4b5d) sin latido en 6 s; se da por muerta
+17:11:05.143 [CADUCA] SUM M1-N1 (4acf4b5d) sin latido en 6 s; se da por muerta
+17:11:05.143 [CADUCA] SUM M1-N1 (4acf4b5d) sin latido en 6 s; se da por muerta
+17:11:05.255 [CADUCA] SUM M1-N3 (c3340f85) sin latido en 6 s; se da por muerta
+17:11:05.255 [CADUCA] SUM M1-N3 (c3340f85) sin latido en 6 s; se da por muerta
+17:11:05.256 [CADUCA] SUM M1-N3 (c3340f85) sin latido en 6 s; se da por muerta
+17:11:05.256 [CADUCA] SUM M1-N3 (c3340f85) sin latido en 6 s; se da por muerta
+17:11:05.451 [CAIDA] célula M1-N1 sin latido en 6 s
+17:11:05.451 [CAIDA] M1-N1 (SUM 2.0) dejó de latir sin CEL_ADIOS: es una pérdida
+17:11:05.451 [CAIDA] célula M1-N3 sin latido en 6 s
+17:11:05.451 [CAIDA] M1-N3 (SUM 2.0) dejó de latir sin CEL_ADIOS: es una pérdida
+17:11:05.451 [CAIDA] célula M1-N2·r1 sin latido en 6 s
+17:11:05.451 [CAIDA] M1-N2·r1 (SUM 2.0) dejó de latir sin CEL_ADIOS: es una pérdida
+17:11:05.463 [CADUCA] SUM M1-N2·r1 (50f95a39) sin latido en 6 s; se da por muerta
+17:11:05.464 [CADUCA] SUM M1-N2·r1 (50f95a39) sin latido en 6 s; se da por muerta
+17:11:05.464 [DESHABILITADA] SUM deshabilitada: 1 viva(s) < 2 mínima(s)
+17:11:05.464 [CADUCA] SUM M1-N2·r1 (50f95a39) sin latido en 6 s; se da por muerta
+17:11:05.464 [CADUCA] SUM M1-N2·r1 (50f95a39) sin latido en 6 s; se da por muerta
+17:11:05.464 [DESHABILITADA] SUM deshabilitada: 1 viva(s) < 2 mínima(s)
+17:11:05.464 [DESHABILITADA] SUM deshabilitada: 1 viva(s) < 2 mínima(s)
+17:11:05.464 [DESHABILITADA] SUM deshabilitada: 1 viva(s) < 2 mínima(s)
+17:11:07.587 [CLON_AVISO] M3-N2 (rango 0) regenera a M1-N1 → M1-N1·r1 en Nodo 1; copiará SUM 2.0 (intento 1)
+17:11:07.821 [CONECTADA] M1-N1·r1 late en Nodo 1: nació vacía, copia sus genes…
+17:11:07.822 [GEN_PIDE] M1-N1·r1 pide SUM@2.0 (P-f06e95ca-0001): lo tengo en la BD
+17:11:07.875 [ENTREGA] SUM-N1m entrega SUM@2.0 a M1-N1·r1 (de su disco, por el Campo de Datos)
+17:11:07.888 [VIVA] SUM M1-N1·r1 (f06e95ca) en Nodo 1
+17:11:07.888 [HABILITADA] SUM habilitada: 2/2 (nueva: M1-N1·r1 · f06e95ca)
+17:11:07.889 [CLON_LISTO] M1-N1·r1 reemplaza a M1-N1: SUM@2.0 de SUM-N1m (disco → memoria)
+17:11:07.889 [EN_ESPERA] gradual: falta(n) M1-N3, M1-N2·r1; va una a la vez
+17:11:07.889 [VIVA] SUM M1-N1·r1 (f06e95ca) en Nodo 1
+17:11:07.889 [HABILITADA] SUM habilitada: 2/2 (nueva: M1-N1·r1 · f06e95ca)
+17:11:07.889 [VIVA] SUM M1-N1·r1 (f06e95ca) en Nodo 1
+17:11:07.889 [HABILITADA] SUM habilitada: 2/2 (nueva: M1-N1·r1 · f06e95ca)
+17:11:07.890 [VIVA] SUM M1-N1·r1 (f06e95ca) en Nodo 1
+17:11:07.890 [HABILITADA] SUM habilitada: 2/2 (nueva: M1-N1·r1 · f06e95ca)
+17:11:10.162 [CLON_AVISO] M3-N3 (rango 0) regenera a M1-N2·r1 → M1-N2·r2 en Nodo 2; copiará SUM 2.0 (intento 1)
+17:11:10.420 [CONECTADA] M1-N2·r2 late en Nodo 2: nació vacía, copia sus genes…
+17:11:10.420 [GEN_PIDE] M1-N2·r2 pide SUM@2.0 (P-5c9046b1-0001): lo tengo en la BD
+17:11:10.432 [ENTREGA] SUM-N1m entrega SUM@2.0 a M1-N2·r2 (de su disco, por el Campo de Datos)
+17:11:10.448 [VIVA] SUM M1-N2·r2 (5c9046b1) en Nodo 2
+17:11:10.449 [VIVA] SUM M1-N2·r2 (5c9046b1) en Nodo 2
+17:11:10.449 [CLON_LISTO] M1-N2·r2 reemplaza a M1-N2·r1: SUM@2.0 de SUM-N1m (disco → memoria)
+17:11:10.449 [VIVA] SUM M1-N2·r2 (5c9046b1) en Nodo 2
+17:11:10.450 [EN_ESPERA] gradual: falta(n) M1-N3; va una a la vez
+17:11:10.450 [VIVA] SUM M1-N2·r2 (5c9046b1) en Nodo 2
+17:11:12.677 [CLON_AVISO] M3-N2 (rango 0) regenera a M1-N3 → M1-N3·r1 en Nodo 3; copiará SUM 2.0 (intento 1)
+17:11:12.918 [CONECTADA] M1-N3·r1 late en Nodo 3: nació vacía, copia sus genes…
+17:11:12.918 [GEN_PIDE] M1-N3·r1 pide SUM@2.0 (P-c324a573-0001): lo tengo en la BD
+17:11:13.075 [ENTREGA] M1-N1·r1 entrega SUM@2.0 a M1-N3·r1 (de su disco, por el Campo de Datos)
+17:11:13.093 [VIVA] SUM M1-N3·r1 (c324a573) en Nodo 3
+17:11:13.094 [VIVA] SUM M1-N3·r1 (c324a573) en Nodo 3
+17:11:13.094 [VIVA] SUM M1-N3·r1 (c324a573) en Nodo 3
+17:11:13.094 [CLON_LISTO] M1-N3·r1 reemplaza a M1-N3: SUM@2.0 de M1-N1·r1 (disco → memoria)
+17:11:13.095 [NIVEL_OK] nivel recuperado (SUM 3 · SUB 4 · MUL 5 · DIV 4): las madres dejan de clonar
+17:11:13.095 [VIVA] SUM M1-N3·r1 (c324a573) en Nodo 3
+17:12:17.911 [ORDEN] O-c7d0cf83-0024 · GEN_INYECTA alta DIV@1.0 → M1-N5 (a42fd99a, en Nodo 5)
+17:12:17.917 [GEN_ACK] O-c7d0cf83-0024: M1-N5 recibió la orden (25 ms)
+17:12:17.927 [VIVA] DIV M1-N5 (a42fd99a) en Nodo 5
+17:12:17.928 [VIVA] DIV M1-N5 (a42fd99a) en Nodo 5
+17:12:17.928 [VIVA] DIV M1-N5 (a42fd99a) en Nodo 5
+17:12:17.929 [VIVA] DIV M1-N5 (a42fd99a) en Nodo 5
+17:12:17.936 [ORDEN_OK] O-c7d0cf83-0024 · alta DIV@1.0 en M1-N5: activo · datos/celulas/M1-N5-a42fd99a/genes/DIV/1.0/ · 12 ms en la madre
+17:12:27.892 [DETENIDA] G-N1 detenida
+17:12:27.948 [EVENTO_INICIO] F-bc15ee47-0009 · SUB_REQ 9 − 4 · sello de7b5718 · esperadas 4: M2-N1, M2-N2, M2-N3, M2-N4
+17:12:27.951 [ACUSE] F-bc15ee47-0009 · 1/2 de M2-N2 (884fb07a) · intento 1
+17:12:27.952 [ACUSE] F-bc15ee47-0009 · 2/2 de M2-N4 (cb272dc6) · intento 1
+17:12:27.953 [CONFIRMADO] F-bc15ee47-0009 · ACK 2/2 de 4 esperada(s) · intento 1: evento aceptado
+17:12:27.954 [ACUSE] F-bc15ee47-0009 · 3/2 de M2-N3 (a61b63a0) · intento 1
+17:12:27.955 [ACUSE] F-bc15ee47-0009 · 4/2 de M2-N1 (4f735c5a) · intento 1
+17:12:28.458 [RESULTADO] F-bc15ee47-0009 · 9 − 4 = 5 · titular M2-N4 · SUB@1.0 · solicitud c6d3a2f3 ↔ respuesta b37715e8 · 510 ms
+17:12:28.459 [FIN] F-bc15ee47-0009 · resuelta · rastro: GUI-2 REQ → M2-N4 ACK → M2-N2 ACK → M2-N3 ACK → M2-N1 ACK → M2-N4 RES → GUI-2 FIN
+17:12:33.595 [CADUCA] DIV M4-N3 (c9270d2b) sin latido en 6 s; se da por muerta
+17:12:33.596 [CADUCA] DIV M4-N3 (c9270d2b) sin latido en 6 s; se da por muerta
+17:12:33.596 [CADUCA] DIV M4-N3 (c9270d2b) sin latido en 6 s; se da por muerta
+17:12:33.596 [CADUCA] DIV M4-N3 (c9270d2b) sin latido en 6 s; se da por muerta
+17:12:36.010 [VIVA] DIV M4-N3·r1 (00c9af33) en Nodo 3
+17:12:36.010 [VIVA] DIV M4-N3·r1 (00c9af33) en Nodo 3
+17:12:36.010 [VIVA] DIV M4-N3·r1 (00c9af33) en Nodo 3
+17:12:36.010 [VIVA] DIV M4-N3·r1 (00c9af33) en Nodo 3
+17:12:56.879 [DETENIDA] GUI-1 detenida
+17:12:56.880 [DETENIDA] GUI-2 detenida
+17:12:56.882 [DETENIDA] GUI-3 detenida
+17:12:56.883 [DETENIDA] GUI-4 detenida
+  17.3 s · OK  E0 16 madres vacías vistas por el gestor · 16
+  17.3 s · captura e0a_gestor_vacio
+  17.4 s · captura e0b_panel_vacio
+  29.3 s · OK  E0 Distribuir: 16 altas ok · ['ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok']
+  29.3 s · OK  E0 una de cada operación por nodo · {'SUM': ['M1-N1', 'M1-N2', 'M1-N3', 'M1-N4'], 'SUB': ['M2-N1', 'M2-N2', 'M2-N3', 'M2-N4'], 'MUL': ['M3-N1', 'M3-N2', 'M3-N3', 'M3-N4'], 'DIV': ['M4-N1', 'M4-N2', 'M4-N3', 'M4-N4']}
+  29.3 s · captura e0c_gestor_distribuido
+  29.3 s · captura e0d_nodo1
+  39.3 s · OK  E1 7+5 = 12 resuelta y finalizada · {'resultado': 12.0, 'estado': 'resuelta', 'fase': 'FINALIZADO', 'acuses': 4, 'minimo': 2, 'respondio': 'M1-N1'}
+  39.3 s · OK  E1 rastro REQ→ACK→RES · [['07b96e1e', 'GUI-1', 'REQ'], ['4acf4b5d', 'M1-N1', 'ACK'], ['be9db0a8', 'M1-N4', 'ACK'], ['c3340f85', 'M1-N3', 'ACK'], ['8610fb2c', 'M1-N2', 'ACK'], ['4acf4b5d', 'M1-N1', 'RES'], ['07b96e1e', 'GUI-1', 'FIN']]
+  39.3 s · OK  E1 GUI-2 no lo muestra y sube ajenas · (0, 7)
+  39.3 s · captura e1a_gui1_evento
+  39.3 s · captura e1b_gui2_ajenas
+  43.3 s · en vuelo: GUI-1 8, GUI-2 8
+  55.3 s · OK  E2 GUI-1: 8 resueltas y solo suyas · [('0002', 'resuelta'), ('0003', 'resuelta'), ('0004', 'resuelta'), ('0005', 'resuelta'), ('0006', 'resuelta'), ('0007', 'resuelta'), ('0008', 'resuelta'), ('0009', 'resuelta')]
+  55.3 s · OK  E2 GUI-2: 8 resueltas y solo suyas · [('0001', 'resuelta'), ('0002', 'resuelta'), ('0003', 'resuelta'), ('0004', 'resuelta'), ('0005', 'resuelta'), ('0006', 'resuelta'), ('0007', 'resuelta'), ('0008', 'resuelta')]
+  55.3 s · captura e2a_gui1_rafaga
+  55.3 s · captura e2b_gui2_rafaga
+  72.3 s · OK  E3 2+2 con muda: 4 ACK de 5 esperados, ausente SUM-N1m · {'acuses': 4, 'minimo': 2, 'esperados': ['M1-N1', 'M1-N2', 'M1-N3', 'M1-N4', 'SUM-N1m'], 'ausentes': ['SUM-N1m'], 'estado': 'resuelta'}
+  72.3 s · captura e3_gui1_min_ack
+  81.3 s · OK  E4 M5-N2 vacía en la topología · []
+  87.3 s · OK  E4 M5-N2 tiene MUL 1.0 · [{'codigo': 'MUL', 'version': '1.0', 'sha8': '6942cb86'}]
+  87.3 s · OK  E4 disco → validado → memoria → activo · (['GEN_ESCRITO', 'GEN_VALIDADO', 'GEN_CARGADO', 'GEN_ACTIVO'], 'MUL@1.0 (inyección del gestor G-N1) → datos/celulas/M5-N2-542dbce1/genes/MUL/1.0/')
+  87.3 s · captura e4a_gestor_alta
+  92.3 s · OK  E4 M5-N2 acusa MUL_REQ (6×7=42) · (['M3-N4', 'M5-N2', 'M3-N3', 'M3-N2', 'M3-N1'], 'M3-N2')
+  92.3 s · captura e4b_gui1_mul_5
+  95.3 s · OK  E5 M1-N4 es SUM · [{'codigo': 'SUM', 'version': '1.0', 'sha8': 'd822d4ba'}]
+ 100.3 s · OK  E5 M1-N4 dada de baja (vacía) · []
+ 105.3 s · OK  E5 SUM 1.0: 0.1+0.2 = 0.30000000000000004 · (0.30000000000000004, ['M1-N2', 'M1-N3', 'M1-N1'])
+ 113.3 s · OK  E5 todas las SUM en 2.0 · {'M1-N1': [{'codigo': 'SUM', 'version': '2.0', 'sha8': '765cbef9'}], 'M1-N2': [{'codigo': 'SUM', 'version': '2.0', 'sha8': '765cbef9'}], 'M1-N3': [{'codigo': 'SUM', 'version': '2.0', 'sha8': '765cbef9'}], 'SUM-N1m': [{'codigo': 'SUM', 'version': '2.0', 'sha8': '765cbef9'}]}
+ 119.3 s · OK  E5 SUM 2.0: 0.1+0.2 = 0.3 · 0.3
+ 119.3 s · OK  E5 9.9 rechazado y la 2.0 sigue · ('rechazada', 'validar: sha256 no coincide (declarado 448394e6, real 5ba78374); sigue activo SUM@2.0 · 9 ms en la madre', [{'codigo': 'SUM', 'version': '2.0', 'sha8': '765cbef9'}])
+ 119.3 s · captura e5a_gestor_ordenes
+ 119.4 s · captura e5b_gui1_0_3
+ 123.3 s · panel: Tumbé M1-N2. Ahora no toques nada: las madres lo detectan en ~6 s y regeneran una por una.
+ 131.3 s · captura e6a_gestor_caida
+ 148.3 s · OK  E6 línea de tiempo: CAIDA, CLON_AVISO, CONECTADA, CLON_LISTO, NIVEL_OK · ['CAIDA', 'CLON_AVISO', 'CONECTADA', 'ENTREGA', 'CLON_LISTO', 'NIVEL_OK']
+ 148.3 s · OK  E6 M1-N2·r1 vivo con SUM 2.0 copiado · [{'codigo': 'SUM', 'version': '2.0', 'sha8': '765cbef9'}]
+ 148.3 s · CLON_LISTO: ['M1-N2·r1 reemplaza a M1-N2: SUM@2.0 de M1-N1 (disco → memoria)']
+ 148.3 s · captura e6b_gestor_regenerada
+ 148.4 s · captura e6c_panel_reemplazo
+ 158.3 s · OK  E7 tras el alto: un solo aviso, nada más · 1
+ 158.4 s · panel: Tumbé M1-N1, M1-N2·r1, M1-N3. Ahora no toques nada: las madres lo detectan en ~6 s y regeneran una por una.
+ 175.3 s · captura e7a_gestor_gradual
+ 218.3 s · OK  E7 3 avisos más, uno por uno, y alto · ['CAIDA', 'CAIDA', 'CAIDA', 'CLON_AVISO', 'CONECTADA', 'ENTREGA', 'CLON_LISTO', 'EN_ESPERA', 'CLON_AVISO', 'CONECTADA', 'ENTREGA', 'CLON_LISTO', 'EN_ESPERA', 'CLON_AVISO', 'CONECTADA', 'ENTREGA', 'CLON_LISTO', 'NIVEL_OK']
+ 218.3 s · OK  E7 SUM de vuelta al nivel previo (3 tras la baja de E5 + muda) · ['M1-N1·r1', 'M1-N2·r2', 'M1-N3·r1', 'SUM-N1m']
+ 218.3 s · captura e7b_gestor_alto
+ 218.4 s · captura e7c_panel_tres
+ 236.3 s · OK  E8 el gestor ve el Nodo 5 · ['Nodo 1', 'Nodo 2', 'Nodo 3', 'Nodo 4', 'Nodo 5']
+ 236.3 s · OK  E8 M1-N5 en el Nodo 5 · Nodo 5
+ 242.3 s · OK  E8 M1-N5 con DIV · [{'codigo': 'DIV', 'version': '1.0', 'sha8': 'c7a4f6c0'}]
+ 242.3 s · captura e8_gestor_nodo5
+ 246.4 s · gestor cerrado; el panel solo observa
+ 246.4 s · tumbé M4-N3 (DIV) sin gestor
+ 271.3 s · OK  Final: sin gestor 9−4 = 5 · 5.0
+ 271.3 s · OK  Final: regeneró sin gestor · ['M1-N1·r1', 'M1-N2·r2', 'M1-N3·r1', 'M4-N3·r1']
+ 271.3 s · OK  Final: DIV de vuelta a 5 · {'SUM': 4, 'SUB': 4, 'MUL': 5, 'DIV': 5}
+ 271.3 s · captura ef_panel_final
+--- línea de tiempo del gestor
+17:10:29 CAIDA M1-N2 (SUM 2.0) dejó de latir sin CEL_ADIOS: es una pérdida
+17:10:31 CLON_AVISO M3-N1 (rango 0) regenera a M1-N2 → M1-N2·r1 en Nodo 2; copiará SUM 2.0 (intento 1)
+17:10:31 CONECTADA M1-N2·r1 late en Nodo 2: nació vacía, copia sus genes…
+17:10:31 ENTREGA M1-N1 entrega SUM@2.0 a M1-N2·r1 (de su disco, por el Campo de Datos)
+17:10:31 CLON_LISTO M1-N2·r1 reemplaza a M1-N2: SUM@2.0 de M1-N1 (disco → memoria)
+17:10:31 NIVEL_OK nivel recuperado (SUM 3 · SUB 4 · MUL 5 · DIV 4): las madres dejan de clonar
+17:11:05 CAIDA M1-N1 (SUM 2.0) dejó de latir sin CEL_ADIOS: es una pérdida
+17:11:05 CAIDA M1-N3 (SUM 2.0) dejó de latir sin CEL_ADIOS: es una pérdida
+17:11:05 CAIDA M1-N2·r1 (SUM 2.0) dejó de latir sin CEL_ADIOS: es una pérdida
+17:11:07 CLON_AVISO M3-N2 (rango 0) regenera a M1-N1 → M1-N1·r1 en Nodo 1; copiará SUM 2.0 (intento 1)
+17:11:07 CONECTADA M1-N1·r1 late en Nodo 1: nació vacía, copia sus genes…
+17:11:07 ENTREGA SUM-N1m entrega SUM@2.0 a M1-N1·r1 (de su disco, por el Campo de Datos)
+17:11:07 CLON_LISTO M1-N1·r1 reemplaza a M1-N1: SUM@2.0 de SUM-N1m (disco → memoria)
+17:11:07 EN_ESPERA gradual: falta(n) M1-N3, M1-N2·r1; va una a la vez
+17:11:10 CLON_AVISO M3-N3 (rango 0) regenera a M1-N2·r1 → M1-N2·r2 en Nodo 2; copiará SUM 2.0 (intento 1)
+17:11:10 CONECTADA M1-N2·r2 late en Nodo 2: nació vacía, copia sus genes…
+17:11:10 ENTREGA SUM-N1m entrega SUM@2.0 a M1-N2·r2 (de su disco, por el Campo de Datos)
+17:11:10 CLON_LISTO M1-N2·r2 reemplaza a M1-N2·r1: SUM@2.0 de SUM-N1m (disco → memoria)
+17:11:10 EN_ESPERA gradual: falta(n) M1-N3; va una a la vez
+17:11:12 CLON_AVISO M3-N2 (rango 0) regenera a M1-N3 → M1-N3·r1 en Nodo 3; copiará SUM 2.0 (intento 1)
+17:11:12 CONECTADA M1-N3·r1 late en Nodo 3: nació vacía, copia sus genes…
+17:11:13 ENTREGA M1-N1·r1 entrega SUM@2.0 a M1-N3·r1 (de su disco, por el Campo de Datos)
+17:11:13 CLON_LISTO M1-N3·r1 reemplaza a M1-N3: SUM@2.0 de M1-N1·r1 (disco → memoria)
+17:11:13 NIVEL_OK nivel recuperado (SUM 3 · SUB 4 · MUL 5 · DIV 4): las madres dejan de clonar
+--- bitácoras
+ERROR: 0 · Traceback: 0 · DUPLICADA: 0 · CLON_AVISO propios: 10 · reemplazo listo: 10 · NO_CLONA: 0
+--- resumen
+30/30 revisiones OK
+vivos al final: [] · registrados: []

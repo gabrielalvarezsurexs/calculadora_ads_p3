@@ -11,15 +11,15 @@ import time
 import tkinter as tk
 from tkinter import ttk
 
-from comun import config, huella
+from comun import config, estilo, hashes, tema
 
 MAX_FILAS = 500
 COLORES = {
-    "FWD": "#0b6e99", "DUP": "#a15c00", "TTL": "#8a6d00", "DROP": "#b00020",
-    "CONEXION": "#1b7f3a", "DESCONEXION": "#8e2c8e", "LENTO": "#b00020",
-    "DUPLICADO": "#777777",
+    "FWD": tema.ACENTO, "DUP": tema.AVISO, "TTL": tema.AVISO, "DROP": tema.ERROR,
+    "CONEXION": tema.OK, "DESCONEXION": tema.ERROR, "LENTO": tema.ERROR,
+    "DUPLICADO": tema.APAGADO,
 }
-_TIPOS = {"INTERFAZ": "GUI", "SERVIDOR": "servidor", "SONDA": "sonda"}
+_TIPOS = {"INTERFAZ": "GUI", "MADRE": "madre", "GESTOR": "gestor", "SONDA": "sonda"}
 
 
 def _hora(t: float) -> str:
@@ -34,63 +34,69 @@ class VentanaNodo:
         self.raiz.geometry(geometria or "720x450")
         self.raiz.minsize(600, 380)
         self.raiz.protocol("WM_DELETE_WINDOW", self._cerrar)
-        self._ocultar_latidos = tk.BooleanVar(value=True)
-        self._pausar = tk.BooleanVar(value=False)
+        estilo.aplicar(self.raiz)
+        ttk.Style(self.raiz).configure("Treeview", rowheight=19)
+        self._ocultar_latidos = tk.BooleanVar(self.raiz, value=True)
+        self._pausar = tk.BooleanVar(self.raiz, value=False)
         self._construir()
         self._refrescar_tablas()
 
     # ------------------------------------------------------------ construcción
 
     def _construir(self) -> None:
-        estilo = ttk.Style(self.raiz)
-        estilo.configure("Treeview", font=("Segoe UI", 9), rowheight=18)
-        estilo.configure("Treeview.Heading", font=("Segoe UI", 9, "bold"))
         raiz = self.raiz
         raiz.columnconfigure(0, weight=1)
-        raiz.rowconfigure(3, weight=1)
+        raiz.rowconfigure(2, weight=1)
 
-        tk.Label(raiz, anchor="w", font=("Segoe UI", 11, "bold"),
-                 text=f"{self.nodo.nombre} · {huella.corto(self.nodo.hash)} · escucha "
-                      f"{self.nodo.endpoint}").grid(row=0, column=0, sticky="ew", padx=8,
-                                                    pady=(6, 0))
-        self._lbl_contadores = tk.Label(raiz, anchor="w", font=("Segoe UI", 9), fg="#333")
-        self._lbl_contadores.grid(row=1, column=0, sticky="ew", padx=8)
+        cabeza = tk.Frame(raiz, bg=tema.FONDO)
+        cabeza.grid(row=0, column=0, sticky="ew", padx=10, pady=(8, 2))
+        tk.Label(cabeza, text=self.nodo.nombre, font=tema.FUENTE_TITULO, bg=tema.FONDO,
+                 fg=tema.TEXTO).pack(side="left")
+        tk.Label(cabeza, text=f"  nodo del Campo de Datos · {hashes.corto(self.nodo.hash)}",
+                 font=tema.FUENTE_CHICA, bg=tema.FONDO, fg=tema.TEXTO_SUAVE).pack(side="left",
+                                                                                   pady=(4, 0))
+        estilo.pildora(cabeza, f"escucha {self.nodo.endpoint}", tema.OK).pack(side="right")
+        self._lbl_contadores = tk.Label(raiz, anchor="w", font=tema.FUENTE_CHICA, bg=tema.FONDO,
+                                        fg=tema.TEXTO_SUAVE)
+        self._lbl_contadores.grid(row=1, column=0, sticky="ew", padx=10)
 
-        tablas = tk.Frame(raiz)
-        tablas.grid(row=2, column=0, sticky="nsew", padx=6, pady=(4, 2))
-        tablas.columnconfigure(0, weight=1)
-        tablas.columnconfigure(1, weight=1)
-        self._lbl_vecinos = tk.Label(tablas, anchor="w", font=("Segoe UI", 9, "bold"))
-        self._lbl_vecinos.grid(row=0, column=0, sticky="ew")
-        self._lbl_celulas = tk.Label(tablas, anchor="w", font=("Segoe UI", 9, "bold"))
-        self._lbl_celulas.grid(row=0, column=1, sticky="ew", padx=(6, 0))
-        self._vecinos = self._tabla(tablas, [("nombre", 64), ("hash", 66), ("endpoint", 104),
-                                             ("sentido", 62), ("desde", 58)], alto=5)
-        self._vecinos.grid(row=1, column=0, sticky="nsew")
-        self._celulas = self._tabla(tablas, [("tipo", 62), ("servicio", 56), ("nombre", 84),
-                                             ("hash", 66), ("desde", 58)], alto=5)
-        self._celulas.grid(row=1, column=1, sticky="nsew", padx=(6, 0))
-        barra_c = ttk.Scrollbar(tablas, orient="vertical", command=self._celulas.yview)
-        barra_c.grid(row=1, column=2, sticky="ns")
+        cuerpo = tk.Frame(raiz, bg=tema.FONDO)
+        cuerpo.grid(row=2, column=0, sticky="nsew", padx=8, pady=(4, 8))
+        cuerpo.columnconfigure((0, 1), weight=1, uniform="tabla")
+        cuerpo.rowconfigure(1, weight=1)
+
+        marco, dentro = estilo.tarjeta(cuerpo, "Vecinos")
+        marco.grid(row=0, column=0, sticky="nsew", padx=(0, 4))
+        self._lbl_vecinos = marco.titulo
+        self._vecinos = self._tabla(dentro, [("nombre", 56), ("hash", 62), ("endpoint", 96),
+                                             ("sentido", 54), ("desde", 54)], alto=4)
+        self._vecinos.pack(fill="both", expand=True)
+        marco, dentro = estilo.tarjeta(cuerpo, "Células")
+        marco.grid(row=0, column=1, sticky="nsew", padx=(4, 0))
+        self._lbl_celulas = marco.titulo
+        self._celulas = self._tabla(dentro, [("tipo", 56), ("nombre", 92), ("hash", 66),
+                                             ("desde", 58)], alto=4)
+        barra_c = ttk.Scrollbar(dentro, orient="vertical", command=self._celulas.yview)
+        barra_c.pack(side="right", fill="y")
+        self._celulas.pack(fill="both", expand=True)
         self._celulas.configure(yscrollcommand=barra_c.set)
 
-        trafico = tk.Frame(raiz)
-        trafico.grid(row=3, column=0, sticky="nsew", padx=6, pady=(2, 6))
-        trafico.columnconfigure(0, weight=1)
-        trafico.rowconfigure(1, weight=1)
-        barra = tk.Frame(trafico)
-        barra.grid(row=0, column=0, columnspan=2, sticky="ew")
-        tk.Label(barra, text="Tráfico", font=("Segoe UI", 9, "bold")).pack(side="left")
-        ttk.Checkbutton(barra, text="pausar", variable=self._pausar).pack(side="right")
-        ttk.Checkbutton(barra, text="ocultar latidos",
-                        variable=self._ocultar_latidos).pack(side="right", padx=8)
+        marco, dentro = estilo.tarjeta(cuerpo, "Tráfico",
+                                       derecha="lo que reenvié (FWD), descarté (DUP) y el TTL")
+        marco.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=(8, 0))
+        barra = tk.Frame(dentro, bg=tema.SUPERFICIE)
+        barra.pack(fill="x", pady=(0, 4))
+        for texto, var in (("pausar", self._pausar), ("ocultar latidos", self._ocultar_latidos)):
+            tk.Checkbutton(barra, text=texto, variable=var, bg=tema.SUPERFICIE, fg=tema.TEXTO,
+                           activebackground=tema.SUPERFICIE, selectcolor=tema.SUPERFICIE,
+                           font=tema.FUENTE_CHICA, relief="flat").pack(side="right", padx=4)
         # Anchos para que quepan "DESCONEXION" y "SONDA_PRUEBA" a 720 px.
-        self._trafico = self._tabla(trafico, [("hora", 58), ("evento", 96), ("código", 100),
-                                              ("id", 62), ("origen", 66), ("de", 62),
-                                              ("ruta", 92), ("destinos", 140)], alto=8)
-        self._trafico.grid(row=1, column=0, sticky="nsew")
-        barra_v = ttk.Scrollbar(trafico, orient="vertical", command=self._trafico.yview)
-        barra_v.grid(row=1, column=1, sticky="ns")
+        self._trafico = self._tabla(dentro, [("hora", 58), ("evento", 92), ("código", 100),
+                                             ("id", 62), ("origen", 66), ("de", 62),
+                                             ("ruta", 92), ("destinos", 140)], alto=8)
+        barra_v = ttk.Scrollbar(dentro, orient="vertical", command=self._trafico.yview)
+        barra_v.pack(side="right", fill="y")
+        self._trafico.pack(fill="both", expand=True)
         self._trafico.configure(yscrollcommand=barra_v.set)
         for evento, color in COLORES.items():
             self._trafico.tag_configure(evento, foreground=color)
@@ -152,19 +158,19 @@ class VentanaNodo:
     def _refrescar_tablas(self) -> None:
         foto = self.nodo.instantanea()
         self._llenar(self._vecinos, [
-            (v["nombre"], huella.corto(v["hash"]), v["endpoint"], v["sentido"], _hora(v["desde"]))
+            (v["nombre"], hashes.corto(v["hash"]), v["endpoint"], v["sentido"], _hora(v["desde"]))
             for v in sorted(foto["vecinos"], key=lambda v: v["nombre"] or "")])
         celulas = sorted(foto["celulas"], key=lambda c: (c["entidad"] != "INTERFAZ",
                                                           c["servicio"] or "", c["nombre"] or ""))
         self._llenar(self._celulas, [
-            (_TIPOS.get(c["entidad"], c["entidad"]), c["servicio"] or "—", c["nombre"],
-             huella.corto(c["hash"]), _hora(c["desde"])) for c in celulas])
+            (_TIPOS.get(c["entidad"], c["entidad"]), c["nombre"], hashes.corto(c["hash"]),
+             _hora(c["desde"])) for c in celulas])
         guis = sum(1 for c in celulas if c["entidad"] == "INTERFAZ")
-        servidores = sum(1 for c in celulas if c["entidad"] == "SERVIDOR")
-        otras = len(celulas) - guis - servidores
-        detalle = f"{guis} GUI + {servidores} servidores" + (f" + {otras} otra(s)" if otras else "")
-        self._lbl_vecinos.config(text=f"Vecinos: {len(foto['vecinos'])}")
-        self._lbl_celulas.config(text=f"Células: {len(celulas)} ({detalle})")
+        madres = sum(1 for c in celulas if c["entidad"] == "MADRE")
+        otras = len(celulas) - guis - madres
+        detalle = f"{guis} GUI + {madres} madres" + (f" + {otras} otra(s)" if otras else "")
+        self._lbl_vecinos.config(text=f"Vecinos · {len(foto['vecinos'])}")
+        self._lbl_celulas.config(text=f"Células · {len(celulas)} ({detalle})")
 
     @staticmethod
     def _llenar(tabla: ttk.Treeview, filas) -> None:
@@ -185,4 +191,4 @@ class VentanaNodo:
 
     def _cerrar(self) -> None:
         self.nodo.detener()  # cierra los sockets: los pares lo detectan
-        self.raiz.destroy()
+        estilo.cerrar(self.raiz)

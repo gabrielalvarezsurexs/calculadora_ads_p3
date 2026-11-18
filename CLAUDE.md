@@ -1,85 +1,80 @@
-# Calculadora ADS — notas internas
+# Calculadora ADS — Tercer Parcial (notas internas)
 
-Proyecto del segundo parcial de Cómputo Distribuido: la calculadora del primer parcial pasada a una
-arquitectura ADS (Campo de Datos de nodos en malla, células GUI y servidor, todo por broadcast con
-Códigos de Contenido). Plan completo en `docs/PLAN.md`; avance por sesiones en `ROADMAP.md`.
+Evolución del sistema ADS del segundo parcial: Campo de Datos (nodos en malla) + GUIs + **células
+madre** vacías que jalan microservicios (genes) de disco, un **gestor de microservicios** con base
+de datos que inyecta genes por el Campo de Datos y dibuja la topología, **foliado** y
+**regeneración** automática, gradual y sin cáncer. **No hay orquestador.**
 
-## Al iniciar una sesión
-Leer `ROADMAP.md` → "Estado actual / siguiente paso", y la sección del plan que toque.
+## Dónde está cada cosa (leer según haga falta; aquí solo va lo indispensable)
 
-## Decisiones (no reabrir; detalle en docs/PLAN.md §0.1)
-- Python 3 (`py`), **solo librería estándar**. Sin Java a propósito.
+| Documento | Para qué |
+|---|---|
+| [ROADMAP.md](ROADMAP.md) | **Empezar aquí:** estado actual, siguiente paso, casillas por sesión, registro |
+| [docs/INSTRUCCIONES_USUARIO.md](docs/INSTRUCCIONES_USUARIO.md) | Lo que pidió el usuario, **literal**. Manda sobre el plan |
+| [docs/ENUNCIADO.md](docs/ENUNCIADO.md) | El PDF del tercer parcial, literal, con IDs por requisito |
+| [docs/REQUISITOS.md](docs/REQUISITOS.md) | Lista de verificación: requisito → sección del plan → sesión → evidencia |
+| [docs/PLAN.md](docs/PLAN.md) | Diseño completo: arquitectura, madres y genes, gestor, foliado, regeneración, mensajes, constantes, escenarios, pruebas, reporte, calidad |
+| [docs/parcial2/](docs/parcial2/) | Lo entregado en el segundo parcial (plan, reporte, guion, resumen). Referencia del diseño heredado |
+
+## Reglas de trabajo (no reabrir)
+- Plan **aprobado** (2026-11-17, mensaje 7). Cambios de diseño de fondo se consultan antes con
+  el usuario. Instrucciones nuevas se anexan literal a `docs/INSTRUCCIONES_USUARIO.md` y se
+  reflejan en `PLAN.md` y `REQUISITOS.md`.
+- **Un gestor por nodo**, que el usuario levanta (el panel no los abre solo).
+- Entrega final **súper completa y visualmente clean**: todas las ventanas usan `comun/tema.py`
+  (PLAN §15.1).
 - Fases en orden estricto: 0 → A código → B pruebas → C fixes → D reporte → E guion.
-- Nodos "bobos": aceptan conexiones, inundan, evitan ciclos. Nunca leen `cuerpo`.
-- Todo dato viaja por broadcast; cada célula filtra por código.
-- Todo tiene hash SHA-256 (nodos, células, mensajes, operaciones). Cada entidad genera el suyo.
-- Servidor: acusa al recibir, encola, elección HRW entre los que acusaron; una titular responde,
-  las demás son respaldos escalonados.
-- Disponibilidad por latidos (`SRV_LAT`); la GUI deshabilita el operador si vivas < mínimo.
-- Failover de células a otro nodo de la malla.
+- **Python 3.14, solo librería estándar** en el sistema; **uv** para el entorno. Sin Java.
+- **No hay orquestador**: las células deciden solas; gestor y panel son herramientas.
+- Regeneración **automática** (sin input del usuario), **gradual**, reemplazo **1 a 1**, ocho
+  límites anti-cáncer; el clon **copia** los genes de la célula perdida.
+- Video **fácil de grabar**; código **deslumbrante** (PLAN §15). Reporte **≤ 30 páginas**.
 - El PDF manda sobre lo visto en clase; las diferencias se mencionan breve y respetuosamente.
-- Commits solo cuando el usuario lo pida.
+- Commits solo cuando el usuario lo pida. El repo del segundo parcial (`../calculadora_ads/`) no
+  se toca.
 
-## Cómo correr (desde esta carpeta)
-```
-py -m nodo --puerto 5001 --nombre "Nodo 1" [--semillas 127.0.0.1:5002] [--sin-ventana]
-py -m servidor --servicio SUM --nodo 127.0.0.1:5001 [--nombre SUM-N1] [--retardo-ms 0]
-py -m interfaz --nodo 127.0.0.1:5001 [--nombre GUI-1] [--acuses-min 2] [--geometria WxH+X+Y]
-py -m sonda --nodo 127.0.0.1:5001 [--ttl 8] [--id <hash>] [--repetir N]
-py -m unittest discover -s tests -t .
-py -m panel        # demo: "Levantar configuración mínima"
-py docs/md_a_docx.py   # REPORTE_TECNICO.md -> Reporte_Tecnico_Calculadora_ADS.docx
-py docs/llenar_minutos.py [--revisar]   # minutos de GUION_VIDEO.md -> columna "Video" del reporte
-```
-
-## Reglas de código
-1. `nucleo.py` nunca importa Tkinter; eventos por `queue.Queue` + `after(100)`.
-2. Constantes como `config.X` al usarlas, nunca `from comun.config import X`.
+## Reglas de código (heredadas)
+1. Ningún `nucleo.py` importa Tkinter; eventos por `queue.Queue` + `after(100)`.
+2. Constantes como `config.X` al usarlas, nunca `from comun.config import X` (las pruebas las
+   parchan).
 3. Estado compartido entre hilos protegido por el lock del objeto dueño.
 4. Ningún hilo de red muere por excepción: se registra `ERROR` y se sigue.
 5. Al arrancar: `sys.stdout.reconfigure(encoding="utf-8", errors="replace")`.
+6. Nodos "bobos": nunca leen el `cuerpo`. Todo dato por broadcast; cada célula filtra por código.
 
-## Dónde está cada cosa
-- `comun/` — transporte NDJSON + `Enlace`, hashes, códigos, sobre de mensajes, config, registro de
-  vistos, bitácora, formato de números.
-- `nodo/` — nodo del Campo de Datos (`nucleo.py` headless, `gui.py` ventana).
-- `sonda/` — CLI de demo para inyectar mensajes con TTL/id elegidos (fuera del sistema).
-- `celula/base.py` — célula base (ACP): conexión, BIENVENIDA/PARES, failover, dedup propio,
-  `publicar()`; las subclases implementan `procesar()`, `al_conectar()`, `al_desconectar()`.
-- `servidor/` — `calculo.py` (función pura) y `nucleo.py` (rondas, acuse inmediato, cola,
-  elección HRW, respaldos con `Programador`, relevo, doble revisión, latidos).
-- `interfaz/nucleo.py` — GUI sin Tkinter: operaciones, quórum por intento, RES retenido,
-  reintentos, disponibilidad por latidos; empuja eventos a una cola. `interfaz/gui.py` la ventana.
-- `nodo/gui.py` — tablas de vecinos y células, contadores y tráfico en vivo.
-- `panel/` — herramienta de demo FUERA del sistema: `procesos.py` (lanzar/vigilar/tumbar, sin
-  Tk) y `gui.py` (matriz, configuración mínima, procesos, bitácora en vivo).
-- `tests/` — unitarias por módulo de `comun/` y `servidor/calculo.py`; integración en proceso
-  (`test_malla`, `test_broadcast`, `test_flujo`) con `tests/apoyo.py`: `Sistema` (nodos y
-  células con puertos efímeros), `Registro` (bitácora en memoria con ganchos), `Receptor`,
-  `Espia` (cuenta ACK/RES por operación e inyecta mensajes) y `acortar` (parcha `config`).
-  `RELEVO` nunca baja de 1 s en pruebas.
-- Pantalla del usuario: 1463×914 lógicos (2560×1600 al 175 %). Para operar/capturar ventanas sin
-  quitarle el foco: ver notas del ROADMAP (PostMessage + PrintWindow).
-- `logs/` — bitácoras `<nombre>-<hash8>.log` (ignoradas por git).
+## Cómo correr (desde esta carpeta)
+```
+uv sync                                   # una vez: crea .venv con ruff
+uv run python -m unittest discover -s tests -t .
+uv run ruff check .
+uv run python -m panel                    # demo
+```
+Comandos de cada programa: `README.md` y PLAN §3.4 (madre). **Estado del código:** S1 hecha:
+`servidor/` ya no existe (lo sustituye `madre/`), `comun/huella.py` es `comun/hashes.py`, banco
+`microservicios/` firmado con `herramientas/firmar.py`. S2 hecha: foliado en `comun/foliado.py`
+(rondas por `(código, folio, intento)`, `X_FIN`; detalles en PLAN §5.5). S3 hecha: `gestor/`
+(BD, topología, diagrama, ventana), `NODO_LAT` en el nodo, `TOPO_REQ` en la célula base, órdenes
+y pedidos de genes en la madre (`madre/ordenes.py`, `madre/pedidos.py`, `comun/pedidos.py`),
+piezas Tk en `comun/estilo.py`; detalles en PLAN §4.6. S4 hecha: regeneración
+(`madre/regeneracion.py` decide, `madre/lanzador.py` lanza procesos desacoplados + `run/`,
+`madre/copia.py` = el reemplazo copia sus genes), línea de tiempo y animación en el gestor, GUI
+con tarjeta de evento, panel con dos modos y botón Gestor por nodo, repaso visual; detalles en
+PLAN §6.7. S5 hecha: los 8 escenarios en vivo (30/30), fixes (ver registro del `ROADMAP.md`),
+`docs/REQUISITOS.md` marcado, capturas para el reporte en `docs/capturas/`. Cerrar ventanas
+con `estilo.cerrar(raiz)` (cancela los `after` pendientes). S6 hecha: `REPORTE_TECNICO.md` →
+`uv run python docs/md_a_docx.py` → `.docx` de **30 páginas exactas** (cualquier texto nuevo se
+compensa; revisar con Word, notas del `ROADMAP.md`), `README.md`, `ENTREGA.md`. S7 hecha:
+`GUION_VIDEO.md` (11 escenas; si cambia una etiqueta de ventana, actualizar el guion) y
+`docs/llenar_minutos.py` (la tabla "Matriz del reporte" del guion debe calcar ID y requisito de
+las filas con `<mm:ss>` del §2 del reporte, en orden). En pruebas,
+`Sistema(regenerar=True)` para que las madres clonen (en proceso).
+Para humo con procesos reales, redirigir su stdout a archivo (un pipe sin leer los bloquea).
+Capturas de ventanas Tk: **nunca asomarlas** (el usuario las minimiza); al fondo + `PrintWindow`
+modo 2, y las del mismo proceso desde su hilo de Tk: notas "Capturas (S5)" del `ROADMAP.md`.
+Un humo con madres reales deja reemplazos vivos: terminarlos con `madre.lanzador.registrados()`.
 
-## Documentación (entregables)
-- `README.md` — puerta de entrada del repo. `ENTREGA.md` — estado de los 3 entregables, lo que
-  hace el usuario a mano y el checklist final.
-- `GUION_VIDEO.md` — 10 escenas (~10 min) en el orden de la corrida verificada, con comandos de
-  PowerShell probados (conteo de `RES` por operación, papeles de una operación, sondas con `$id`,
-  limpieza de procesos). Al final, "Minutos por escena" y "Matriz del reporte": esta última
-  replica, en el mismo orden, las filas del §2 del reporte que llevan video. Si se agrega o quita
-  una fila de la matriz, hay que reflejarlo ahí o `docs/llenar_minutos.py` se niega a escribir.
-- `REPORTE_TECNICO.md` — el reporte (Partes I/II/III, matriz de trazabilidad con columna "Video"
-  en `<mm:ss>`, figuras de `docs/capturas/`). Las bitácoras citadas son de la corrida del
-  2026-10-11 19:09–19:12 con el código final; si se cambia código que altere una línea citada,
-  hay que regenerarlas y actualizar el reporte. El checklist del guion mueve esas bitácoras de
-  `logs/` a `logs_reporte_<fecha>/` (ignorada por git) antes de grabar.
-- `Reporte_Tecnico_Calculadora_ADS.docx` — se genera, no se edita a mano:
-  `py docs/md_a_docx.py` (stdlib; entiende solo el subconjunto de Markdown que usa el reporte:
-  encabezados, párrafos, listas de 2 niveles, tablas, bloques de código, citas, `---`, imágenes
-  PNG en su propio renglón). Los bloques de código salen a 7.5 pt: líneas de ≤ 110 caracteres.
-- Para revisar el `.docx`: Word por COM (`Documents.Open` + `SaveAs2(pdf, 17)`) y renderizar el
-  PDF con la API `Windows.Data.Pdf` (no hay pandoc, LibreOffice ni pdftoppm en esta máquina).
-- Portada: marcadores `<NOMBRE COMPLETO>`, `<MATRÍCULA>`, `<GRUPO>`, `<LIGA AL REPOSITORIO>`,
-  `<LIGA AL VIDEO>`; los llena el usuario.
+## Entorno del usuario
+- Windows 11, pantalla 1463×914 lógicos (2560×1600 al 175 %). Para operar/capturar ventanas sin
+  quitarle el foco: notas del `ROADMAP.md`.
+- Revisar `.docx`: Word por COM (`Documents.Open` + `SaveAs2(pdf, 17)`) y la API
+  `Windows.Data.Pdf`; no hay pandoc ni LibreOffice.

@@ -1,0 +1,16 @@
+{
+  "codigo": "SUM",
+  "version": "9.9",
+  "nombre": "Suma turbo",
+  "archivo": "servicio.py",
+  "sha256": "448394e684334d09f7c0f4c1cac319378f89908e2548b94bad3810eb5263af11",
+  "interfaz": 1,
+  "pruebas": [
+    [
+      2,
+      3,
+      5
+    ]
+  ],
+  "descripcion": "Gen manipulado para la demo: el programa cambió después de firmarlo."
+}

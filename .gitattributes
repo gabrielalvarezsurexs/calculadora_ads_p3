@@ -1,0 +1,2 @@
+# Los genes se validan por sha256 de sus bytes: git no debe cambiar sus finales de línea.
+microservicios/** -text

@@ -1,12 +1,25 @@
 [project]
-name = "calculadora-ads"
-version = "0.1.0"
-description = "Calculadora distribuida sobre una arquitectura ADS (Campo de Datos + células)"
+name = "calculadora-ads-p3"
+version = "0.3.0"
+description = "Calculadora distribuida ADS con foliado, genes cargables, autorrecuperación y gestor de servicios"
+readme = "README.md"
 requires-python = ">=3.12"
+
+# El sistema no tiene dependencias externas: sockets, hilos, colas, JSON,
+# importlib, subprocess, Tkinter y unittest son librería estándar a propósito.
 dependencies = []
+
+[dependency-groups]
+# Herramientas de desarrollo, no necesarias para correr la demo:
+#   uv sync              -> instala todo, incluido esto
+#   uv sync --no-dev     -> solo lo necesario para correr
+dev = [
+    "ruff>=0.6",
+]
 
 [tool.ruff]
 line-length = 100
+extend-exclude = [".venv", "docs/parcial2"]
 
 [tool.ruff.lint.per-file-ignores]
 # Regla 4 del proyecto: ningún hilo de red muere por una excepción, y la
@@ -14,7 +27,9 @@ line-length = 100
 # SIM115: la bitácora mantiene su archivo abierto toda la vida del proceso.
 "comun/bitacora.py" = ["BLE001", "S110", "SIM115"]
 "comun/protocolo.py" = ["BLE001"]
+"comun/programador.py" = ["BLE001"]
+"madre/*.py" = ["BLE001"]
 "nodo/nucleo.py" = ["BLE001"]
-"celula/base.py" = ["BLE001"]
-"servidor/nucleo.py" = ["BLE001"]
+"celula/*.py" = ["BLE001"]
 "interfaz/nucleo.py" = ["BLE001"]
+"gestor/nucleo.py" = ["BLE001"]

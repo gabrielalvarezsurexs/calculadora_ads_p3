@@ -1,0 +1,26 @@
+{
+  "codigo": "SUM",
+  "version": "2.0",
+  "nombre": "Suma decimal exacta",
+  "archivo": "servicio.py",
+  "sha256": "765cbef9caca3b5abad3eb405eb08652a7e58743e369e12457242f60a752863e",
+  "interfaz": 1,
+  "pruebas": [
+    [
+      2,
+      3,
+      5
+    ],
+    [
+      0.1,
+      0.2,
+      0.3
+    ],
+    [
+      -1.5,
+      1.5,
+      0
+    ]
+  ],
+  "descripcion": "Suma con Decimal a partir de la representación más corta: 0.1 + 0.2 = 0.3."
+}

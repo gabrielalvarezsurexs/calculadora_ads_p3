@@ -1,0 +1,26 @@
+{
+  "codigo": "SUM",
+  "version": "1.0",
+  "nombre": "Suma (punto flotante)",
+  "archivo": "servicio.py",
+  "sha256": "d822d4baa7d5881a4088318d311e7d8e25ecd8e4abb139fe50639f7f9c50b3df",
+  "interfaz": 1,
+  "pruebas": [
+    [
+      2,
+      3,
+      5
+    ],
+    [
+      7,
+      5,
+      12
+    ],
+    [
+      -1.5,
+      1.5,
+      0
+    ]
+  ],
+  "descripcion": "Suma IEEE 754, como la calculadora original: 0.1 + 0.2 = 0.30000000000000004."
+}

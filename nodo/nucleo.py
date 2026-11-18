@@ -9,7 +9,7 @@ mensaje es de las células.
 Protocolo de conexión (§10.1), resumido:
 
 * Toda entidad se presenta con HOLA (tipo, hash, nombre, versión). Un NODO
-  va a ``vecinos``; una célula (INTERFAZ, SERVIDOR o SONDA) va a ``celulas``.
+  va a ``vecinos``; una célula (INTERFAZ, MADRE, GESTOR o SONDA) va a ``celulas``.
 * El nodo contesta BIENVENIDA con los endpoints de nodos que conoce, y manda
   PARES a todos sus enlaces cada vez que ese conjunto crece (gossip).
 * Un supervisor marca a cada endpoint conocido que aún no tenga enlace. Basta
@@ -17,6 +17,13 @@ Protocolo de conexión (§10.1), resumido:
 * Si dos nodos se marcan a la vez, la regla de enlace duplicado (que solo
   depende de los hashes y de quién inició cada enlace) hace que ambos lados se
   queden con el mismo.
+
+**Latido del nodo** (``NODO_LAT``, nuevo en el tercer parcial): cada ``LATIDO``
+s, y en cuanto cambian sus enlaces, el nodo ORIGINA un mensaje de datos con lo
+que solo él sabe: sus vecinos reales y las células conectadas a él. Viaja por
+la misma inundación que todo lo demás, así que cualquier gestor puede dibujar
+la malla sin preguntarle nada a nadie. Originar su latido no contradice que el
+nodo sea "bobo": sigue sin abrir el ``cuerpo`` de los mensajes que reenvía.
 
 Este módulo no importa Tkinter. Si se le pasa una ``queue.Queue`` en
 ``eventos``, empuja ahí lo que la ventana necesita mostrar.
@@ -27,7 +34,7 @@ import socket
 import threading
 import time
 
-from comun import config, huella, mensajes
+from comun import config, hashes, mensajes
 from comun.bitacora import Bitacora
 from comun.protocolo import Enlace, serializar
 from comun.vistos import RegistroVistos
@@ -47,7 +54,7 @@ class Nodo:
         self.nombre = nombre
         self.host = host
         self.puerto = puerto
-        self.hash = huella.de_entidad(mensajes.NODO, nombre)
+        self.hash = hashes.de_entidad(mensajes.NODO, nombre)
         self.bitacora = bitacora or Bitacora(nombre, self.hash)
         self.eventos = eventos
 
@@ -69,6 +76,7 @@ class Nodo:
 
         self._activo = threading.Event()
         self._despertar = threading.Event()
+        self._latir_ya = threading.Event()  # latido anticipado: cambiaron los enlaces
         self._servidor: socket.socket | None = None
         self._semillas = [s for s in semillas if s]
 
@@ -103,10 +111,11 @@ class Nodo:
         with self._lock:
             self.conocidos.update(ep for ep in semillas if ep not in self.propios)
 
-        self._log("INICIO", f"{self.nombre} · {huella.corto(self.hash)} · escucha {self.endpoint}"
+        self._log("INICIO", f"{self.nombre} · {hashes.corto(self.hash)} · escucha {self.endpoint}"
                             f" · semillas: {', '.join(semillas) or 'ninguna'}")
         threading.Thread(target=self._aceptar, name="aceptador", daemon=True).start()
         threading.Thread(target=self._supervisar, name="supervisor", daemon=True).start()
+        threading.Thread(target=self._latir, name="latido", daemon=True).start()
         self._despertar.set()
 
     def detener(self) -> None:
@@ -114,6 +123,7 @@ class Nodo:
             return
         self._activo.clear()
         self._despertar.set()
+        self._latir_ya.set()
         if self._servidor is not None:
             try:
                 self._servidor.close()
@@ -123,7 +133,7 @@ class Nodo:
             enlaces = list(self._enlaces)
         for e in enlaces:
             e.cerrar("nodo detenido")
-        self._log("FIN", f"{self.nombre} detenido")
+        self._log("DETENIDO", f"{self.nombre} detenido")
 
     @property
     def activo(self) -> bool:
@@ -288,7 +298,7 @@ class Nodo:
             evento = "DUPLICADO"  # resolución de la regla de enlace duplicado, no una caída
         else:
             evento = "DESCONEXION"
-        self._log(evento, f"{quitado} {enlace.nombre} ({huella.corto(enlace.hash)}): {motivo}",
+        self._log(evento, f"{quitado} {enlace.nombre} ({hashes.corto(enlace.hash)}): {motivo}",
                   evento=evento, de=enlace.nombre)
         self._tablas_cambiaron()
         if quitado == "vecino":
@@ -330,7 +340,7 @@ class Nodo:
                 self._rechazar(enlace, mensajes.DUPLICADO,
                                f"{nombre} ya tiene enlace conmigo (llegó otro entrante)")
             else:
-                self._log("CONEXION", f"vecino {nombre} ({huella.corto(h)}) desde {ep} · entrante",
+                self._log("CONEXION", f"vecino {nombre} ({hashes.corto(h)}) desde {ep} · entrante",
                           evento="CONEXION", de=nombre)
                 self._tablas_cambiaron()
             if crecio:
@@ -346,7 +356,7 @@ class Nodo:
         if viejo is not None and viejo is not enlace:
             viejo.cerrar("reemplazado: la célula se reconectó")
         servicio = f" {hola['servicio']}" if hola.get("servicio") else ""
-        self._log("CONEXION", f"célula {entidad}{servicio} {nombre} ({huella.corto(h)})",
+        self._log("CONEXION", f"célula {entidad}{servicio} {nombre} ({hashes.corto(h)})",
                   evento="CONEXION", de=nombre)
         self._tablas_cambiaron()
 
@@ -361,7 +371,7 @@ class Nodo:
             self._nombres[h] = nombre
             aceptado = self._registrar_vecino(enlace, h, nombre, dar_bienvenida=False)
         if aceptado:
-            self._log("CONEXION", f"vecino {nombre} ({huella.corto(h)}) en {enlace.endpoint}"
+            self._log("CONEXION", f"vecino {nombre} ({hashes.corto(h)}) en {enlace.endpoint}"
                                   f" · saliente", evento="CONEXION", de=nombre)
             self._tablas_cambiaron()
         else:
@@ -478,8 +488,8 @@ class Nodo:
             self._descartar(enlace, motivo)
             return
 
-        codigo, id8 = m["codigo"], huella.corto(m["id"])
-        origen = m.get("nombre_origen") or huella.corto(m["origen"])
+        codigo, id8 = m["codigo"], hashes.corto(m["id"])
+        origen = m.get("nombre_origen") or hashes.corto(m["origen"])
         silencioso = codigo in config.CODIGOS_SILENCIOSOS
         campos = {"codigo": codigo, "id8": id8, "origen": origen, "de": enlace.nombre}
 
@@ -523,9 +533,49 @@ class Nodo:
                              f"pero no se reenvía a nodos", consola=not silencioso,
                       evento="TTL", ruta=ruta, **campos)
 
+    # --------------------------------------------------------------- latido
+
+    def _latir(self) -> None:
+        """Hilo del latido: cada ``LATIDO`` s, o antes si cambiaron los enlaces."""
+        while self._activo.is_set():
+            self._latir_ya.wait(config.LATIDO)
+            self._latir_ya.clear()
+            if not self._activo.is_set():
+                return
+            try:
+                self.latir()
+            except Exception as e:
+                self._log("ERROR", f"latido: {e!r}")
+            time.sleep(min(0.25, config.LATIDO))  # muchas conexiones juntas: un solo latido
+
+    def latir(self) -> dict:
+        """Origina un ``NODO_LAT`` y lo entrega a sus células y vecinos.
+
+        Sale como si este nodo ya lo hubiera procesado (marcado como visto, con
+        su hash en la ruta y el TTL descontado): una copia que regrese es DUP.
+        """
+        with self._lock:
+            cuerpo = {
+                "nombre": self.nombre, "endpoint": self.endpoint,
+                "vecinos": [{"hash": h, "nombre": e.nombre, "endpoint": e.endpoint}
+                            for h, e in sorted(self.vecinos.items())],
+                "celulas": [{"hash": h, "nombre": e.nombre, "entidad": e.entidad}
+                            for h, e in sorted(self.celulas.items())],
+                "contadores": dict(self.contadores),
+            }
+            destinos = list(self.celulas.values()) + list(self.vecinos.values())
+        m = mensajes.nuevo(mensajes.NODO_LAT, self.hash, mensajes.NODO, self.nombre, cuerpo)
+        self.vistos.marcar_si_nuevo(m["id"])
+        m["ttl"] -= 1
+        m["ruta"].append(self.hash)
+        datos = serializar(m)
+        for e in destinos:
+            e.enviar_bytes(datos)
+        return m
+
     def _ruta_legible(self, ruta: list[str]) -> str:
         with self._lock:
-            return "→".join(abreviar(self._nombres.get(h, huella.corto(h))) for h in ruta)
+            return "→".join(abreviar(self._nombres.get(h, hashes.corto(h))) for h in ruta)
 
     # ---------------------------------------------------------- observación
 
@@ -545,6 +595,7 @@ class Nodo:
             }
 
     def _tablas_cambiaron(self) -> None:
+        self._latir_ya.set()  # que la topología de los gestores se entere ya
         if self.eventos is not None:
             self.eventos.put(("tablas", None))
 

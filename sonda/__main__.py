@@ -18,7 +18,7 @@ import socket
 import sys
 import threading
 
-from comun import codigos, config, huella, mensajes
+from comun import codigos, config, hashes, mensajes
 from comun.bitacora import preparar_consola
 from comun.protocolo import Enlace
 
@@ -42,7 +42,7 @@ def main(argv=None) -> int:
     if args.id is not None and not mensajes.es_hash(args.id):
         print("[AVISO] el id no es un hash de 64 hex: el nodo lo descartará (DROP)")
 
-    mi_hash = huella.de_entidad(mensajes.SONDA, args.nombre)
+    mi_hash = hashes.de_entidad(mensajes.SONDA, args.nombre)
     respuesta = threading.Event()
     estado = {}
 
@@ -72,7 +72,7 @@ def main(argv=None) -> int:
         print(f"[ERROR] {args.nodo} rechazó a la sonda: {r.get('motivo')}", file=sys.stderr)
         enlace.cerrar("rechazada")
         return 1
-    print(f"Conectada a {r.get('nombre')} ({huella.corto(r.get('hash'))}); "
+    print(f"Conectada a {r.get('nombre')} ({hashes.corto(r.get('hash'))}); "
           f"nodos conocidos: {', '.join(r.get('nodos') or []) or 'ninguno'}")
 
     msg = mensajes.nuevo(codigos.SONDA_PRUEBA, mi_hash, mensajes.SONDA, args.nombre,

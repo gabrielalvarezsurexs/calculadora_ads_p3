@@ -1,192 +1,227 @@
-# Enunciado del Proyecto del Segundo Parcial
+# Enunciado — Proyecto del Tercer Parcial (transcripción literal)
 
-Transcripción fiel de `Instrucciones_Proyecto_Segundo_Parcial_ADS (1).pdf` (Cómputo Distribuido,
-6 de octubre de 2026). Si hay duda, manda el PDF.
+Fuente: `Instrucciones_Proyecto_Tercer_Parcial_ADS_v4.pdf` (raíz del repo). Texto copiado tal cual,
+sección por sección, para que no se pierda nada. Los identificadores entre corchetes (`[F3]`, …)
+son los de `docs/REQUISITOS.md`. El PDF manda.
 
 ---
 
-## Adecuación de la calculadora del primer parcial a una arquitectura ADS
+**Cómputo Distribuido — PROYECTO DEL TERCER PARCIAL**
+**Fecha: 13 de noviembre de 2026**
+**Evolución de la calculadora distribuida bajo arquitectura ADS**
 
-**Objetivo general.** Transformar la calculadora del primer parcial para operar bajo una
-arquitectura ADS, usando un Campo de Datos de cuatro nodos en malla completa, células GUI y células
-servidor distribuidas, comunicación por broadcast y Códigos de Contenido para solicitudes y
-respuestas.
+> **Objetivo general.** Evolucionar el sistema ADS desarrollado en el segundo parcial
+> incorporando mecanismos de foliado, carga dinámica de microservicios, autorrecuperación y
+> administración distribuida de servicios, manteniendo el funcionamiento sin dependencia de una
+> unidad central.
 
 ## 1. Lenguaje de programación
 
-- El proyecto puede desarrollarse en cualquier lenguaje de programación.
+- El proyecto puede desarrollarse en cualquier lenguaje de programación. `[L1]`
 - Si el proyecto se realiza en JAVA, se otorgarán puntos extras. La cantidad de puntos adicionales
-  será la indicada por el profesor.
+  será la indicada por el profesor. `[L2]`
 
 ## 2. Entregables obligatorios
 
 | Entregable | Contenido requerido |
 |---|---|
-| **Reporte técnico** | Documento que explique técnicamente el diseño y construcción del sistema, incluyendo la arquitectura ADS, topología, protocolos, broadcast, Códigos de Contenido, prevención de ciclos y decisiones de implementación. |
-| **Video con audio** | Demostración del funcionamiento de los cuatro nodos, las células conectadas, el broadcast, la atención de solicitudes y la recepción de respuestas. |
-| **Liga al código fuente** | Enlace accesible al código fuente completo de los programas: célula cliente, célula servidor y nodo del Campo de Datos. |
+| Reporte técnico `[E1]` | Documento que explique técnicamente el diseño y construcción del sistema, incluyendo los protocolos heredados del segundo parcial y los nuevos mecanismos de foliado, carga dinámica, autorrecuperación y gestión de servicios. |
+| Video con audio `[E2]` | Demostración mediante diferentes escenarios que evidencien el cumplimiento de los protocolos y funcionalidades solicitados para el tercer parcial. |
+| Liga al código fuente `[E3]` | Enlace accesible al código fuente completo del sistema, incluyendo células cliente, células servidor, nodos del Campo de Datos, microservicios y gestor de servicios. |
 
 ## 3. Regla de originalidad académica
 
-**IMPORTANTE:** No se permite la copia total o parcial entre proyectos. En caso de detectarse copia,
-se anulará la calificación del proyecto y el caso será reportado al coordinador de la carrera
-correspondiente.
+> **IMPORTANTE:** No se permite la copia total o parcial entre proyectos. En caso de detectarse
+> copia, se anulará la calificación del proyecto y el caso será reportado al coordinador de la
+> carrera correspondiente. `[O1]`
 
-## 4. Arquitectura del proyecto
+## 4. Base obligatoria proveniente del Segundo Parcial
 
-**La arquitectura cliente/servidor de tres capas del primer parcial se sustituye por una
-arquitectura ADS.** La calculadora conservará las operaciones de suma, resta, multiplicación y
-división, pero el acceso a los servicios se realizará mediante el Campo de Datos, broadcast y Código
-de Contenido.
+**El proyecto del tercer parcial es una evolución del sistema del segundo parcial.** Por lo tanto,
+al iniciar esta entrega el sistema ya debe contar, como mínimo, con los siguientes elementos:
 
-## 5. Programas que deben desarrollarse
+- Calculadora capaz de resolver suma, resta, multiplicación y división. `[B1]`
+- Tres programas base: célula cliente, célula servidor y nodo del Campo de Datos. `[B2]`
+- Campo de Datos con cuatro nodos en malla completa para la configuración de demostración. `[B3]`
+- Cuatro células cliente GUI. `[B4]`
+- Cuatro células servidor por cada operación: suma, resta, multiplicación y división. `[B5]`
+- En cada nodo de demostración: una GUI y una célula servidor de cada operación. `[B6]`
+- Protocolo de conexión entre nodos para formar el Campo de Datos. `[B7]`
+- Protocolo de conexión entre células y nodos. `[B8]`
+- Protocolo de comunicación entre células basado en Código de Contenido. `[B9]`
+- Comunicación por broadcast evitando el ciclado de mensajes. `[B10]`
+- Diseño flexible: el software no debe estar limitado a cuatro nodos ni a una cantidad fija de
+  células. `[B11]`
+- Diseño distribuido sin dependencia de una unidad central, nodo maestro o componente único.
+  `[B12]`
 
-- **Célula cliente (GUI).** Programa que contiene la interfaz gráfica de la calculadora, captura los
-  operandos y la operación, genera la solicitud y recibe la respuesta.
-- **Célula servidor.** Programa capaz de configurarse para atender un servicio específico: suma,
-  resta, multiplicación o división.
-- **Nodo del Campo de Datos.** Programa encargado de formar la malla de comunicación, aceptar
-  conexiones de células y nodos, y retransmitir mensajes mediante broadcast.
+## 5. Nuevos requisitos del Tercer Parcial
 
-## 6. Configuración obligatoria del sistema
+### 5.1 Protocolo de foliado
 
-- El Campo de Datos estará formado por cuatro nodos: Nodo 1, Nodo 2, Nodo 3 y Nodo 4.
-- Los cuatro nodos deberán formar una malla completa; cada nodo estará conectado directamente con
-  los otros tres nodos.
-- Existirán cuatro células cliente GUI: una conectada a cada nodo.
-- Existirán cuatro células servidor de Suma (+): una conectada a cada nodo.
-- Existirán cuatro células servidor de Resta (-): una conectada a cada nodo.
-- Existirán cuatro células servidor de Multiplicación (x): una conectada a cada nodo.
-- Existirán cuatro células servidor de División (/): una conectada a cada nodo.
+**Objetivo:** garantizar que cada célula realice únicamente la funcionalidad que le corresponde y
+que cada interfaz GUI muestre solamente la información asociada a las operaciones que ella
+solicitó.
 
-**En consecuencia, cada nodo del Campo de Datos deberá tener conectadas cinco células:** 1 GUI, 1
-servidor de suma, 1 servidor de resta, 1 servidor de multiplicación y 1 servidor de división. En
-total, el sistema tendrá 20 células: 4 GUI y 16 células servidor.
+- Cada solicitud deberá manejar un folio o identificador que permita correlacionar eventos, ACK y
+  respuestas. `[F1]`
+- La GUI deberá poder reconocer qué respuestas pertenecen a sus propias solicitudes. `[F2]`
+- Las células deberán utilizar la información del folio junto con el Código de Contenido para
+  decidir qué mensajes deben atender o ignorar. `[F3]`
+- El protocolo deberá incorporar el concepto de huella para identificar el origen o trayectoria
+  lógica de una solicitud. `[F4]`
+- Deberán utilizarse ACK para confirmar la recepción o participación de las células involucradas.
+  `[F5]`
+- Se deberá definir un mínimo número de ACK (Min. # de ACK) necesario para considerar válido o
+  aceptado un evento. `[F6]`
+- El mecanismo deberá contemplar tolerancia a fallas cuando no todas las células esperadas
+  respondan. `[F7]`
+- Se deberá definir claramente qué se considera un evento y cómo se identifica su inicio,
+  confirmación, procesamiento y finalización. `[F8]`
 
-Las cantidades anteriores corresponden a la configuración mínima exigida para la demostración del
-proyecto. La solución no deberá estar limitada a cuatro nodos ni a cuatro instancias de cada tipo de
-célula.
+### 5.2 Carga dinámica de microservicios
 
-El protocolo de conexión deberá ser flexible y escalable: el mismo programa de nodo deberá poder
-utilizarse para crear cualquier número de instancias, y los programas de células deberán poder
-ejecutarse también en cualquier número de instancias sin requerir cambios en el código fuente.
+**Objetivo:** hacer que la funcionalidad de una célula viva en sus genes activos y no esté
+incorporada permanentemente en el programa base.
 
-## 7. Códigos de Contenido
+- Los microservicios deberán existir físicamente en disco. `[M1]`
+- Una célula deberá cargar en memoria el microservicio requerido al momento de ejecución. `[M2]`
+- El programa base de la célula deberá poder funcionar sin tener compilada de manera fija la
+  lógica de suma, resta, multiplicación o división. `[M3]`
+- Los servicios activos de una célula deberán poder cambiar durante la operación del sistema
+  mediante el Gestor de Servicios. `[M4]`
+- El reporte deberá explicar el mecanismo utilizado para localizar, validar, cargar, activar y
+  descargar un microservicio. `[M5]`
 
-**Toda solicitud y toda respuesta deberán incluir un Código de Contenido.** Este código permite
-identificar tanto el servicio solicitado como el tipo de mensaje que circula por el Campo de Datos.
+### 5.3 Protocolo de autorrecuperación
 
-| Operación | Código solicitud | Código respuesta | Descripción |
-|---|---|---|---|
-| Suma | **SUM_REQ** | **SUM_RES** | Solicitud y respuesta de una suma. |
-| Resta | **SUB_REQ** | **SUB_RES** | Solicitud y respuesta de una resta. |
-| Multiplicación | **MUL_REQ** | **MUL_RES** | Solicitud y respuesta de una multiplicación. |
-| División | **DIV_REQ** | **DIV_RES** | Solicitud y respuesta de una división. |
+**Objetivo:** permitir que el sistema detecte la pérdida o falla de células y recupere
+automáticamente la capacidad de servicio mediante clonación controlada.
 
-**Requisito de diseño para las respuestas:** cuando una célula servidor procese una solicitud,
-deberá generar un nuevo mensaje con el Código de Contenido de respuesta correspondiente. La
-respuesta deberá incluir, como mínimo, el identificador de la solicitud original y el resultado
-calculado.
+- El sistema deberá detectar cuando la disponibilidad de un servicio disminuya por falla o
+  desconexión de una célula. `[A1]`
+- Las células o componentes distribuidos deberán determinar cuándo es necesario generar una nueva
+  instancia. `[A2]`
+- La nueva célula deberá recuperar o cargar los genes activos necesarios para reemplazar la
+  capacidad perdida. `[A3]`
+- La autorrecuperación deberá realizarse sin depender de un controlador central. `[A4]`
+- La clonación deberá detenerse al alcanzar el nivel requerido de disponibilidad. `[A5]`
+- El diseño deberá impedir la generación ilimitada de células. Este control representa el
+  mecanismo para evitar el 'cáncer' del sistema. `[A6]`
+- El mecanismo de recuperación deberá contemplar tolerancia a fallas y evitar que una falla local
+  provoque la pérdida completa del servicio. `[A7]`
 
-## 8. Estructura mínima sugerida de los mensajes
+### 5.4 Gestor de servicios
 
-- Identificador único del mensaje.
-- Identificador de la solicitud original, en el caso de una respuesta.
-- Código de Contenido.
-- Operandos requeridos para la operación, en el caso de una solicitud.
-- Resultado, en el caso de una respuesta.
-- Identificador de la célula que originó el mensaje.
-- Cualquier dato adicional necesario para el control del broadcast y la prevención de ciclos.
+**Objetivo:** proporcionar una interfaz administrativa para modificar de forma dinámica los genes
+activos de las células.
 
-## 9. Comunicación por broadcast
+- Inicialmente, las células deberán poder arrancar sin microservicios instalados o activos. `[G1]`
+- Desde el Gestor de Servicios se deberá poder dar de alta un servicio en una célula. `[G2]`
+- Se deberá poder dar de baja un servicio. `[G3]`
+- Se deberá poder modificar o sustituir un servicio existente. `[G4]`
+- El gestor deberá conocer o consultar la topología actual del sistema para decidir en qué células
+  instalar, retirar o actualizar servicios. `[G5]`
+- La topología deberá incluir, como mínimo, nodos disponibles, células conectadas y servicios
+  activos en cada célula. `[G6]`
+- El gestor es una herramienta de administración; el funcionamiento normal del sistema no deberá
+  depender de que el gestor permanezca activo. `[G7]`
+- La alta, baja o modificación de servicios deberá reflejarse en la carga dinámica de
+  microservicios de la célula seleccionada. `[G8]`
 
-- La comunicación entre las células se realizará por broadcast a través del Campo de Datos.
-- Una solicitud generada por cualquier GUI deberá difundirse por la malla.
-- Debido a que existe una célula servidor de cada operación conectada a cada nodo, varias células
-  servidor del mismo tipo pueden recibir una solicitud.
-- El diseño deberá definir claramente cómo se evita que una misma solicitud produzca múltiples
-  respuestas no deseadas. La estrategia seleccionada deberá documentarse en el reporte.
-- Las respuestas también deberán difundirse utilizando su Código de Contenido de respuesta.
+## 6. Relación entre los mecanismos del Tercer Parcial
 
-## 10. Protocolos requeridos
+| Mecanismo | Responsabilidad principal | Relación con el sistema |
+|---|---|---|
+| Foliado | Correlacionar solicitudes, eventos, ACK y respuestas. | Evita que una GUI muestre resultados ajenos y permite validar la atención de una operación. |
+| Microservicios dinámicos | Convertir la funcionalidad en genes activos cargables. | Permite cambiar la capacidad de una célula sin alterar su programa base. |
+| Autorrecuperación | Restablecer automáticamente la capacidad perdida. | Clona células cuando es necesario y detiene la clonación al recuperar la disponibilidad requerida. |
+| Gestor de servicios | Administrar los genes activos de las células. | Usa la topología para decidir dónde dar de alta, baja o modificar servicios. |
 
-### 10.1 Protocolo de conexión
+## 7. Principios de diseño obligatorios
 
-- Debe permitir conectar los cuatro nodos para formar la malla completa.
-- Debe permitir conectar células GUI y células servidor a cada nodo.
-- Debe identificar el tipo de entidad conectada y mantener control de las conexiones activas.
-- El protocolo deberá ser independiente del número de instancias: aunque la demostración requiera
-  cuatro nodos, deberá permitir conectar cualquier cantidad de nodos al Campo de Datos.
-- De la misma forma, deberá permitir conectar cualquier cantidad de células GUI o células servidor,
-  sin depender de valores fijos codificados en el programa.
+- No debe existir una unidad central indispensable para la operación del sistema. `[P1]`
+- No debe existir un nodo maestro cuya falla detenga el Campo de Datos. `[P2]`
+- La cantidad de nodos y células debe ser flexible y configurable; las cuatro instancias
+  corresponden a la configuración mínima de demostración. `[P3]`
+- Los protocolos deben funcionar aun cuando existan altas, bajas, fallas o nuevas instancias.
+  `[P4]`
+- La pérdida de una célula no debe convertirse en un punto único de falla. `[P5]`
+- La recuperación debe ser gradual y controlada, evitando crecimiento ilimitado. `[P6]`
+- La información de control necesaria para foliado, ACK, topología y recuperación debe integrarse
+  de forma distribuida. `[P7]`
 
-### 10.2 Protocolo de comunicación
+## 8. Esquema conceptual del proyecto
 
-- Debe implementar el broadcast de mensajes entre nodos y células.
-- Debe transportar los Códigos de Contenido de solicitud y de respuesta.
-- Debe impedir que los mensajes circulen indefinidamente dentro de la malla.
-- Debe detectar mensajes previamente recibidos mediante un identificador único u otro mecanismo
-  equivalente.
-- Debe permitir asociar una respuesta con la solicitud que la originó.
+A continuación se presenta el mismo esquema base utilizado en el documento del Segundo Parcial,
+mostrando los nodos del Campo de Datos y las células conectadas a cada nodo. Este diagrama sirve
+como referencia estructural para la presente entrega.
 
-## 11. Prevención de ciclos y duplicados
+*Figura 1. Esquema conceptual base del sistema ADS.* Título: "Arquitectura ADS — Configuración del
+Segundo Parcial". Subtítulo: "4 nodos en malla completa; cada nodo conecta 1 GUI y 4 células
+servidor (+, -, x, /)". Nodo 1, Nodo 2, Nodo 3 y Nodo 4 unidos todos con todos (6 enlaces). A cada
+nodo se conectan: GUI, Suma (+), Resta (-), Multiplicación (x), División (/). Pie: "Total: 4 GUI +
+16 células servidor = 20 células conectadas al Campo de Datos". `[C1]`
 
-- Cada mensaje deberá contar con un identificador único.
-- Cada nodo deberá registrar temporalmente los identificadores ya procesados.
-- Si un nodo recibe nuevamente un mensaje con el mismo identificador, no deberá retransmitirlo.
-- La respuesta deberá generar un identificador de mensaje propio, pero conservar una referencia al
-  identificador de la solicitud original.
-- El equipo deberá documentar la estrategia utilizada para evitar respuestas duplicadas cuando
-  existan varios servidores del mismo servicio.
+## 9. Evidencia mínima que debe observarse en la demostración
 
-## 12. Flujo general de una operación
+- Los cuatro nodos de demostración ejecutándose y comunicándose como Campo de Datos. `[V1]`
+- Células GUI y células servidor conectadas a los nodos. `[V2]`
+- Funcionamiento del protocolo de conexión y del broadcast heredados del segundo parcial. `[V3]`
+- Solicitudes identificadas mediante Código de Contenido y folio. `[V4]`
+- Uso visible o verificable de huella, ACK, Min. # de ACK y eventos. `[V5]`
+- Cada GUI mostrando únicamente las respuestas correspondientes a sus propias solicitudes. `[V6]`
+- Carga de un microservicio desde disco hacia memoria durante la ejecución. `[V7]`
+- Alta, baja y modificación de servicios mediante el Gestor de Servicios. `[V8]`
+- Consulta o visualización de la topología para seleccionar las células destino. `[V9]`
+- Detección de la falla de una célula. `[V10]`
+- Clonación automática para recuperar la capacidad del servicio. `[V11]`
+- Detención de la clonación al alcanzar el nivel requerido de disponibilidad. `[V12]`
+- Ausencia de dependencia de una unidad central para mantener el funcionamiento normal. `[V13]`
 
-1. El usuario selecciona una operación e introduce los operandos en una célula GUI.
-2. La GUI genera una solicitud con identificador único y Código de Contenido de solicitud.
-3. La GUI envía la solicitud al nodo al que está conectada.
-4. El nodo realiza broadcast hacia los otros nodos de la malla y hacia sus células conectadas.
-5. Los nodos descartan cualquier copia de un mensaje que ya haya sido procesado.
-6. Las células servidor revisan el Código de Contenido y determinan si corresponde a su servicio.
-7. La célula servidor que deba atender la solicitud ejecuta la operación.
-8. El servidor genera una respuesta con un nuevo identificador de mensaje, el identificador de la
-   solicitud original, el resultado y el Código de Contenido de respuesta correspondiente.
-9. La respuesta se distribuye por broadcast a través del Campo de Datos.
-10. Las células GUI reciben la respuesta y la GUI correspondiente muestra el resultado.
+## 10. Escenarios propuestos para el video
 
-## 13. Esquema conceptual de la solución
+**El video no deberá limitarse a mostrar una sola operación correcta.** Se recomienda demostrar
+varios escenarios que prueben explícitamente los requisitos del tercer parcial.
 
-**Cada uno de los cuatro nodos tendrá conectadas las mismas cinco células:** GUI, Suma (+), Resta
-(-), Multiplicación (x) y División (/). Los cuatro nodos forman una malla completa.
+- **Escenario 1 — Operación normal con foliado.** Generar una operación desde una GUI, mostrar su
+  folio, huella, Código de Contenido, ACK recibidos y la respuesta final. Verificar que otra GUI
+  no muestre ese resultado. `[S1]`
+- **Escenario 2 — Solicitudes simultáneas.** Ejecutar operaciones desde dos o más GUI al mismo
+  tiempo. Mostrar que cada interfaz recibe únicamente las respuestas asociadas a sus propios
+  folios. `[S2]`
+- **Escenario 3 — Min. # de ACK y tolerancia a fallas.** Provocar que una de las células que
+  normalmente enviaría ACK no responda. Demostrar que el evento puede continuar cuando se alcanza
+  el mínimo configurado y que el sistema identifica la ausencia. `[S3]`
+- **Escenario 4 — Carga dinámica de microservicios.** Iniciar una célula sin un servicio activo,
+  instalar el microservicio desde el Gestor de Servicios, cargarlo desde disco a memoria y
+  demostrar que la célula adquiere la nueva funcionalidad sin modificar su programa base. `[S4]`
+- **Escenario 5 — Baja y modificación de un servicio.** Retirar un microservicio de una célula y
+  demostrar que deja de atender ese Código de Contenido. Después instalar o sustituir una nueva
+  versión y verificar el cambio. `[S5]`
+- **Escenario 6 — Falla y autorrecuperación.** Detener intencionalmente una célula que proporciona
+  un servicio. Mostrar cómo el sistema detecta la pérdida de disponibilidad y genera una nueva
+  célula con los genes activos necesarios. `[S6]`
+- **Escenario 7 — Prevención del 'cáncer'.** Mostrar que, después de recuperar el número requerido
+  de células para un servicio, el proceso de clonación se detiene y no continúa creando
+  instancias innecesarias. `[S7]`
+- **Escenario 8 — Cambio de topología.** Agregar o retirar una célula o nodo durante la ejecución.
+  Mostrar que el Gestor de Servicios actualiza o consulta la topología y puede tomar decisiones
+  con la nueva configuración. `[S8]`
 
-Figura 1 del PDF, "Arquitectura ADS - Configuración del Segundo Parcial". Muestra 4 nodos en malla
-completa (Nodo 1 y Nodo 2 arriba, Nodo 3 y Nodo 4 abajo, con las 6 conexiones entre ellos). Cada
-nodo conecta 1 GUI y 4 células servidor (+, -, x, /). Total: 4 GUI + 16 células servidor = 20
-células conectadas al Campo de Datos.
+## 11. Contenido mínimo sugerido del reporte técnico
 
-## 14. Evidencia mínima en la demostración
-
-- Nodo 1, Nodo 2, Nodo 3 y Nodo 4 ejecutándose y conectados en malla completa.
-- Una célula GUI conectada a cada nodo.
-- Una célula servidor de suma conectada a cada nodo.
-- Una célula servidor de resta conectada a cada nodo.
-- Una célula servidor de multiplicación conectada a cada nodo.
-- Una célula servidor de división conectada a cada nodo.
-- Generación y propagación de solicitudes con Código de Contenido.
-- Generación y propagación de respuestas con Código de Contenido de respuesta.
-- Asociación correcta entre solicitud y respuesta.
-- Prevención de ciclos y mensajes duplicados.
-- Ejecución correcta de suma, resta, multiplicación y división.
-
-## 15. Consideraciones técnicas
-
-**Principio obligatorio de descentralización:** ninguna función esencial del sistema deberá depender
-de una unidad central, nodo maestro, servidor coordinador o componente único. La conexión, el
-descubrimiento, la propagación de mensajes, el enrutamiento y la atención de solicitudes deberán
-diseñarse de forma distribuida.
-
-- El sistema deberá funcionar sin depender de un nodo central.
-- El formato de los mensajes y los Códigos de Contenido deberá estar documentado.
-- La demostración deberá permitir observar el recorrido de los mensajes mediante consola, bitácora o
-  registro de eventos.
-- La arquitectura deberá evitar cualquier punto único de fallo; ninguna instancia individual deberá
-  ser indispensable para el funcionamiento global del sistema.
+- Descripción de la arquitectura final. `[D1]`
+- Topología utilizada en la demostración. `[D2]`
+- Protocolo de conexión heredado del segundo parcial. `[D3]`
+- Protocolo de comunicación y prevención de ciclos. `[D4]`
+- Formato de mensajes y Códigos de Contenido. `[D5]`
+- Diseño del protocolo de foliado. `[D6]`
+- Definición de huella, ACK, Min. # de ACK y evento. `[D7]`
+- Estrategia de tolerancia a fallas. `[D8]`
+- Diseño de genes activos y carga dinámica de microservicios. `[D9]`
+- Diseño del Gestor de Servicios y representación de la topología. `[D10]`
+- Diseño del protocolo de autorrecuperación. `[D11]`
+- Reglas para decidir cuándo clonar y cuándo detener la clonación. `[D12]`
+- Evidencias de pruebas y escenarios ejecutados. `[D13]`
+- Limitaciones conocidas y decisiones de diseño. `[D14]`

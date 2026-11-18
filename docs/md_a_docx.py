@@ -9,7 +9,7 @@ separadores (---), imágenes ![pie](ruta.png) en su propio renglón, y en línea
     py docs/md_a_docx.py                       # REPORTE_TECNICO.md -> Reporte_Tecnico_Calculadora_ADS.docx
     py docs/md_a_docx.py entrada.md salida.docx
 
-Cada "# PARTE ..." empieza en página nueva. Hoja carta, márgenes de 1".
+Cada "# PARTE ..." empieza en página nueva (los demás "#" no). Hoja carta, márgenes de 1".
 """
 
 import re
@@ -93,15 +93,12 @@ class Documento:
         self.cuerpo: list[str] = []
         self.imagenes: list[tuple[str, bytes]] = []
         self.listas_numeradas = 0
-        self.primera_parte = True
 
     # --- encabezados y texto
     def encabezado(self, nivel: int, texto: str) -> None:
         extra = ""
-        if nivel == 1:
-            if not self.primera_parte:
-                extra = "<w:pageBreakBefore/>"
-            self.primera_parte = False
+        if nivel == 1 and texto.upper().startswith("PARTE"):
+            extra = "<w:pageBreakBefore/>"  # la portada queda sola en su página
         self.cuerpo.append(parrafo(corridas(texto), estilo=f"Heading{nivel}", extra=extra))
 
     def titulo(self, texto: str) -> None:

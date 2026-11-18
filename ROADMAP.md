@@ -1,113 +1,188 @@
-# Roadmap — Calculadora ADS
+# Roadmap — Calculadora ADS, Tercer Parcial
 
-Plan completo: [docs/PLAN.md](docs/PLAN.md). Notas internas: [CLAUDE.md](CLAUDE.md).
+Documentos: [docs/PLAN.md](docs/PLAN.md) (diseño) · [docs/REQUISITOS.md](docs/REQUISITOS.md)
+(lista de verificación) · [docs/INSTRUCCIONES_USUARIO.md](docs/INSTRUCCIONES_USUARIO.md) (lo que
+pidió el usuario, literal) · [docs/ENUNCIADO.md](docs/ENUNCIADO.md) (PDF literal) ·
+[CLAUDE.md](CLAUDE.md) (notas internas).
 
 **Protocolo de cada sesión**
-- Al iniciar: leer `ROADMAP.md`, `CLAUDE.md` y `docs/PLAN.md`; retomar en "Siguiente paso".
-- Al cerrar: marcar casillas, actualizar "Estado actual" y anotar la sesión en el registro.
-  Ninguna sesión cierra con código a medias sin anotarlo.
+- Al iniciar: leer este archivo, `CLAUDE.md`, la sección del plan que toque y las instrucciones
+  del usuario; retomar en "Siguiente paso".
+- Al cerrar: marcar casillas aquí y en `docs/REQUISITOS.md`, actualizar "Estado actual" y anotar la
+  sesión en el registro. Ninguna sesión cierra con código a medias sin anotarlo.
 - Orden de fases estricto: 0 → A → B → C → D → E. Si una sesión rinde de más, se adelanta la
   siguiente sin saltarse el orden.
+- **No se implementa nada sin que el usuario apruebe el plan.** Instrucciones nuevas del usuario
+  se anexan literal a `docs/INSTRUCCIONES_USUARIO.md` y se reflejan en plan y requisitos.
 
 ---
 
 ## Estado actual / siguiente paso
 
-**Estado:** S6 terminada: **todas las fases (0 → E) completas.** `GUION_VIDEO.md` (10 escenas,
-~10 min, comandos probados) y `docs/llenar_minutos.py` (copia los minutos del guion a la matriz
-del reporte). Checklist final hecho de este lado; lo que queda es manual del usuario y está en
-`ENTREGA.md`.
+**Estado:** **S1–S7 cerradas** (fases A–E). S7: `GUION_VIDEO.md` (11 escenas, ~15 min: los 8
+escenarios + arranque + "sin unidad central", con clics exactos, qué se ve, qué decir, qué hacer
+si algo falla, limpieza, tablas de minutos con las 45 filas de la matriz) y
+`docs/llenar_minutos.py` (matriz por ID; probado en copias). Quedan abiertos E2 y E3, que hace
+el usuario (grabar el video y publicar el repo). S6: `REPORTE_TECNICO.md` → `.docx` de **30 páginas**
+(contadas en Word), con bitácoras reales y 8 figuras; `README.md` completo; `ENTREGA.md` (hoja de
+control para el usuario); `docs/REQUISITOS.md` marcado (quedan U1, U20, U21, U32, E2, E3: guion,
+video y publicación). S5: los 8 escenarios + "sin unidad
+central" verificados en vivo con procesos reales (30/30 revisiones, 0 `ERROR`/`Traceback`/
+`DUPLICADA`), 21 capturas en `docs/capturas/`, fixes (ver registro), suite de **201 pruebas en
+verde 3 veces seguidas**, ruff limpio, `docs/REQUISITOS.md` marcado (quedan abiertos solo los
+del reporte, el guion y la entrega final).
 
-**Siguiente paso (usuario):** checklist previo del guion → grabar → minutos por escena →
-`py docs/llenar_minutos.py` → portada → `py docs/md_a_docx.py` → commit/push (pedírselo al
-asistente o hacerlo a mano) → entregar las tres ligas. Si se retoma con el asistente: ayudar con
-esos pasos; no hay código pendiente.
+Antes, S1–S4 (fase A): Madres con genes (S1), foliado (S2; PLAN
+§5.5), gestor (S3; PLAN §4.6) y **regeneración** (S4; PLAN §6.7): `madre/regeneracion.py` (ocho
+límites, cada uno en un método), `madre/lanzador.py` (proceso desacoplado + `run/`),
+`madre/copia.py` (el reemplazo copia sus genes por `GEN_PIDE`, banco si nadie entrega); gestor
+con animación naciendo/recién nacida y pestaña **Regeneración**; GUI con tarjeta de evento; panel
+con los dos modos, botón **Gestor** por nodo y "Tumbar"; repaso visual de las cinco ventanas.
+Suite: 200 pruebas en verde; ruff limpio; humo real OK (1 pérdida → 1 reemplazo; 3 SUM → 3
+reemplazos uno por uno; retiro no regenera; 0 ERROR).
 
-**Notas de S6**
-- El guion sigue el orden de la corrida verificada en S5 (no el de la matriz). La tabla
-  "Matriz del reporte" del guion sí replica, en orden, las 35 filas del §2 que llevan video, y
-  `docs/llenar_minutos.py` verifica § y requisito fila por fila antes de escribir.
-- Los comandos de las escenas 6 y 7 cuentan todo `logs/`; por eso el checklist previo mueve las
-  bitácoras del reporte a `logs_reporte_<fecha>/` (en `.gitignore`).
-- Una captura (`PrintWindow`) de una ventana de nodo tapada por otras puede salir con la tabla de
-  tráfico vieja (pasó una vez en S5; la ventana sí estaba bien). Si se recapturan figuras,
-  revisarlas.
-
-**Notas de S4/S5**
-- **Pantalla del usuario: 2560×1600 físicos al 175 % (1463×914 lógicos).** Las geometrías de Tk
-  están en unidades lógicas y cuadran con 1463×914.
-- **Operar y capturar ventanas sin quitarle el foco al usuario** (él suele estar en VS Code; con
-  la ventana en segundo plano, Windows bloquea `AppActivate` y `SendKeys` no sirve, e incluso
-  podría teclear en VS Code):
-  - Teclas: `PostMessage` a la primera ventana hija de la de Tk: primero `WM_SETFOCUS` (una app
-    Tk nunca activada descarta el teclado), luego solo `WM_KEYDOWN`/`WM_KEYUP` (el
-    `TranslateMessage` de Tk genera el carácter; mandar también `WM_CHAR` lo duplica). `*` y `/`
-    van por el teclado numérico (`VK_MULTIPLY`, `VK_DIVIDE`): en el teclado español llevan Shift.
-  - Capturas: `PrintWindow(hwnd, dc, 2)` desde un proceso DPI-aware; la ventana de Tk (no
-    DPI-aware) sale a escala lógica en la esquina: recortar `ancho/1.75 × alto/1.75`.
-  - **Excepción: el panel.** `PrintWindow` sobre la ventana del panel congela su hilo de Tk
-    cuando el script de prueba corre dentro del proceso del panel. Para el panel: `-topmost`
-    un par de segundos y `CopyFromScreen` de su rectángulo (sin tocar el foco).
-- En Windows `terminate()` deja código de salida 1; el panel lo muestra como `tumbado` para no
-  confundirlo con "puerto ocupado" (también 1).
-- Los códigos de `config.CODIGOS_SILENCIOSOS` (`SRV_LAT`) no salen en consola, solo en archivo.
-  Los `IGNORA` de células también van solo a archivo.
-- Para el reporte:
-  - Un respaldo puede registrar `RETIRADA` (vio el RES antes de cerrar su ventana de elección) en
-    lugar de `RESPALDO` + `LIBERADO`. Ambos son correctos.
-  - En la malla de 4, cada nodo distinto del de entrada ve cada mensaje 3 veces (1 FWD + 2 DUP)
-    y el de entrada 1 FWD + 0 DUP (la `ruta` evita devolvérselo). Con 5 nodos: 1 FWD + 3 DUP.
-  - La matriz del panel cuenta las células por el nodo con el que se LANZARON; tras un failover
-    siguen en su fila aunque ya estén colgadas de otro nodo (la ventana del nodo dice la verdad).
-  - Los tres bugs de S4 (abajo) son buen material para la sección de pruebas y fixes.
+**Siguiente paso:** ninguna sesión de código pendiente. Lo que falta es del usuario
+(`ENTREGA.md`): portada, grabar con `GUION_VIDEO.md`, minutos con `docs/llenar_minutos.py`,
+regenerar el `.docx`, commit y publicar el repo. Si pide el commit: el trabajo del tercer parcial
+aún no está en commits (la historia llega a la etiqueta `parcial-2`). **Cuidar el límite:** el
+`.docx` está en 30 páginas exactas; llenar los minutos no agrega renglones, pero cualquier texto
+nuevo en el reporte hay que compensarlo.
 
 ---
 
-## S1 — Fase 0 + A1–A2
+## S1 — Fase 0 + A1 (células madre y genes)
 
-- [x] Carpeta `calculadora_ads/` + `git init`
-- [x] `docs/PLAN.md`, `ROADMAP.md`, `CLAUDE.md`
-- [x] Memoria del asistente con las preferencias del usuario
-- [x] `pyproject.toml`, `.gitignore`, paquetes
-- [x] `comun/`: protocolo, huella, codigos, mensajes, config, vistos, bitacora, formato
-- [x] `nodo/nucleo.py` + `nodo/__main__.py --sin-ventana`
-- [x] `sonda/`
-- [x] Humo: 4 nodos headless forman la malla completa; sondas muestran FWD, DUP y TTL
+- [x] Carpeta `calculadora_ads_p3/` (clon local con historia, etiqueta `parcial-2`)
+- [x] Entregables del segundo parcial a `docs/parcial2/`
+- [x] uv: `pyproject.toml`, `.python-version`, `uv.lock`, ruff en `dev`
+- [x] `docs/PLAN.md`, `docs/REQUISITOS.md`, `docs/INSTRUCCIONES_USUARIO.md`, `docs/ENUNCIADO.md`
+- [x] `CLAUDE.md` para el tercer parcial; `.gitignore` con `datos/` y `run/`
+- [x] **Plan aprobado por el usuario** (mensaje 7: gestor por nodo levantado por él, definiciones
+      del PDF, entrega súper completa y visualmente clean)
+- [x] `comun/tema.py` (paleta, tipografía, colores por gen; PLAN §15.1)
+- [x] `README.md` del tercer parcial (versión mínima; la completa en S6). README y ENTREGA del
+      segundo parcial → `docs/parcial2/`
+- [x] Renombre `comun/huella.py` → `comun/hashes.py` y sus referencias
+- [x] Entidades `MADRE` y `GESTOR`; códigos nuevos (con prefijos reservados) en
+      `comun/codigos.py`; constantes del §8 en `config`
+- [x] `microservicios/` (SUM 1.0, SUM 2.0, SUB 1.0, MUL 1.0, DIV 1.0, SUM 9.9 manipulado) +
+      `comun/microservicios.py` + `.gitattributes` (bytes intactos)
+- [x] `herramientas/firmar.py` (firma y `--verificar`)
+- [x] `madre/almacen.py` (disco propio) y `madre/genes.py` (localizar, validar, cargar,
+      autoprueba, activar, descargar, liberar)
+- [x] `madre/rondas.py` (motor del segundo parcial por código) y `madre/nucleo.py`; `--genes`,
+      `--mudo`, `CEL_LAT`, `CEL_ADIOS`; se borró `servidor/`; `comun/programador.py`
+- [x] GUI: disponibilidad por `CEL_LAT` (genes); `CEL_ADIOS` la quita al instante
+- [x] Humo: 4 nodos + 16 madres con genes resuelven las 4 operaciones con un RES; madre vacía no
+      acusa; `SUM 9.9` rechazado; descarga confirmada por `weakref` (procesos reales +
+      `test_genes`, `test_microservicios`, `TestGenesEnVivo`)
 
-**Criterio de salida:** 4 nodos headless forman la malla completa; las sondas muestran FWD, DUP y
-TTL en las bitácoras.
+## S2 — A2 (foliado)
 
-## S2 — A3
+- [x] `comun/foliado.py` (folio, sello, huella, rastro, validación)
+- [x] Madre: clave `(código, folio, intento)`, validación de huella, rastro en ACK/RES, `X_FIN`
+- [x] GUI (núcleo): folios propios, varias operaciones en vuelo, fases del evento,
+      esperados/ausentes, `X_FIN`, contador de ajenas, `rafaga()`; ventana adaptada (varias en
+      vuelo, ajenas, botón Ráfaga provisional)
+- [x] Humo: un RES por folio, FIN cierra rondas, ausentes con madre muda, sello alterado, ráfaga
+      (procesos reales + `test_foliado` y las pruebas nuevas de `test_flujo`)
 
-- [x] `celula/base.py` (HOLA/BIENVENIDA, failover, dedup, filtrado por código)
-- [x] `servidor/` (calculo, nucleo: acuse, cola, elección HRW, relevo, latidos)
-- [x] `interfaz/nucleo.py` (quórum por intento, reintentos, disponibilidad por latidos)
-- [x] Humo: script en scratch resuelve las 4 operaciones con un solo RES; failover al tumbar un nodo
+## S3 — A3 (gestor de microservicios y topología)
 
-## S3 — A4–A5
+- [x] Nodo: entidad `GESTOR`, `NODO_LAT`
+- [x] Madre: `GEN_INYECTA`, `GEN_BAJA`, `CEL_RETIRO` → `GEN_ACK`/`GEN_RES` (`madre/ordenes.py`);
+      `GEN_PIDE` / `GEN_ENTREGA` (`comun/pedidos.py`, `madre/pedidos.py`); `TOPO_REQ`/`TOPO_RES`
+      (en la célula base, para toda célula que late)
+- [x] `gestor/bd.py` (SQLite: importar carpeta, manipulado, historial de órdenes)
+- [x] `gestor/topologia.py` (modelo desde latidos) y `gestor/nucleo.py` (órdenes con folio,
+      "Distribuir una de cada operación por nodo", "Sustituir en todas")
+- [x] `gestor/diagrama.py` (Canvas vivo: malla, células por gen, clic = destino, destellos) y
+      `gestor/gui.py`; `comun/estilo.py`
+- [x] Humo: modo vacío + "Distribuir" deja la configuración del PDF; inyectar, sustituir
+      (1.0 → 2.0), rechazar 9.9, baja, retiro; topología con Nodo 5 (procesos reales con la
+      ventana + `test_gestor`)
 
-- [x] `nodo/gui.py`
-- [x] `interfaz/gui.py`
-- [x] `panel/` (matriz, configuración mínima, lista de procesos, bitácora en vivo)
-- [x] Humo: con el panel, la configuración mínima corre con ventanas y se opera a mano
+## S4 — A4 (regeneración, ventanas y panel)
 
-## S4 — B + C
+- [x] `madre/regeneracion.py` (detección, turno gradual, HRW del clonador, `CLON_AVISO`, ocho
+      límites, `CLON_LISTO`, `NIVEL_OK`) y `madre/lanzador.py` (proceso desacoplado + PID en `run/`)
+- [x] Copia de genes del hijo (`GEN_PIDE` → disco → memoria; banco local de respaldo)
+- [x] Gestor: animación de caída y nacimiento; línea de tiempo de regeneración
+- [x] `interfaz/gui.py`: tarjeta de evento, "Mis eventos", ajenas ignoradas, botón Ráfaga
+- [x] Panel: modos vacía / con servicios (sin gestores), botón **Gestor** por nodo, + Madre,
+      + Madre muda, Tumbar SUM-N2, Tumbar 3 SUM, Detener todo (con clones)
+- [x] Repaso visual de las ventanas heredadas (nodo, GUI, panel) con `comun/tema.py`
+- [x] Humo: tumbar una → un clon con genes copiados y alto; tres → uno por uno y alto; una sola
+      `SUM` → solo una; retiro → no regenera; configuración mínima con ventanas
+      (procesos reales + `test_regeneracion` + `test_panel`; capturas de las cinco ventanas)
 
-- [x] Suite unitaria (§12 del plan)
-- [x] Suite de integración: `test_malla`, `test_broadcast`, `test_flujo`
-- [x] Verificación en vivo (§14 del plan) + capturas a 1463×914
-- [x] Fixes; repetir hasta que quede limpio
+## S5 — B + C (pruebas y fixes)
 
-## S5 — D
+- [x] Suite heredada adaptada (folio, madres, genes)
+- [x] `test_foliado`, `test_genes`, `test_microservicios`, `test_gestor`, `test_regeneracion`
+- [x] Verificación en vivo de los 8 escenarios + "sin unidad central" (30/30 revisiones) +
+      21 capturas a 1463×914 en `docs/capturas/`
+- [x] Fixes hasta 3 corridas seguidas en verde; ruff limpio; bitácoras sin `ERROR`/`Traceback`
+- [x] Marcar `docs/REQUISITOS.md`
 
-- [x] README.md, ENTREGA.md, CLAUDE.md completo
-- [x] REPORTE_TECNICO.md con bitácoras reales
-- [x] Conversión a `.docx`
+## S6 — D (reporte)
 
-## S6 — E
+- [x] README.md, ENTREGA.md, CLAUDE.md completos
+- [x] REPORTE_TECNICO.md con bitácoras reales (**30 páginas** en Word), matriz desde
+      `docs/REQUISITOS.md`
+- [x] `.docx` generado y revisado (Word → PDF → páginas renderizadas)
 
-- [x] GUION_VIDEO.md amarrado a la tabla §10 del plan
-- [x] Checklist final
+## S7 — E (guion)
+
+- [x] GUION_VIDEO.md con los 8 escenarios (clics exactos, qué se ve, qué decir) y comandos probados
+- [x] `docs/llenar_minutos.py` adaptado a la matriz nueva
+- [x] Checklist final (en `GUION_VIDEO.md` y `ENTREGA.md`)
+
+---
+
+## Notas heredadas útiles
+
+- **Revisar el `.docx` (S6):** Word por COM (`Documents.Open(ruta, $false, $true)`,
+  `ComputeStatistics(2)` = páginas, `SaveAs2(pdf, 17)`) y el PDF a PNG con `Windows.Data.Pdf`
+  desde **Windows PowerShell 5.1** (`scratchpad/pdf_a_png.ps1`; en pwsh 7 no hay WinRT). Un
+  `---` justo antes de un `# PARTE` puede quedar solo en una página y dejarla en blanco.
+  `md_a_docx.py` solo abre página nueva en los `# PARTE …`.
+- **Figuras del reporte:** `fig_guis_*.png` son tres capturas de GUI lado a lado
+  (System.Drawing); `fig_e8_topologia.png` es el recorte del diagrama de `e8_gestor_nodo5.png`,
+  cuya pestaña Órdenes salió vacía porque el guion la seleccionó justo antes de capturar (Tk no
+  la había dibujado; no es bug: las filas nunca se borran).
+
+- **Capturas (S5, la técnica buena; reemplaza a las de abajo):** el usuario **minimiza** toda
+  ventana que asome, aunque sea <1 s con `-topmost` (así salieron capturas negras). Ahora nada se
+  asoma: la ventana nace fuera de pantalla y se manda a (0,0) **al fondo** del orden Z
+  (`SetWindowPos(HWND_BOTTOM=1, …, NOSIZE|NOACTIVATE|SHOWWINDOW)`, con `argtypes`), y se copia con
+  `PrintWindow(hwnd, dc, 2)` (PW_RENDERFULLCONTENT, lee DWM aunque esté tapada) desde código
+  **sin** conciencia de DPI → sale a 1463×914 lógicos, nítida. Ventanas **del mismo proceso**: se
+  capturan **desde su propio hilo de Tk** (10 ms); hacerlo desde otro proceso congeló los
+  `after()` de Tk varios minutos. Ventanas de **otro proceso** (nodos): subproceso con `Popen` +
+  sondeo por `after`. Guiones: `scratchpad/humo_s5.py`, `capturar_fondo.py` (temporales).
+- Pantalla del usuario: 2560×1600 al 175 % (1463×914 lógicos). Operar ventanas sin quitarle el
+  foco: `PostMessage` (`WM_SETFOCUS` y luego solo `WM_KEYDOWN`/`WM_KEYUP`; `*` y `/` por teclado
+  numérico) o, mejor, llamar los métodos de la ventana en proceso.
+- **Tk con varias raíces en un proceso** (humo S5): las variables sin `master` se pegan a la
+  primera raíz; dar siempre el dueño (`tk.StringVar(self.raiz, …)`).
+- **Capturas del gestor (S3):** `PrintWindow` **traba el hilo de Tk si la ventana está
+  minimizada** (el usuario la minimiza si le tapa el trabajo) y, con la ventana fuera de pantalla,
+  entrega un `Canvas` viejo. Lo que funcionó: ventana fuera de pantalla (`+-1450+0`); para cada
+  captura, `-topmost` + `geometry("+0+0")` + `update()`, copia de **pantalla** (`StretchBlt`
+  HALFTONE a /1.75 desde un proceso DPI-aware) y de vuelta fuera. Guion de humo en
+  `scratchpad/humo_s3.py` (temporal).
+- En Windows `connect()` a un puerto cerrado tarda ~2 s (por eso existe `REINTENTO_TIMEOUT`).
+- En Windows `terminate()` deja código de salida 1 (el panel lo muestra como `tumbado`).
+- Los clones no los lanza el panel: los lanza su clonador y quedan en `run/` (el panel los muestra
+  y "Detener todo" los termina; en un humo propio: `madre.lanzador.registrados()` + `terminar`).
+- **Capturas de ventanas de OTRO proceso (S4):** lanzarlas fuera de pantalla (`--geometria
+  …+-3000+0`) y, para capturar, `SetWindowPos(HWND_TOPMOST, 0, 0, SWP_NOSIZE|NOACTIVATE|
+  SHOWWINDOW)` → copia de pantalla → regresarla. **Declarar `argtypes`** (HWND de 64 bits): sin
+  ellos `HWND_TOPMOST = -1` llega mal y la ventana no se mueve (captura negra). Guiones en
+  `scratchpad/humo_s4*.py` y `capturar_externa.py` (temporales).
+- Un `venv` de Windows arranca Python con un lanzador: el PID de `Popen` no es el del intérprete.
+  Por eso `madre/lanzador.py` usa `sys._base_executable` (solo librería estándar).
 
 ---
 
@@ -115,9 +190,11 @@ TTL en las bitácoras.
 
 | Fecha | Sesión | Qué se hizo | Pendiente | Problemas abiertos |
 |---|---|---|---|---|
-| 2026-10-10 | S1 | Fase 0 completa. `comun/*`, `nodo/nucleo.py`, `nodo/__main__.py`, `sonda/`. Humo (scripts en scratch, no versionados): 4 nodos con semillas en cadena → 3 vecinos cada uno, marcados simultáneos resueltos por la regla de enlace duplicado (se registran como `DUPLICADO`); sonda normal → FWD en 4 nodos + 2 DUP en cada uno; `--ttl 1` → TTL en el primer nodo; `--ttl 0` → no se procesa; `--repetir 3` → 1 FWD + 2 DUP; `--id` en otro nodo → DUP; puerto ocupado → código 1; nodo tumbado → DESCONEXION + un solo INALCANZABLE; relanzado en el mismo puerto → vuelve a la malla. `ruff` limpio. | S2 completo. | (1) Durante un marcado simultáneo, los datos que viajen por el enlace que la regla descarta se pierden (solo en el arranque; los reintentos de la GUI lo cubren). (2) Enlaces medio abiertos no se detectan (ya está en trabajo futuro). |
-| 2026-10-10 | S2 | `celula/base.py`, `servidor/{calculo,nucleo,__main__}.py`, `interfaz/{nucleo,__main__}.py`. Humo (`humo_s2.py` en scratch: 4 nodos + 16 servidores como procesos, 4 GUIs + célula espía en proceso): 4 operaciones simultáneas, una por GUI, + 1÷0 → resueltas, 4/2 acuses, **exactamente 1 RES** cada una según el espía; las demás GUIs registran IGNORA; tumbar el Nodo 1 → GUI-1 y sus 4 servidores hacen FAILOVER a Nodo 2 en ~3 s, sin caducar ninguna célula, y las operaciones siguen; SUM con `--retardo-ms 4000` como titular → RELEVO 1 de otra célula a ~2 s + SUPRIMIDA en la lenta, 1 solo RES. `ruff` limpio. **Fixes durante el humo:** (a) en Windows `connect()` a un puerto cerrado tarda ~2 s, lo que llevaba el failover a ~6 s y caducaba todas las células en la GUI → reintentos al mismo nodo con `REINTENTO_TIMEOUT` (0.5 s, constante nueva en `config`); (b) la GUI no caduca células mientras ella misma está sin enlace y, al reconectarse, les da un plazo completo. | S3 completo. | Ninguno nuevo. |
-| 2026-10-10 | S3 | `nodo/gui.py` (+ `eventos` en `nodo/__main__.py`), `interfaz/gui.py`, `panel/{procesos,gui,__main__}.py`. Humo (`humo_s3.py`/`humo_s3b.py` en scratch; el panel se maneja con `after`, las GUIs con `SendKeys`, capturas DPI-aware): configuración mínima → 4 ventanas de nodo con "Vecinos: 3" y "Células: 5 (1 GUI + 4 servidores)", tráfico FWD/DUP con ruta y destinos; GUIs habilitan los 4 operadores con "vivas: 4"; tecleado 7+5 → 12, 6×7 → 42, 1÷0 → ERROR "división entre cero", cada una con mini log SOLICITUD/ACUSE/QUÓRUM/RESULTADO; tumbar el Nodo 4 desde el panel → GUI-4 "failover → Nodo 1" sin perder operadores y el Nodo 1 muestra "Células: 10"; tumbar SUM-N2 → matriz en "○ 0". `ruff` limpio. Ajustes tras ver las capturas: estado `tumbado` en el panel, ajuste de línea en "Mis operaciones", barra de desplazamiento en la tabla de células. | S4 completo. | Ninguno nuevo. |
-| 2026-10-11 | S4 | **Suite** (`tests/`): unitarias `test_protocolo`, `test_enlace`, `test_huella`, `test_mensajes`, `test_vistos`, `test_calculo`, `test_formato`, `test_bitacora`; integración en proceso con puertos efímeros y tiempos acortados (`tests/apoyo.py`: `Sistema`, `Registro` en memoria con ganchos, `Receptor`, `Espia`): `test_malla` (cadena de semillas → malla completa verificando que ambos extremos son la MISMA conexión TCP, marcado simultáneo ×5, autoconexión vía alias `localhost`, 5º nodo, nodo tumbado, nodo que vuelve), `test_broadcast` (con la sonda real: exactamente una vez por célula, DUP, ruta/TTL, `--ttl 1`, `--ttl 0`, TTL recortado, `--repetir 3`, `--id`, basura y datos sin HOLA), `test_flujo` (4 nodos + 16 servidores + 4 GUIs + espía: 4 operaciones con 1 TITULAR/3 liberados/1 RES, ÷0, titular lenta → relevo + suprimida, titular muerta tras acusar → relevo, 3 SUM tumbadas → deshabilitada → una nueva → habilitada, nodo tumbado → failover sin CADUCA con la caducidad real, regla ≤ k, ronda superada, REQ desordenado, ACK antes del REQ con ranking verificado, y reglas de la GUI sin red). 106 pruebas, ~83 s, 3 corridas seguidas en verde; `ruff` limpio. **Bugs encontrados y corregidos:** (1) un REQ del intento k que llegaba DESPUÉS del k+1 (desorden en la malla) generaba un segundo RES (visto en 1 de 6 operaciones con un diagnóstico) → el servidor marca SUPERADA la ronda si ya conoce un intento posterior, sin acusar ni encolar; (2) al formarse la malla, 1 de cada ~25 veces un enlace sobrante se cerraba sin RECHAZO y el par lo registraba como `DESCONEXION` (caída falsa) → `_registrar_saliente` ahora manda `RECHAZO(duplicado)` (0 en 60 formaciones); (3) el reemplazo de un enlace duplicado no dejaba rastro y la ventana mostraba dos `CONEXION` seguidas → se registra `DUPLICADO`. Ajuste visual: columnas evento/código de la ventana del nodo (cortaban `SONDA_PRUEBA` y `DESCONEXION`). **Verificación en vivo** (panel real, 24 procesos, teclas por `PostMessage` y capturas por `PrintWindow` sin quitarle el foco al usuario; ver notas): 7+5, 10−4, 6×7, 7÷2, 1÷0 → por operación 4 ACUSE, 1 TITULAR, 3 LIBERADO, 1 RES, las otras 3 GUIs con IGNORA y en cada nodo 1 FWD + 2 DUP (0 DUP en el de entrada); Nodo 1 tumbado → sus 5 células en FAILOVER a Nodo 2 en ~3.0 s, sin CADUCA, y 9×9 sigue resolviendo; 3 DIV tumbadas → DESHABILITADA en las 4 GUIs y "DIV no disponible" al pulsar ÷; DIV-N2b → HABILITADA y 8÷2 = 4; SUM-N3b con `--retardo-ms 4000` titular en la 6ª operación → RELEVO 1 de SUM-N2 a 2.0 s y SUPRIMIDA a 4.0 s, 1 solo RES; sondas: `--ttl 1` solo en Nodo 2 (FWD+TTL), `--repetir 3` 1 FWD + 2 DUP, `--id` en Nodo 3 → DUP; Nodo 1 relanzado + "+ Nodo" → Nodo 5 con 4 vecinos y 2+2 con 1 FWD + 3 DUP por nodo; panel cerrado con "No" → 24/24 vivos, bitácoras creciendo y 2+2 resuelto sin panel. Sin `ERROR`, `Traceback`, `PERDIDO`, `DROP` ni `LENTO` en ninguna bitácora. | S5 completo. | (1) `PrintWindow` sobre el panel congela su Tk dentro del mismo proceso (solo afecta a las herramientas de captura). (2) Los de S1 siguen: enlaces medio abiertos no se detectan (trabajo futuro). |
-| 2026-10-11 | S5 | **Bitácoras regeneradas** con el código final (el log `DUPLICADO` del nodo cambió después de la corrida de S4): misma corrida en vivo con el panel real (`humo_s5.py`/`humo_s5b.py` en scratch), mismos resultados que S4 — por operación 4 ACUSE / 1 TITULAR / 3 LIBERADO / 1 RES, failover en ~3.0 s sin CADUCA (los 3 CADUCA por GUI son las 3 DIV tumbadas, como debe ser), relevo + suprimida con `SUM-N3b` en la 4ª operación, sondas, Nodo 5, 24/24 vivos sin panel, cero errores. **Documentos:** `README.md`, `ENTREGA.md`, `CLAUDE.md` completo, `REPORTE_TECNICO.md` (Partes I/II/III, matriz §1–§15 con columna Video, 10 pasos del §12 con bitácoras reales, 3 diagramas de tiempo alineados al milisegundo de la corrida, las 6 capas contra respuestas duplicadas, los 3 bugs de S4, diferencias con la clase, limitaciones, glosario, constantes, APA; DOIs de Mori, Thaler y Demers no verificables, se citan sin DOI). 8 capturas en `docs/capturas/` (recortados los bordes invisibles de Windows 11). **Conversor** `docs/md_a_docx.py` (stdlib; no hay pandoc ni LibreOffice) → `.docx` de 38 páginas, abierto y exportado a PDF con Word por COM y revisado página por página; ajustes tras la revisión: tabla de portada sin encabezado vacío, anchos mínimos de columna, código a 7.5 pt, tope de altura de imágenes, encabezados de tabla no huérfanos. `ruff` limpio. | S6 completo. | Ninguno nuevo. |
-| 2026-10-11 | S6 | **`GUION_VIDEO.md`**: checklist previo (procesos vivos = 0, bitácoras del reporte a `logs_reporte_<fecha>/`, pruebas), grabador de pantalla completa (la Game Bar graba una sola ventana), mapa real de dónde quedan las ventanas a 1463×914, 15 escenas con qué se ve / qué hacer / qué decir (incluidas las dos notas frente a la clase en las escenas 7 y 11), tabla "si algo se rompe", limpieza de procesos y tablas de minutos. Comandos probados antes de escribirlos: conteo de `RES` por operación y papeles de una operación (sobre las bitácoras de S5: 12 operaciones, Count = 1 cada una), sondas `--ttl 1`/`--repetir 3`/`--id $id` con captura del id en PowerShell (4 nodos headless desde una copia en scratch, sin tocar `logs/`), limpieza de procesos (`py.exe` + `python.exe`). **`docs/llenar_minutos.py`** (stdlib): minutos por escena del guion → columna "Video" del §2, verificando § y requisito de las 35 filas; probado sobre copias: cambia exactamente 35 celdas, idempotente, respeta minutos puestos a mano, rechaza formato inválido y no escribe si falta una escena. Corrección en el reporte (§7.2) y en el guion: el REQ llega a las otras **19** células, no a 20 (el nodo no se lo devuelve a la GUI que lo envió). `GUION_VIDEO.md` agregado al README y al Anexo C; `.gitignore` con `logs_*/`; ENTREGA con pasos nuevos y checklist final. **Checklist final:** 106 pruebas en verde (82.7 s), `ruff` limpio, 31 ligas relativas sin rotas, `.docx` regenerado (38 páginas, abre en Word). No se hizo un ensayo con ventanas para no tomar la pantalla del usuario: todas las escenas son las de la corrida de S5. | Pasos manuales del usuario (ENTREGA.md). | Ninguno nuevo. |
+| 2026-11-13 | S1 (Fase 0) | Repo nuevo por clon local, archivo del segundo parcial, uv. Plan v1 → el usuario aclaró el modelo (células madre, gestor con BD que inyecta por el Campo de Datos y dibuja la topología, regeneración gradual sin orquestador que copia genes, dos modos de arranque, reemplazo 1 a 1, video fácil, código deslumbrante) → plan v2, requisitos, transcripciones literales, `CLAUDE.md`. Sin código. | Aprobación del plan; preguntas del §16. | — |
+| 2026-11-17 | S1 (A1) | Mensaje 7: plan aprobado; gestor uno por nodo levantado por el usuario; definiciones del PDF; entrega visualmente clean (`comun/tema.py`, PLAN §15.1). Código: `hashes`, catálogo con prefijos reservados, banco de 6 genes firmado, `madre/` (almacén, genes, rondas, núcleo, CLI), latido genérico `CEL_LAT` en la célula base, `CEL_ADIOS`, GUI por genes, panel lanza madres, `formato` con flotantes exactos. Pruebas nuevas: `test_genes`, `test_microservicios`, `TestGenesEnVivo`; 134 en verde. Humo con procesos reales OK. | S2 (foliado). | Ninguno. Nota: en humo con procesos, no dejar stdout en un pipe sin leer (se bloquean). |
+| 2026-11-17 | S2 (A2) | `comun/foliado.py`; rondas por folio con huella validada (`DROP huella inválida`), rastro en ACK/RES y `X_FIN` que cierra rondas (estado `cerrada`); GUI con folios propios, varias en vuelo, cuatro fases, esperados/ausentes, FIN tras la ventana de confirmación, `ajenas`, `rafaga()`; ventana adaptada. `hashes.de_operacion` eliminado. Eventos de cierre `FIN` → `DETENIDA`/`DETENIDO`. Pruebas: `test_foliado` + 9 nuevas en `test_flujo`; 158 en verde. Humo real: 17 folios, 1 RES y 1 FIN c/u, muda en AUSENTES, 4 DROP, 0 ERROR. | S3 (gestor). | Ninguno. |
+| 2026-11-17 | S3 (A3) | Mensaje 9 ("Procede con la sección 5.5": §5.5 ya estaba; se toma como visto bueno para S3). Nodo origina `NODO_LAT`; célula base contesta `TOPO_REQ`; madre: órdenes (`GEN_ACK` inmediato, trabajo en su programador, solo de un `GESTOR`, repetidas no se re-ejecutan) y pedidos (`Madre.pedir_gen`, proveedor con retardo HRW y silencio). `gestor/`: BD SQLite, topología con caída/olvido, órdenes con folio `O-…` y estados, "Distribuir" (versión base), "Sustituir en todas", entrega de genes desde la BD, diagrama vivo con destellos, ventana con `comun/estilo.py`. GUI: los mensajes de sistema no cuentan como ajenas. Pruebas: `test_gestor` (22); 180 en verde. Humo real con ventana: 16 altas ok, 2.0 ok, 9.9 rechazado, caída roja, retiro con salida 0; 0 ERROR. | S4 (regeneración, panel, repaso visual). | Ninguno. Capturas: ver nota del gestor arriba. |
+| 2026-11-17 | S4 (A4) | Mensaje 10 ("Procede con la sesión 4, checa que quede chido (y que lo que lleves vaya bien)"). `madre/regeneracion.py` (detección, turno gradual con hora común, HRW sobre aptas no recién llegadas, topes antes del ranking, `CLON_AVISO`, reintentos, `NIVEL_OK`, `REVIVIO`), `madre/copia.py`, `madre/lanzador.py` (intérprete base, desacoplado, `run/` con hora de creación). Madre: `--reemplaza/--perdida/--copiar/--generacion/--sin-regenerar`, atiende `NODO_LAT`, `CEL_ADIOS`, `CLON_*`. Gestor: caídas de madre hasta su reemplazo, naciendo/recién nacida, pestaña Regeneración, píldora de estado. GUI rehecha (tarjeta de evento, 4 fases, rastro compacto). Panel rehecho (`Procesos`, dos modos, Gestor por nodo, pastillas por gen, reemplazos de `run/`, Tumbar SUM N2 / 3 SUM). Nodo restilizado. Pruebas: `test_regeneracion` (15), `test_panel` (4), topología (+1); 200 en verde. Humo real: 4 reemplazos, 4 avisos, 0 ERROR; retiro sin regenerar; Detener todo deja 0 procesos. | S5 (escenarios en vivo, fixes, 3 corridas). | Tiempos de `test_flujo` bajo carga (ver Siguiente paso). |
+| 2026-11-17 | S5 (B + C) | Mensajes 11–12. Humo en vivo de E0–E8 + final con procesos reales (`Procesos` del panel, 4→5 nodos, 16 madres vacías, GUIs y gestor en proceso): 30/30, 10 avisos = 10 reemplazos, 0 `ERROR`/`Traceback`/`DUPLICADA`/`NO_CLONA`; 21 capturas → `docs/capturas/`. Fixes: (1) dos titulares por ACK tardío bajo carga → `VENTANA_ELECCION` de pruebas = la de producción (0.5 s); (2) `ENTREGA` repetida en la línea de tiempo cuando dos madres entregan el mismo gen → `Gestor._rx_entrega` (solo la primera; la otra a la bitácora) + prueba; (3) el diagrama dejaba de repintarse para siempre si su primer dibujo llegaba sin tamaño (`ValueError '10c'`) → `winfo_req*`; (4) `invalid command name` al cerrar → `estilo.cerrar` en las cinco ventanas; (5) `StringVar`/`BooleanVar` sin dueño (mín. ACK mal con varias raíces) → `master` explícito; (6) fichas de madres cortadas en el panel con 5+ por nodo → renglones según el ancho libre. Técnica nueva de capturas (notas). Suite 201 en verde ×3; ruff limpio; `REQUISITOS.md` marcado. | S6 (reporte). | Ninguno. |
+| 2026-11-18 | S6 (D) | Mensaje 13 ("Sigue con S6"). `REPORTE_TECNICO.md` (Partes I–III, matriz con ID → archivo/función → sección → `<mm:ss>`, tablas de escenarios/evidencias y de contenido D1–D14, bitácoras reales de la corrida S5 de madres, nodos, GUIs y gestor, 8 figuras, APA) → `.docx` de 30 páginas revisado página por página. `md_a_docx.py`: solo los `# PARTE` abren página (portada sola). `README.md` completo, `ENTREGA.md` nuevo, `REQUISITOS.md` marcado (U2, E1, O1, M5, P7, D1–D14). | S7 (guion, `llenar_minutos.py`, checklist). | Ninguno. Reporte en el límite de 30 páginas. |
+| 2026-11-18 | S7 (E) | Mensaje 14 ("Dale a S7"). `GUION_VIDEO.md`: 11 escenas con lo que se ve cotejado contra el código y la corrida S5 (etiquetas de botones, fichas del panel `SUMm · muda`/`M1·r1 · SUM`, mensajes del gestor; `VIVA`/`CADUCA` de la GUI solo van al archivo, no a "Protocolo"); antes de grabar (procesos, `logs\anteriores`, suite), comandos probados (conteo de RES por folio en `logs\*.log`: 148 folios, 1 RES c/u; listado del gen en disco), tabla de fallas en vivo, limpieza, minutos (45 filas generadas desde el reporte). `docs/llenar_minutos.py` por ID (probado en copias: escribe las 45, respeta minuto propio, rechaza faltantes y requisitos distintos). `REQUISITOS.md`: U1, U20, U21, U32. | Lo del usuario (`ENTREGA.md`). | Ninguno. |

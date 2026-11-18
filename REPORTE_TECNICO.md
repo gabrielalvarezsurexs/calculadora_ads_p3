@@ -2,17 +2,17 @@
 
 **Materia:** Cómputo Distribuido
 
-**Proyecto:** Segundo Parcial. Adecuación de la calculadora del primer parcial a una arquitectura
-ADS
+**Proyecto:** Tercer Parcial. Evolución de la calculadora distribuida bajo arquitectura ADS:
+foliado, carga dinámica de microservicios, autorrecuperación y gestor de servicios
 
-**Fecha del enunciado:** 6 de octubre de 2026
+**Fecha del enunciado:** 13 de noviembre de 2026
 
 | | |
 |---|---|
 | **Alumno** | `<NOMBRE COMPLETO>` |
 | **Matrícula** | `<MATRÍCULA>` |
 | **Grupo** | `<GRUPO>` |
-| **Lenguaje** | Python 3.14, solo librería estándar |
+| **Lenguaje** | Python 3.14, solo librería estándar (entorno con uv) |
 | **Código fuente** | `<LIGA AL REPOSITORIO>` |
 | **Video de demostración** | `<LIGA AL VIDEO>` |
 
@@ -23,1342 +23,933 @@ ADS
 | Parte | Secciones |
 |---|---|
 | **I. Introducción** | 1. Introducción, objetivo y alcance · 2. Matriz de trazabilidad con el enunciado |
-| **II. Desarrollo** | 3. Arquitectura ADS · 4. Topología y descubrimiento · 5. Protocolos · 6. Códigos de Contenido y formato de los mensajes · 7. Broadcast · 8. Prevención de ciclos y duplicados · 9. Flujo de una operación · 10. Acuses y mínimo de acuses · 11. Respuesta única · 12. Disponibilidad por latidos · 13. Identificadores · 14. Failover · 15. Concurrencia · 16. Tolerancia a fallas · 17. Pruebas · 18. Panel de despliegue y sonda · 19. Decisiones de implementación y reutilización · 20. Diferencias respecto a lo visto en clase |
-| **III. Conclusión** | 21. Conclusiones · 22. Limitaciones conocidas y trabajo futuro |
-| **Anexos** | A. Glosario · B. Constantes del sistema · C. Documentación complementaria |
+| **II. Diseño** | 3. Arquitectura final y topología · 4. Lo heredado del segundo parcial · 5. Protocolo de foliado · 6. Genes activos y carga dinámica · 7. Gestor de servicios y topología · 8. Protocolo de autorrecuperación · 9. Tolerancia a fallas · 10. Información de control distribuida |
+| **III. Evidencia y conclusión** | 11. Pruebas automatizadas · 12. Escenarios ejecutados · 13. Bugs encontrados · 14. Decisiones y limitaciones · 15. Diferencias respecto a lo visto en clase · 16. Originalidad · 17. Conclusiones |
+| **Anexos** | A. Glosario · B. Constantes · C. Cómo correrlo y documentación complementaria |
 | **Referencias** | Fuentes consultadas (APA, 7.ª edición) |
-
----
 
 # PARTE I. INTRODUCCIÓN
 
 ## 1. Introducción, objetivo y alcance
 
-### 1.1 Contexto y planteamiento
+### 1.1 Del segundo al tercer parcial
 
-La calculadora del primer parcial era un sistema cliente/servidor de tres capas, con N calculadoras,
-N servidores de cálculo y **un middleware** en medio por el que pasaba todo. Funcionaba, pero el
-middleware era un punto único de falla. Si se caía, el sistema entero se detenía.
+El segundo parcial dejó una calculadora sobre una **arquitectura de sistemas autónomos
+descentralizados (ADS)** (Mori, 1993): cuatro nodos que forman solos una malla completa, un
+**Campo de Datos** por el que todo viaja por broadcast, y células que toman de ahí solo lo que su
+**Código de Contenido** les indica. Ninguna pieza era indispensable. Pero cada célula servidor
+traía la suma o la división **compilada en su programa**, y si una moría, nadie la reponía.
 
-El segundo parcial pide lo contrario. En una **arquitectura de sistemas autónomos descentralizados
-(ADS)** no hay un componente central al que preguntarle nada (Mori, 1993). Los datos circulan por un
-**Campo de Datos** compartido, y cada pieza del sistema, llamada **célula**, toma de ahí lo que le
-interesa según un **Código de Contenido**. Ninguna célula sabe quién más existe, así que cualquiera
-se puede agregar o quitar sin avisarle a nadie.
+El tercer parcial pide que esa funcionalidad viva en **genes** que se cargan, cambian y copian
+mientras el sistema corre, y que el sistema **se cure solo**. La idea, en una frase: las células
+servidor ahora son **células madre vacías** que pueden hacer cualquier operación porque **jalan
+programas** de disco; un **gestor de microservicios** con base de datos dibuja la topología e
+inyecta esos programas **por el Campo de Datos**; cada operación lleva **folio y huella**; y si
+una célula muere, las demás la **regeneran solas**, una a la vez, **sin orquestador** y **sin
+"cáncer"**, y la nueva **copia los genes** que hacían falta. Son problemas clásicos de los sistemas
+distribuidos (replicación, detección de fallas, acuerdo sin coordinador; Coulouris et al., 2011;
+Tanenbaum y Van Steen, 2023), resueltos aquí sin romper la regla de ADS de que nadie manda.
 
-La aritmética es lo de menos. El reto técnico está en lo que aparece cuando ya no hay coordinador:
+### 1.2 Objetivo general y objetivos específicos
 
-- cómo se encuentran los nodos entre sí sin una lista central;
-- cómo se difunde un mensaje por una malla con ciclos sin que circule para siempre;
-- cómo se logra que, de cuatro servidores que reciben la misma solicitud, **responda solo uno** sin
-  que nadie lo designe;
-- qué pasa cuando ese servidor se cae a la mitad.
+**Objetivo general.** Evolucionar el sistema ADS del segundo parcial incorporando foliado, carga
+dinámica de microservicios, autorrecuperación y administración distribuida de servicios, sin
+dependencia de una unidad central (objetivo general del enunciado).
 
-### 1.2 Objetivo general
+1. Que cada solicitud lleve un **folio** y una **huella** con los que la GUI reconozca lo suyo y
+   cada célula decida qué atender, con **ACK**, **mínimo de ACK** y un **evento** con fases
+   identificables.
+2. Que el programa base de la célula servidor **no sepa sumar**: la funcionalidad vive en genes
+   que se **localizan, validan, cargan, activan y descargan** en ejecución.
+3. Un **gestor** que consulte la topología y dé de **alta, baja o sustituya** genes en la célula
+   que el administrador elija, sin que el sistema dependa de él.
+4. Que la pérdida de una célula se **detecte y se repare sola**, de forma **gradual**, con un
+   alto claro al recuperar el nivel y límites que impidan el crecimiento ilimitado.
+5. Verificarlo con **pruebas automatizadas** y con los **ocho escenarios** del enunciado en vivo.
 
-Transformar la calculadora del primer parcial para que opere bajo una arquitectura ADS, con un Campo
-de Datos de cuatro nodos en malla completa, células GUI y células servidor distribuidas, y
-comunicación exclusivamente por broadcast con Códigos de Contenido para solicitudes y respuestas.
-Ninguna función esencial puede depender de un componente único.
+### 1.3 Alcance
 
-### 1.3 Objetivos específicos
+| Programa | Paquete | Qué es |
+|---|---|---|
+| Nodo del Campo de Datos | `nodo/` | Heredado. Acepta la nueva entidad `GESTOR` y emite su latido `NODO_LAT` |
+| Célula cliente (GUI) | `interfaz/` | Heredada, con foliado, eventos, ráfaga y "ajenas ignoradas" |
+| Célula servidor = **célula madre** | `madre/` | **Nueva.** Programa base genérico sin aritmética; sustituye al `servidor/` del segundo parcial |
+| Microservicios (genes) | `microservicios/` | **Nuevo.** Programas en disco: `SUM 1.0`, `SUM 2.0`, `SUB 1.0`, `MUL 1.0`, `DIV 1.0` y `SUM 9.9` (manipulado a propósito) |
+| Gestor de microservicios | `gestor/` | **Nuevo.** Ventana con base de datos SQLite, diagrama vivo de la topología y órdenes |
+| Panel y sonda | `panel/`, `sonda/` | Herramientas de demostración **fuera del sistema** |
 
-1. Construir un **nodo** del Campo de Datos que forme la malla por sí solo, identifique qué entidad
-   se le conecta y retransmita por broadcast sin interpretar el contenido.
-2. Definir y documentar un **protocolo de conexión** y un **protocolo de comunicación** que no
-   dependan del número de nodos ni de células.
-3. Impedir que los mensajes circulen indefinidamente y que un mensaje repetido se retransmita.
-4. Lograr que cada solicitud reciba **una sola respuesta**, aunque varias células servidor del mismo
-   servicio la reciban, y sin introducir un coordinador.
-5. Eliminar los puntos únicos de falla, de modo que el servicio siga aunque caiga un nodo, un
-   servidor o el panel de demostración.
-6. Verificar todo con pruebas automatizadas y con una demostración en la que se pueda observar el
-   recorrido de cada mensaje.
+Todo está escrito en **Python 3.14 con la librería estándar** (sockets, hilos, Tkinter,
+`importlib`, `sqlite3`, `hashlib`; Python Software Foundation, 2025a, 2025b, 2025c) y el entorno
+se maneja con **uv**. Se renunció a propósito a
+los puntos extra de Java (§1 del enunciado).
 
-### 1.4 Alcance
+### 1.4 Cómo leer este reporte
 
-Se construyeron los tres programas que pide el enunciado (§5).
+La **Parte I** relaciona cada requisito del enunciado con el código, la sección y el minuto del
+video. La **Parte II** es el diseño: primero la arquitectura y, en resumen, lo heredado; después
+los cuatro mecanismos nuevos; al final la tolerancia a fallas y cómo se reparte la información de
+control. La **Parte III** presenta la evidencia, los bugs, las limitaciones y las conclusiones.
 
-- **Nodo del Campo de Datos** (`nodo/`). Forma la malla, acepta células y nodos y difunde los
-  mensajes.
-- **Célula servidor** (`servidor/`). Se configura con `--servicio SUM|SUB|MUL|DIV` y atiende ese
-  único servicio.
-- **Célula cliente GUI** (`interfaz/`). Es la calculadora, con ventana de escritorio.
-
-Además hay dos **herramientas de demostración que no forman parte del sistema**, un panel que lanza
-y tumba procesos (`panel/`) y una sonda que inyecta mensajes de prueba (`sonda/`).
-
-Todo está escrito en Python 3 con la **librería estándar**, es decir, sockets TCP, hilos, `hashlib`
-y Tkinter (Python Software Foundation, 2025a, 2025b, 2025c, 2025d). No hay dependencias externas ni
-base de datos. El enunciado de este parcial no pide persistencia, así que la del primer parcial no
-se trasladó. Se renunció a propósito a los puntos extra de Java (§1 del enunciado).
-
-Quedan **fuera del alcance** el algoritmo de foliado, las células que levantan otras células, la
-detección de enlaces "medio abiertos" y la autenticación de las entidades que se conectan. La
-sección 22 los explica.
-
-### 1.5 Estructura del documento
-
-La **Parte I** delimita el problema y relaciona cada requisito del enunciado con el código, la
-sección del reporte y el minuto del video. La **Parte II** es el desarrollo y cubre estos temas:
-
-- arquitectura y topología (secciones 3 y 4);
-- protocolos, códigos y formato de los mensajes (5 y 6);
-- broadcast y prevención de ciclos (7 y 8);
-- el flujo completo con bitácoras reales (9);
-- la estrategia de respuesta única (10 a 12);
-- identificadores, failover, concurrencia y tolerancia a fallas (13 a 16);
-- pruebas, herramientas y decisiones (17 a 19);
-- las diferencias respecto a lo visto en clase (20).
-
-La **Parte III** presenta las conclusiones y los límites conocidos.
-
-Todas las bitácoras citadas son **reales**. Salen de una corrida del sistema completo con el panel
-de despliegue, hecha el 11 de octubre de 2026 con el código final, y las figuras son capturas de esa
-misma corrida. Los hashes se muestran con sus primeros 8 caracteres.
+Todas las bitácoras citadas son **reales**. Salen de la verificación en vivo del 17 de noviembre
+de 2026 con el código final (procesos reales: 4 nodos que luego fueron 5, 16 madres vacías, 4
+GUIs y un gestor), y las figuras son capturas de esa misma corrida. Los hashes se muestran con sus
+primeros 8 caracteres y las líneas largas se recortan con `…`.
 
 ---
 
 ## 2. Matriz de trazabilidad con el enunciado
 
-La tabla relaciona cada requisito con el lugar donde está implementado (archivo y función), la
-sección del reporte que lo explica y el minuto del video en que se demuestra.
+Cada requisito del PDF con su identificador (el mismo de `docs/REQUISITOS.md`), dónde está
+implementado, la sección que lo explica y el minuto del video en que se demuestra.
 
-| § | Requisito | Implementación | Sección | Video |
+| ID | Requisito | Implementación (archivo → función) | Sección | Video |
 |---|---|---|---|---|
-| 1 | Cualquier lenguaje | Python 3.14, librería estándar | §1.4 | `<mm:ss>` |
-| 3 | Originalidad | Código propio; reutilización del primer parcial declarada | §19.3 | N/A |
-| 4 | Suma, resta, multiplicación y división vía Campo de Datos, broadcast y código | `servidor/calculo.py` → `calcular()`; `servidor/nucleo.py` → `Servidor._ejecutar()` | §9, §11 | `<mm:ss>` |
-| 5 | Célula cliente (GUI): captura, genera la solicitud, recibe la respuesta | `interfaz/nucleo.py` → `Interfaz.solicitar()`, `procesar()`; `interfaz/gui.py` → `VentanaInterfaz` | §9, §10 | `<mm:ss>` |
-| 5 | Célula servidor configurable por servicio | `servidor/__main__.py` (`--servicio`); `servidor/nucleo.py` → `Servidor` | §11 | `<mm:ss>` |
-| 5 | Nodo: forma la malla, acepta conexiones, retransmite por broadcast | `nodo/nucleo.py` → `Nodo` | §4, §5, §7 | `<mm:ss>` |
-| 6 | 4 nodos en malla completa | `Nodo._supervisar()`, `_marcar()`, `_difundir_pares()`, `_registrar_vecino()` | §4 | `<mm:ss>` |
-| 6 | 5 células por nodo (20 en total) | `Nodo._registrar_entrante()` → tabla `celulas`; panel → "Levantar configuración mínima" | §4, §18 | `<mm:ss>` |
-| 6 | Sin límite de nodos ni de células; sin cambiar el código | Gossip con una semilla cualquiera; panel → "+ Nodo"; `tests/test_malla.py` → `test_quinto_nodo_con_una_sola_semilla` | §4 | `<mm:ss>` |
-| 7 | Toda solicitud y respuesta lleva Código de Contenido | `comun/codigos.py`; `celula/base.py` → `Celula.publicar()` | §6 | `<mm:ss>` |
-| 7 | La respuesta es un mensaje nuevo con el id de la solicitud original y el resultado | `Servidor._ejecutar()` → cuerpo con `id_solicitud` y `resultado` | §6, §9 | `<mm:ss>` |
-| 8 | Estructura mínima del mensaje | `comun/mensajes.py` → `nuevo()`, `validar_datos()` | §6 | N/A |
-| 9 | Broadcast por el Campo de Datos | `Nodo._difundir()` | §7 | `<mm:ss>` |
-| 9 | Evitar múltiples respuestas no deseadas (estrategia documentada) | `Servidor._rx_req()`, `_elegir()`, `_revisar_respaldo()`, `_ejecutar()`; `comun/huella.py` → `ranking()` | §10, §11 | `<mm:ss>` |
-| 9 | Respuestas difundidas con su código de respuesta | `Servidor._ejecutar()` publica `X_RES` | §9 | `<mm:ss>` |
-| 10.1 | Conectar los nodos en malla | `HOLA` / `BIENVENIDA` / `PARES`; regla de enlace duplicado en `_registrar_vecino()` | §4, §5.2 | `<mm:ss>` |
-| 10.1 | Conectar GUIs y servidores a cada nodo | `celula/base.py` → `Celula._intentar()`; `Nodo._registrar_entrante()` | §5.2 | `<mm:ss>` |
-| 10.1 | Identificar el tipo de entidad y controlar las conexiones activas | `HOLA.entidad`; tablas `vecinos` y `celulas`; `nodo/gui.py` → `VentanaNodo` | §5.2 | `<mm:ss>` |
-| 10.1 | Independiente del número de instancias | Supervisor + gossip; ninguna lista fija | §4 | `<mm:ss>` |
-| 10.2 | Broadcast entre nodos y células | `Nodo._difundir()` | §7 | `<mm:ss>` |
-| 10.2 | Transporta los códigos de solicitud y de respuesta | Campo `codigo` del sobre | §6 | `<mm:ss>` |
-| 10.2 | Impide la circulación indefinida | TTL + registro de vistos + ruta + horizonte dividido | §8 | `<mm:ss>` |
-| 10.2 | Detecta mensajes ya recibidos | `comun/vistos.py` → `RegistroVistos.marcar_si_nuevo()` | §8 | `<mm:ss>` |
-| 10.2 | Asocia la respuesta con su solicitud | `id_operacion` + `id_solicitud` en ACK y RES | §6, §9 | `<mm:ss>` |
-| 11 | Id único por mensaje | `comun/huella.py` → `de_mensaje()` | §13 | N/A |
-| 11 | Registro **temporal** de ids procesados | `RegistroVistos` (vigencia de 60 s) | §8 | `<mm:ss>` |
-| 11 | No retransmitir un id repetido | `Nodo._difundir()` → `DUP`; `sonda --repetir` y `--id` | §8, §18 | `<mm:ss>` |
-| 11 | La respuesta tiene id propio y conserva el de la solicitud | `mensajes.nuevo()` + `id_solicitud` | §6 | `<mm:ss>` |
-| 11 | Estrategia contra respuestas duplicadas con varios servidores | Acuses → elección HRW → respaldos escalonados → doble revisión → ronda superada → deduplicación en la GUI | §10, §11 | `<mm:ss>` |
-| 12 | Flujo general de 10 pasos | Reproducido con bitácoras reales | §9 | `<mm:ss>` |
-| 13 | Esquema conceptual | Diagrama de la arquitectura | §3 | N/A |
-| 14 | Nodos 1 a 4 ejecutándose en malla completa | Ventana del nodo con "Vecinos: 3"; matriz del panel | §4 | `<mm:ss>` |
-| 14 | Una GUI y un servidor de cada operación por nodo | Ventana del nodo con "Células: 5 (1 GUI + 4 servidores)" | §4 | `<mm:ss>` |
-| 14 | Solicitudes y respuestas con Código de Contenido | Mini log de la GUI; filas `FWD SUM_REQ` y `FWD SUM_RES` en los nodos | §9 | `<mm:ss>` |
-| 14 | Asociación correcta solicitud ↔ respuesta | La GUI muestra `solicitud … ↔ respuesta …` | §9 | `<mm:ss>` |
-| 14 | Prevención de ciclos y de mensajes duplicados | Filas y contador de `DUP`; sondas `--ttl 1`, `--repetir 3`, `--id` | §8, §18 | `<mm:ss>` |
-| 14 | Ejecución correcta de las 4 operaciones | Una desde cada GUI, más la división entre cero | §9 | `<mm:ss>` |
-| 15 | Sin nodo central ni punto único de falla | Gossip, inundación, elección sin coordinador, failover, latidos | §14, §16 | `<mm:ss>` |
-| 15 | Formato de mensajes y códigos documentado | Este reporte; `comun/mensajes.py`, `comun/codigos.py` | §5, §6 | N/A |
-| 15 | Recorrido de los mensajes observable | Campo `ruta`; bitácoras; ventanas de nodo y GUI | §7, §18 | `<mm:ss>` |
+| L1 | Cualquier lenguaje | Python 3.14, librería estándar; uv | §1.3 | N/A |
+| L2 | Java da puntos extra | Se renuncia a propósito | §1.3 | N/A |
+| E1 | Reporte técnico | Este documento | Todo | N/A |
+| E2 | Video con audio | `GUION_VIDEO.md` | §12 | N/A |
+| E3 | Código: clientes, servidores, nodos, microservicios y gestor | `interfaz/`, `madre/`, `nodo/`, `microservicios/`, `gestor/` | §3.1 | N/A |
+| O1 | Originalidad | Reutilización propia declarada | §16 | N/A |
+| B1 | Suma, resta, multiplicación y división | Genes `microservicios/{SUM,SUB,MUL,DIV}/1.0/`; `madre/genes.py` → `ejecutar()` | §6 | `<mm:ss>` |
+| B2 | Tres programas base | `interfaz/`, `madre/`, `nodo/` | §3.1 | `<mm:ss>` |
+| B3 | 4 nodos en malla completa | `nodo/nucleo.py` → `Nodo._supervisar()`, `_marcar()`, `_difundir_pares()` | §4.1 | `<mm:ss>` |
+| B4 | Cuatro GUIs | `interfaz/`; `panel/procesos.py` → `Procesos.configuracion()` | §3.2 | `<mm:ss>` |
+| B5 | Cuatro células por operación | `gestor/nucleo.py` → `Gestor.distribuir()`, o modo "con servicios" (`--genes`) | §3.2, §7.3 | `<mm:ss>` |
+| B6 | Por nodo: una GUI y una célula de cada operación | Ídem | §3.2 | `<mm:ss>` |
+| B7 | Conexión entre nodos | `HOLA` / `BIENVENIDA` / `PARES` / `RECHAZO`; `Nodo._registrar_vecino()` | §4.1 | `<mm:ss>` |
+| B8 | Conexión entre células y nodos | `celula/base.py` → `Celula._intentar()`; `Nodo._registrar_entrante()` | §4.1 | `<mm:ss>` |
+| B9 | Comunicación por Código de Contenido | `comun/codigos.py`; `Celula.publicar()` | §4.4 | `<mm:ss>` |
+| B10 | Broadcast sin ciclado | `Nodo._difundir()`; `comun/vistos.py`; TTL; horizonte dividido | §4.2 | `<mm:ss>` |
+| B11 | Sin límite de nodos ni de células | Gossip con una semilla cualquiera; panel "+ Nodo", "+ Madre" | §4.1, §12 | `<mm:ss>` |
+| B12 | Sin unidad central ni nodo maestro | Todo el diseño | §3.3, §10 | `<mm:ss>` |
+| F1 | Folio que correlaciona eventos, ACK y respuestas | `comun/foliado.py` → `folio()`; `interfaz/nucleo.py` → `Interfaz.solicitar()` | §5.1 | `<mm:ss>` |
+| F2 | La GUI reconoce sus respuestas | `Interfaz.procesar()`, `_huella_ajena()`; contador "ajenas ignoradas" | §5.3 | `<mm:ss>` |
+| F3 | Folio + Código de Contenido para atender o ignorar | `madre/nucleo.py` → `Madre.procesar()`; `madre/rondas.py` → `rx_req()`, `rx_fin()` | §5.3 | `<mm:ss>` |
+| F4 | Huella (origen y trayectoria lógica) | `foliado.huella()`, `sello()`, `con_paso()`, `validar()` | §5.1 | `<mm:ss>` |
+| F5 | ACK de recepción y participación | `Rondas.rx_req()` publica `X_ACK` antes de encolar | §5.1, §5.4 | `<mm:ss>` |
+| F6 | Mínimo de ACK | `Interfaz.ajustar_minimo()`, `_confirmar()` | §5.1 | `<mm:ss>` |
+| F7 | Tolerancia si no responden todas | `Interfaz._cerrar_ventana()` (ausentes); `_vencer()` (reintentos) | §5.1, §9 | `<mm:ss>` |
+| F8 | Evento: inicio, confirmación, procesamiento y finalización | `Interfaz._publicar_req()`, `_confirmar()`, `_aceptar()`, `_finalizar()` (`X_FIN`) | §5.1, §5.4 | `<mm:ss>` |
+| M1 | Microservicios en disco | `microservicios/`; `madre/almacen.py` → `Almacen.guardar()` | §6.1, §6.3 | `<mm:ss>` |
+| M2 | Carga en memoria durante la ejecución | `madre/genes.py` → `cargar()` (`importlib`) | §6.4 | `<mm:ss>` |
+| M3 | Programa base sin la lógica de las operaciones | `madre/` no contiene aritmética; `genes.ejecutar()` | §6.2 | `<mm:ss>` |
+| M4 | Los genes cambian en operación mediante el gestor | `Gestor.inyectar()`, `sustituir()`, `baja()`; `madre/ordenes.py` | §7.3 | `<mm:ss>` |
+| M5 | Explicar localizar, validar, cargar, activar y descargar | Este reporte | §6.4 | N/A |
+| A1 | Detectar la baja de disponibilidad | `madre/regeneracion.py` → `Regeneracion._detectar()` | §8.3 | `<mm:ss>` |
+| A2 | Las células deciden cuándo generar otra instancia | `Regeneracion._turno()`, `_aptas()`; `comun/hashes.py` → `ranking()` | §8.3, §8.4 | `<mm:ss>` |
+| A3 | La nueva célula recupera sus genes | `madre/copia.py` → `Copia._copiar()`; `Madre.pedir_gen()` | §8.3, §7.5 | `<mm:ss>` |
+| A4 | Sin controlador central | Cada madre corre `Regeneracion.revisar()` | §8.1 | `<mm:ss>` |
+| A5 | Detener la clonación al nivel requerido | `Regeneracion._quizas_nivel_ok()` → `NIVEL_OK` | §8.4 | `<mm:ss>` |
+| A6 | Impedir la generación ilimitada (cáncer) | `Regeneracion._topes()`, `_aptas()`, `_cupo()` | §8.5 | `<mm:ss>` |
+| A7 | Una falla local no pierde el servicio | Rango r con `RELEVO_CLON`; copia desde cualquier madre, gestor o banco | §8.4, §9 | `<mm:ss>` |
+| G1 | Arrancar sin microservicios | `python -m madre` sin `--genes`; panel "Configuración mínima — vacía" | §3.2, §6.3 | `<mm:ss>` |
+| G2 | Alta de un servicio | `Gestor.inyectar()` → `GEN_INYECTA` | §7.3 | `<mm:ss>` |
+| G3 | Baja de un servicio | `Gestor.baja()` → `GEN_BAJA`; `Madre.dar_de_baja()` | §7.3 | `<mm:ss>` |
+| G4 | Modificar o sustituir un servicio | `Gestor.sustituir()`, `sustituir_en_todas()`; `Madre._instalar()` | §6.5, §7.3 | `<mm:ss>` |
+| G5 | Usar la topología para decidir | `gestor/topologia.py`; clic en el diagrama = destino; `distribuir()` | §7.4 | `<mm:ss>` |
+| G6 | Topología con nodos, células y servicios activos | `NODO_LAT`, `CEL_LAT` → `Topologia.nodo_lat()`, `celula_lat()` | §7.4 | `<mm:ss>` |
+| G7 | No depender del gestor | Órdenes por broadcast; la regeneración es de las madres | §7.1, §12 | `<mm:ss>` |
+| G8 | Alta, baja y cambio se reflejan en la carga dinámica | `GEN_ESCRITO` → `GEN_VALIDADO` → `GEN_CARGADO` → `GEN_ACTIVO` en la madre | §6.6 | `<mm:ss>` |
+| P1 | Sin unidad central indispensable | Gestor y panel fuera del camino de las operaciones | §3.3 | `<mm:ss>` |
+| P2 | Sin nodo maestro | Gossip y failover (`Celula._rotacion()`); `test_nodo_tumbado_failover_y_el_servicio_sigue` | §4.5 | N/A |
+| P3 | Nodos y células flexibles | Nodo 5 y madres nuevas en vivo | §4.1, §12 | `<mm:ss>` |
+| P4 | Protocolos con altas, bajas, fallas y nuevas instancias | Escenarios 4 a 8 | §12 | `<mm:ss>` |
+| P5 | La pérdida de una célula no es punto único de falla | Cualquier madre regenera a cualquiera | §8.4, §9 | `<mm:ss>` |
+| P6 | Recuperación gradual y controlada | Turno único + `PAUSA_REGENERACION` + topes | §8.5 | `<mm:ss>` |
+| P7 | Control de foliado, ACK, topología y recuperación distribuido | Ver tabla | §10 | N/A |
+| C1 | Esquema de la Figura 1 del enunciado | Diagrama del gestor (Figura 1 de este reporte) | §3.2 | `<mm:ss>` |
 
----
+### 2.1 Escenarios y evidencias mínimas
 
-# PARTE II. DESARROLLO
-
-## 3. Arquitectura ADS
-
-### 3.1 Los conceptos de ADS
-
-La arquitectura ADS (Autonomous Decentralized System) parte de dos ideas (Mori, 1993).
-
-- **Autonomía controlable.** Cada subsistema puede operar, entrar y salir sin que los demás se
-  enteren ni se reconfiguren.
-- **Coordinabilidad autónoma.** Los subsistemas se coordinan sin un controlador central. Cada uno
-  decide por sí mismo con la información que circula.
-
-Para lograrlo se usa un **Campo de Datos** (*Data Field*), un medio compartido donde todos los datos
-se publican sin dirección de destino. Un mensaje no dice *a quién* va, sino *qué es*, y para eso
-sirve el **Código de Contenido**. Cada célula declara qué códigos le interesan y toma del campo solo
-esos.
-
-En este proyecto, la célula base implementa lo que en la Práctica 3 del curso se llamó **ACP**, la
-parte común que se conecta, se presenta y filtra por código. La lógica propia de cada célula es su
-**ASM**. En el servidor, el ASM calcula; en la GUI, captura y muestra.
-
-### 3.2 El esquema del enunciado y la implementación
-
-La Figura 1 del enunciado plantea cuatro nodos en malla completa, cada uno con las mismas cinco
-células. La implementación sigue ese esquema tal cual.
-
-```
-   GUI-1 SUM-N1 SUB-N1 MUL-N1 DIV-N1            GUI-2 SUM-N2 SUB-N2 MUL-N2 DIV-N2
-          \    \    |    /    /                        \    \   |   /    /
-           [ NODO 1 :5001 ] ═══════════════════════ [ NODO 2 :5002 ]
-                 ║        ╲                       ╱        ║
-                 ║          ╲                   ╱          ║     malla completa:
-                 ║            ═══════╳═════════            ║     cada nodo ↔ los otros 3
-                 ║          ╱                   ╲          ║     (6 enlaces TCP)
-           [ NODO 3 :5003 ] ═══════════════════════ [ NODO 4 :5004 ]
-          /    /    |    \    \                        /    /   |   \    \
-   GUI-3 SUM-N3 SUB-N3 MUL-N3 DIV-N3            GUI-4 SUM-N4 SUB-N4 MUL-N4 DIV-N4
-
-               4 GUI + 16 servidores = 20 células conectadas al Campo de Datos
-```
-
-| Componente | Paquete | Rol en ADS | Qué hace |
+| Escenario del enunciado (§10) | Evidencias mínimas (§9) | Dónde se ve | Sección |
 |---|---|---|---|
-| Nodo | `nodo/` | Campo de Datos | Acepta conexiones, identifica qué entidad es cada una, forma la malla por gossip e inunda con supresión de duplicados y TTL. **No interpreta el contenido.** |
-| Célula base | `celula/base.py` | ACP | Se conecta a un nodo, se presenta, hace failover, deduplica y publica. |
-| Célula servidor | `servidor/` | ASM del servicio | **Un** servicio por instancia. Acusa, encola, participa en la elección, calcula, responde y emite latidos. |
-| Célula GUI | `interfaz/` | ASM de la calculadora | Solicita, cuenta acuses, reintenta, muestra el resultado y habilita o deshabilita operadores según los latidos. |
-| Panel | `panel/` | Fuera del sistema | Lanza y tumba procesos para la demostración. |
-| Sonda | `sonda/` | Fuera del sistema | Inyecta mensajes de prueba con TTL o id elegidos. |
+| — Arranque (base heredada) | V1 nodos · V2 células conectadas · V3 conexión y broadcast | Diagrama del gestor, ventana del nodo (`FWD`/`DUP`) | §3.2, §4 |
+| S1 Operación normal con foliado | V4 código y folio · V5 huella, ACK, mínimo y evento · V6 cada GUI lo suyo | Tarjeta del evento de GUI-1; GUI-2 sin mostrarlo | §5.4, §5.5 |
+| S2 Solicitudes simultáneas | V6 | Ráfaga ×8 en GUI-1 y GUI-2 a la vez | §12 |
+| S3 Mínimo de ACK y tolerancia | V5 | `AUSENTES: SUM-N1m`, ACK 4/2 de 5 | §5.5, §12 |
+| S4 Carga dinámica | V7 disco → memoria · V8 alta · V9 topología | Madre vacía → `MUL 1.0` desde el gestor | §6.6, §7 |
+| S5 Baja y modificación | V8 baja y cambio | `0.1 + 0.2`: `0.30000000000000004` → `0.3`; `SUM 9.9` rechazado | §6.5, §12 |
+| S6 Falla y autorrecuperación | V10 detección · V11 clonación | Rojo → naciendo → `M1-N2·r1` con su gen copiado | §8.6 |
+| S7 Prevención del cáncer | V12 alto de la clonación | `NIVEL_OK`; tres pérdidas, una por una | §8.7 |
+| S8 Cambio de topología | V9 | Nodo 5 y una madre nueva en él, con gen inyectado | §12 |
+| — Sin unidad central | V13 | Gestor cerrado: se opera y se regenera | §12 |
 
-### 3.3 Nodos "bobos" a propósito
+### 2.2 Contenido mínimo del reporte (§11 del enunciado)
 
-La decisión estructural más importante es que **el nodo nunca lee el `cuerpo` de un mensaje ni
-conoce el catálogo de códigos**. Usa solo tres campos del sobre (`id`, `ttl` y `ruta`) y lee
-`codigo` y `origen` únicamente para mostrarlos en su bitácora. Esto tiene tres consecuencias.
+| ID | Tema | Sección | ID | Tema | Sección |
+|---|---|---|---|---|---|
+| D1 | Arquitectura final | §3 | D8 | Tolerancia a fallas | §9 |
+| D2 | Topología de la demostración | §3.2 | D9 | Genes activos y carga dinámica | §6 |
+| D3 | Protocolo de conexión heredado | §4.1 | D10 | Gestor y representación de la topología | §7 |
+| D4 | Comunicación y prevención de ciclos | §4.2 | D11 | Protocolo de autorrecuperación | §8 |
+| D5 | Formato de mensajes y Códigos de Contenido | §4.3, §4.4 | D12 | Cuándo clonar y cuándo detenerse | §8.4 |
+| D6 | Diseño del foliado | §5 | D13 | Evidencias de pruebas y escenarios | §11, §12 |
+| D7 | Huella, ACK, mínimo de ACK y evento | §5.1 | D14 | Limitaciones y decisiones | §14 |
 
-- Si mañana aparece un servicio nuevo (por ejemplo, potencia), **el nodo no cambia**. Basta con una
-  célula que publique `POW_REQ` y otra que lo atienda.
-- La decisión de qué hacer con un mensaje queda en las células, que es donde la pone ADS.
-- El nodo es pequeño y fácil de entender. Todo su trabajo con los datos está en la función
-  `Nodo._difundir()`, de unas 60 líneas.
+# PARTE II. DISEÑO
 
-### 3.4 Componentes y archivos
+## 3. Arquitectura final y topología
 
-| Archivo | Responsabilidad | Clases y funciones principales |
+### 3.1 Componentes
+
+La arquitectura es la del segundo parcial con dos piezas nuevas: las células servidor son ahora
+**madres** que cargan genes desde `microservicios/` (banco local) o desde la red a su propio
+almacén en disco (`datos/celulas/*/genes/`), y el **gestor** es una célula más, conectada a
+cualquier nodo. La Figura 1 (§3.2) la muestra tal como la dibuja el gestor.
+
+| Componente | Papel en ADS | Qué hace |
 |---|---|---|
-| `comun/protocolo.py` | Framing NDJSON tolerante y enlace con cola de escritura | `serializar()`, `leer_mensajes()`, `Enlace` |
-| `comun/mensajes.py` | Sobre de datos, mensajes de control, validación estructural | `nuevo()`, `validar_datos()`, `hola()`, `validar_hola()` |
-| `comun/codigos.py` | Catálogo de Códigos de Contenido | `SERVICIOS`, `codigo()`, `separar()`, `CATALOGO` |
-| `comun/huella.py` | Hashes SHA-256 y ranking de elección | `generar()`, `de_mensaje()`, `prioridad()`, `ranking()` |
-| `comun/vistos.py` | Registro temporal de ids procesados | `RegistroVistos.marcar_si_nuevo()` |
-| `comun/config.py` | Todas las constantes de tiempo, TTL y tamaños | Solo constantes |
-| `comun/bitacora.py` | Bitácora a consola y archivo, que nunca lanza excepciones | `Bitacora` |
-| `comun/formato.py` | Números y operaciones legibles | `numero()`, `operacion()` |
-| `nodo/nucleo.py` | El nodo, sin Tkinter | `Nodo` |
-| `nodo/gui.py` | Ventana del nodo con vecinos, células, contadores y tráfico | `VentanaNodo` |
-| `celula/base.py` | Lo común a toda célula | `Celula` |
-| `servidor/calculo.py` | **La lógica de negocio**, las 4 operaciones | `calcular()` |
-| `servidor/nucleo.py` | Rondas, acuse, cola, elección, relevo y latidos | `Servidor`, `Ronda`, `Programador` |
-| `interfaz/nucleo.py` | Operaciones, quórum, reintentos y disponibilidad, sin Tkinter | `Interfaz`, `Operacion` |
-| `interfaz/gui.py` | La calculadora | `VentanaInterfaz` |
-| `panel/procesos.py`, `panel/gui.py` | Herramienta de despliegue | `Gestor`, `VentanaPanel` |
-| `sonda/__main__.py` | Herramienta de inyección | `main()` |
+| Nodo (`nodo/`) | Campo de Datos | Forma la malla por gossip e inunda con supresión de duplicados y TTL. **No lee el `cuerpo`** de ningún mensaje |
+| Célula base (`celula/base.py`) | ACP: lo común | Se conecta, se presenta, hace failover, deduplica, publica, **late** (`CEL_LAT`) y contesta `TOPO_REQ` |
+| GUI (`interfaz/`) | ASM de la calculadora | Folia, cuenta ACK, muestra el evento y solo lo suyo |
+| Célula madre (`madre/`) | ASM genérico | Almacén de genes, cargador, rondas por código, órdenes del gestor, pedidos de genes y regeneración |
+| Gestor (`gestor/`) | Herramienta administrativa | BD, topología, diagrama y órdenes. **No es un orquestador** (§7.1) |
+| Panel y sonda | Fuera del sistema | Lanzan y tumban procesos con el mismo comando que se escribiría a mano |
 
-**Regla del proyecto.** Ningún `nucleo.py` importa Tkinter. Los núcleos ponen sus eventos en una
-`queue.Queue` y la ventana la vacía cada 100 ms desde su propio hilo. Así la interfaz nunca se toca
-desde un hilo de red, porque Tkinter no es seguro entre hilos (Python Software Foundation, 2025c), y
-las pruebas pueden levantar el sistema completo sin abrir una sola ventana.
+Las reglas de código heredadas se conservan: ningún `nucleo.py` importa Tkinter (los núcleos
+publican eventos en una `queue.Queue` que la ventana vacía cada 100 ms), las constantes se leen
+como `config.X` al usarlas para que las pruebas las acorten, el estado compartido entre hilos se
+protege con el lock de su dueño y ningún hilo de red muere por una excepción.
 
----
+### 3.2 Topología de la demostración
 
-## 4. Topología y descubrimiento
+La configuración mínima es la Figura 1 del enunciado: **4 nodos en malla completa** y, en cada
+uno, **1 GUI y 4 células madre**. El usuario pidió **dos modos de arranque** con el mismo
+funcionamiento después:
 
-### 4.1 Basta conocer a un nodo cualquiera
+- **Vacía**: las 16 madres arrancan sin genes y se llenan desde el gestor con un clic
+  ("Distribuir una de cada operación por nodo": 16 órdenes, una por madre).
+- **Con servicios**: cada madre arranca con su gen (`--genes SUM@1.0`), tomado del banco local.
 
-Ningún nodo tiene una lista de los demás. Cada uno arranca con cero o más **semillas** (endpoints
-`host:puerto` de otros nodos), y a partir de ahí la malla se completa sola por **gossip**.
+Los gestores (uno por nodo) **no arrancan solos**: el usuario los levanta cuando quiere, con el
+botón **Gestor** de cada nodo en el panel o por terminal.
 
-1. Cuando un nodo se conecta con otro, este le contesta `BIENVENIDA` con **todos los endpoints de
-   nodos que conoce**.
-2. Cada vez que **crece** el conjunto de nodos que conoce, el nodo manda `PARES` con la lista a
-   todos sus enlaces.
-3. Un **supervisor** corre cada 2 s (`Nodo._supervisar()`). Por cada endpoint conocido que no sea el
-   propio y con el que no haya enlace, lanza un marcador (`Nodo._marcar()`). Si falla, reintenta con
-   backoff exponencial de 1 a 8 s.
+![Figura 1. Topología de la demostración vista por el gestor G-N1 tras "Distribuir": 4 nodos en malla completa, 4 GUIs y 16 madres, una de cada operación por nodo, coloreadas por gen. Abajo, las 16 órdenes de alta con su folio y la ruta en disco de cada gen.](docs/capturas/e0c_gestor_distribuido.png)
+### 3.3 Sin orquestador: quién decide qué
 
-El conjunto de nodos conocidos solo crece y es finito, así que `PARES` deja de enviarse cuando todos
-conocen a todos. El resultado es una **malla completa con cualquier número de nodos**. Es un
-descubrimiento epidémico, en el sentido de Demers et al. (1987).
+El principio rector es que **ninguna pieza nueva decide por las células**.
 
-En la demostración, el panel le da a cada nodo como semilla **un nodo vivo elegido al azar**, o
-ninguno si es el primero. Así se ve que ningún nodo es especial. Esta es la bitácora real del Nodo
-2, cuya semilla fue el Nodo 1.
+| Decisión | La toma | Nunca la toma |
+|---|---|---|
+| Qué mensajes atender | Cada célula, por código, folio y huella | El nodo (no lee contenido) |
+| Qué madre responde una operación | Las madres que acusaron, con la misma función HRW | La GUI o el gestor |
+| Si un gen se instala | La madre destino, después de validarlo | El gestor (solo lo propone) |
+| Qué genes se instalan y dónde | El administrador, con el gestor | Nadie automáticamente |
+| Que una célula se perdió y quién la regenera | Cada madre por su cuenta, con la misma regla | El gestor (solo lo muestra) |
+| Cuándo parar de clonar | Cada madre, al no quedar pérdidas | Nadie externo |
 
-```
-19:09:50.022 [INICIO] Nodo 2 · 42dafcce · escucha 127.0.0.1:5002 · semillas: 127.0.0.1:5001
-19:09:50.132 [CONEXION] vecino Nodo 1 (3910bdcc) en 127.0.0.1:5001 · saliente
-19:09:50.133 [PARES] conozco 2 nodo(s) además de mí; aviso a 1 enlace(s)
-19:09:50.140 [CONEXION] vecino Nodo 3 (2c8ec44b) desde 127.0.0.1:5003 · entrante
-19:09:50.140 [PARES] conozco 3 nodo(s) además de mí; aviso a 2 enlace(s)
-19:09:50.149 [CONEXION] vecino Nodo 4 (cb4f8e45) en 127.0.0.1:5004 · saliente
-19:09:50.153 [RECHAZO] Nodo 4 ya tiene enlace conmigo (llegó otro entrante) → RECHAZO(duplicado)
-```
-
-En 130 ms el Nodo 2 aprendió por gossip que existían el 3 y el 4, se conectó con ellos y quedó con
-sus tres vecinos. La última línea muestra la **regla de enlace duplicado** (sección 4.2). El Nodo 2
-y el Nodo 4 se marcaron al mismo tiempo, y uno de los dos enlaces se descartó.
-
-![Figura 1. Ventana del Nodo 2 tras levantar la configuración mínima, con 3 vecinos (malla completa) y 5 células (1 GUI y 4 servidores).](docs/capturas/01_nodo2_malla.png)
-
-### 4.2 La regla de enlace duplicado
-
-Cuando dos nodos se descubren a la vez, cada uno marca al otro y quedan **dos** conexiones TCP entre
-el mismo par. Hay que quedarse con una, y **los dos lados deben elegir la misma** sin hablarlo. La
-regla (`Nodo._registrar_vecino()`) depende solo de datos que ambos conocen.
-
-> Sea `preferido = min(mi_hash, hash_del_par)` el nodo que "debe" iniciar el enlace. Si ya hay un
-> enlace con ese par, se queda el **nuevo** solo si lo inició el preferido y el existente no. En
-> cualquier otro caso se queda el **existente** y el nuevo recibe `RECHAZO(duplicado)`.
-
-Como los dos lados aplican la misma función a los mismos datos (los hashes y quién inició cada
-enlace), ambos conservan el mismo enlace. En las pruebas apareció un caso, 1 de cada ~25 veces, en
-el que el enlace sobrante se cerraba sin avisar y el otro lado lo registraba como una caída falsa.
-Se corrigió mandando siempre el `RECHAZO(duplicado)` antes de cerrar (sección 17.3).
-
-### 4.3 Escalabilidad sin tocar el código
-
-| Requisito del §6 y el §10.1 | Cómo se cumple |
-|---|---|
-| El mismo programa de nodo para cualquier número de instancias | `py -m nodo --puerto P` con cualquier puerto; la malla se forma con una semilla cualquiera |
-| Células en cualquier número | Cada célula genera su identidad y se presenta; el nodo no tiene cupos ni listas fijas |
-| Sin valores fijos codificados | Ni el nodo ni las células tienen el número de nodos o de células en ninguna parte del código |
-
-Se demostró en vivo levantando un **5º nodo** con "+ Nodo" en el panel. Con una sola semilla (el
-Nodo 2), en menos de 100 ms quedó conectado con los otros cuatro (Figura 2). Los demás nodos lo
-integraron sin reiniciar nada, y desde ese momento cada mensaje se ve en los 5 nodos (1 `FWD` y 3
-`DUP` en cada uno). También se probaron células extra del mismo servicio (`DIV-N2b` y `SUM-N3b`),
-que se integran igual.
-
-![Figura 2. Nodo 5 agregado con "+ Nodo" y una sola semilla. En menos de 100 ms quedó conectado con los otros cuatro nodos.](docs/capturas/08_nodo5.png)
+Cerrar el gestor y el panel no cambia nada: las operaciones siguen y la regeneración también
+(escenario final, §12).
 
 ---
 
-## 5. Protocolos
+## 4. Lo heredado del segundo parcial
 
-### 5.1 Transporte NDJSON sobre TCP
+Esta sección resume lo que el segundo parcial documentó a detalle y que aquí se conserva. Lo
+nuevo que se le agregó está marcado.
 
-TCP no transporta mensajes sino un flujo de bytes (Eddy, 2022). Para separar los mensajes se usa
-**NDJSON**, que es un objeto JSON (Bray, 2017) por línea, terminado en `\n`. Es legible y en la
-demostración permite ver los mensajes como texto plano.
+### 4.1 Protocolo de conexión
 
-El framing viene del primer parcial (`comun/protocolo.py`), con tres cambios que la malla necesita.
+Son mensajes de **control**: viajan por un solo enlace, nunca se retransmiten y llevan `"ctrl"`
+en lugar de `"codigo"`.
 
-1. **Lector tolerante.** El lector anterior hacía `json.loads` *dentro* del generador, así que una
-   sola línea inválida lanzaba una excepción, terminaba el generador y cerraba la conexión. En una
-   malla cualquiera puede mandar basura. Ahora cada línea se decodifica por separado, una línea
-   inválida se reporta como `DROP` y la lectura sigue. Una línea de más de 64 KiB se descarta
-   completa.
-2. **Sin NaN ni Infinity.** Se serializa con `allow_nan=False` y se rechazan al leer, porque no son
-   JSON estándar.
-3. **`Enlace` con cola de escritura.** Cada enlace tiene un hilo lector y un **hilo escritor
-   propio**. Quien difunde solo encola bytes, de modo que un par lento o colgado nunca frena la
-   inundación hacia los demás. Si la cola pasa de 5 000 mensajes, el enlace se da por muerto
-   (`LENTO`).
+| `ctrl` | Dirección | Propósito |
+|---|---|---|
+| `HOLA` | entidad → nodo | Presentación: `entidad`, `hash`, `nombre`, `escucha` (solo nodos). Entidades: `NODO`, `INTERFAZ`, **`MADRE`**, **`GESTOR`**, `SONDA` |
+| `BIENVENIDA` | nodo → entidad | Confirma el registro y da los endpoints de nodos conocidos (gossip y failover) |
+| `PARES` | nodo → sus enlaces | Gossip: se manda cada vez que crece el conjunto de nodos conocidos |
+| `RECHAZO` | nodo → entidad | `duplicado`, `autoconexion`, `version`, `invalido`; luego se cierra el enlace |
 
-### 5.2 Protocolo de conexión (§10.1)
+Ningún nodo tiene una lista de los demás: arranca con **una semilla cualquiera** y la malla se
+completa por gossip (Demers et al., 1987). Un supervisor cada 2 s marca a los endpoints conocidos
+sin enlace, con backoff de 1 a 8 s. Cuando dos nodos se marcan a la vez, ambos conservan el mismo
+enlace aplicando una regla determinista sobre sus hashes. Cada nodo lleva sus tablas `vecinos` y
+`celulas` (control de conexiones activas) y las muestra en su ventana (Figura 2). **Nuevo:** el
+nodo origina cada 2 s un `NODO_LAT` con su nombre, endpoint, vecinos reales y células conectadas,
+del que el gestor saca los enlaces de la malla.
 
-Son mensajes de **control**. Viajan por un solo enlace, **nunca se retransmiten** y llevan `"ctrl"`
-en lugar de `"codigo"`, así que no se pueden confundir con datos.
+### 4.2 Comunicación por broadcast y prevención de ciclos
 
-| `ctrl` | Dirección | Campos | Propósito |
-|---|---|---|---|
-| `HOLA` | entidad → nodo | `entidad` (`NODO`, `INTERFAZ`, `SERVIDOR` o `SONDA`), `hash`, `nombre`, `servicio`, `escucha` (puerto; solo nodos), `version` | Presentación. **Identifica el tipo de entidad** |
-| `BIENVENIDA` | nodo → entidad | `hash`, `nombre`, `nodos` (endpoints conocidos) | Confirma el registro y da la lista para el gossip (nodos) y para el failover (células) |
-| `PARES` | nodo → todos sus enlaces | `nodos` | Gossip. Se manda cada vez que crece el conjunto de nodos conocidos |
-| `RECHAZO` | nodo → entidad | `motivo` (`duplicado`, `autoconexion`, `version`, `invalido`), `hash` | Se manda y se cierra el enlace |
+Todo dato se **inunda**: el nodo lo entrega a sus células y lo reenvía a todos sus enlaces menos
+al de llegada. Cuatro defensas impiden que circule para siempre: (1) **id único y registro
+temporal de vistos** (`comun/vistos.py`, 60 s), con el que una copia repetida se registra como
+`DUP` y no se retransmite; (2) **TTL**, que se descuenta en cada nodo; (3) **horizonte dividido y
+ruta**: no se devuelve por el enlace de llegada ni a un nodo que ya está en la `ruta`; y (4)
+**deduplicación en la célula**, por el mismo id.
 
-Ejemplos reales de una célula servidor y de un nodo:
+El nodo es "bobo" a propósito: solo usa `id`, `ttl` y `ruta`. Por eso **no cambió** para soportar
+genes, órdenes ni regeneración: todo lo nuevo son códigos que solo entienden las células. Así
+recorrió la malla la solicitud `7 + 5` del escenario 1:
+
+```
+Nodo 1  [FWD] SUM_REQ #261b0d8a origen=GUI-1 de=GUI-1  ruta=N1     ttl=7 → 3 nodo(s) / 5 célula(s)
+Nodo 2  [FWD] SUM_REQ #261b0d8a origen=GUI-1 de=Nodo 1 ruta=N1→N2 ttl=6 → 2 nodo(s) / 5 célula(s)
+Nodo 2  [DUP] SUM_REQ #261b0d8a de Nodo 4: ya procesado; no se retransmite
+Nodo 2  [DUP] SUM_REQ #261b0d8a de Nodo 3: ya procesado; no se retransmite
+```
+
+![Figura 2. Ventana del Nodo 1: 3 vecinos (malla completa), sus células (GUI, gestor y madres) y el tráfico con FWD y DUP. Los contadores muestran 426 reenvíos y 561 duplicados descartados.](docs/capturas/e0d_nodo1.png)
+
+### 4.3 Formato de los mensajes
+
+Todo mensaje de datos es un objeto JSON por línea (NDJSON sobre TCP; Bray, 2017; Eddy, 2022) con
+este sobre:
 
 ```json
-{"ctrl":"HOLA","entidad":"SERVIDOR","hash":"276a507e…","nombre":"SUM-N2","servicio":"SUM",
- "escucha":null,"version":1}
-{"ctrl":"HOLA","entidad":"NODO","hash":"42dafcce…","nombre":"Nodo 2","servicio":null,
- "escucha":5002,"version":1}
-{"ctrl":"BIENVENIDA","hash":"3910bdcc…","nombre":"Nodo 1",
- "nodos":["127.0.0.1:5001","127.0.0.1:5002","127.0.0.1:5003","127.0.0.1:5004"]}
+{"id": "<sha256 propio>", "codigo": "SUM_REQ", "origen": "<hash de la célula>",
+ "tipo_origen": "INTERFAZ", "nombre_origen": "GUI-1", "ts": 1763420934.885,
+ "ttl": 8, "ruta": ["<hash nodo>", …], "cuerpo": {…}}
 ```
 
-**Reglas del nodo**
+Cada entidad genera su propio hash SHA-256 (NIST, 2015) al arrancar; no hay ids asignados por
+nadie. El `cuerpo` de cada código está en las secciones 5 a 8.
 
-1. **Registro de entidades.** Una conexión entrante debe presentarse con un `HOLA` válido en 5 s o
-   se cierra, y mientras no se presente sus datos se descartan. Según el campo `entidad`, va a la
-   tabla `vecinos` (nodos) o a la tabla `celulas` (GUI, servidor o sonda). Esas dos tablas son el
-   **control de conexiones activas** que pide el §10.1, y se ven en vivo en la ventana del nodo
-   (Figura 1).
-2. **Célula que se reconecta.** Si una célula se reconecta con el mismo hash antes de que se detecte
-   la caída de su enlace viejo, gana el enlace nuevo y el viejo se cierra.
-3. **Endpoint de un nodo.** Se forma con la IP real del socket y el puerto `escucha` del `HOLA`, no
-   con lo que el nodo dice de sí mismo.
-4. **Autoconexión.** Si un nodo se marca a sí mismo (porque recibió su propio endpoint por gossip),
-   se manda `RECHAZO(autoconexion)` y ese endpoint queda marcado como propio.
-5. **Puerto ocupado.** El nodo termina con un mensaje claro y código de salida 1.
-6. **Bind a 127.0.0.1 por defecto**, para que el firewall de Windows no abra su diálogo en plena
-   demostración. Con `--host 0.0.0.0` funciona en red local.
+### 4.4 Códigos de Contenido
 
-**Reglas de la célula** (`celula/base.py`). La célula se conecta a su `--nodo`, manda `HOLA` y
-espera la `BIENVENIDA` hasta 3 s. **Hasta entonces no publica nada.** Guarda la lista de nodos que
-recibe como candidatos para el failover (sección 14) y la actualiza con cada `PARES`.
+Hay dos familias. Las de **operación** tienen la forma `<GEN>_<TIPO>`, donde `<GEN>` es el código
+de un microservicio: el programa base no conoce `SUM` ni `DIV`, atiende los códigos de los genes
+que tiene activos. Las de **sistema** tienen prefijos reservados que ningún gen puede usar.
 
-### 5.3 Protocolo de comunicación (§10.2)
+| Código | Lo publica | Lo atiende |
+|---|---|---|
+| `X_REQ`, `X_FIN` | GUI | Madres con el gen `X` activo |
+| `X_ACK`, `X_RES` | Madre con el gen `X` | La GUI dueña del folio; las madres con el gen `X` |
+| `CEL_LAT` | Toda célula, cada 2 s (la madre, con sus genes) | GUIs (disponibilidad), madres (regeneración), gestores (topología) |
+| `CEL_ADIOS` | Célula que se cierra ordenadamente | Todos: **no** es una pérdida |
+| `NODO_LAT` | Nodos | Gestores y madres |
+| `TOPO_REQ` / `TOPO_RES` | Gestor / toda célula que late | Células / gestor |
+| `GEN_INYECTA`, `GEN_BAJA`, `CEL_RETIRO` | Gestor | Solo la madre `destino` |
+| `GEN_ACK`, `GEN_RES` | Madre destino | Gestor que dio la orden |
+| `GEN_PIDE` / `GEN_ENTREGA` | Madre que necesita un gen / quien lo tenga | Madres y gestores / la que pidió |
+| `CLON_AVISO`, `CLON_LISTO` | Clonador / reemplazo | Madres y gestores |
 
-Los mensajes de **datos** viajan **siempre por broadcast**, dentro de un **sobre** común.
+### 4.5 Una sola respuesta, latidos y failover
 
-```json
-{
-  "id": "b8a83064…",            // identificador único del mensaje (SHA-256, 64 hex)
-  "codigo": "SUM_REQ",          // Código de Contenido
-  "origen": "dedbdb88…",        // hash de la célula que lo originó
-  "tipo_origen": "INTERFAZ",
-  "nombre_origen": "GUI-1",
-  "ts": 1791767405.852,         // reloj del origen (solo informativo)
-  "ttl": 8,                     // cuántos nodos más pueden procesarlo
-  "ruta": [],                   // hashes de los nodos que ya lo procesaron, en orden
-  "cuerpo": {"id_operacion": "adced3c6…", "intento": 1, "a": 7, "b": 5}
-}
-```
+Se conserva la estrategia de respuesta única del segundo parcial, ahora por código de gen: cada
+madre **acusa de inmediato** (antes de encolar), espera `VENTANA_ELECCION` (0.5 s) para juntar
+los acuses de las demás y todas ordenan a las que acusaron con la misma función **HRW**
+(rendezvous hashing; Thaler y Ravishankar, 1998). La primera es la **titular** y responde; las
+demás son **respaldos escalonados** que responden solo si la titular calla en `r · RELEVO`.
 
-| Requisito del §10.2 | Mecanismo |
+Los **latidos** dicen a la GUI cuántas madres vivas tienen cada gen (y deshabilitan un operador
+si no alcanzan el mínimo). El **failover** hace que una célula cuyo nodo cae se reconecte sola a
+otro nodo de su lista, así que ningún nodo es maestro (P2, probado en
+`test_nodo_tumbado_failover_y_el_servicio_sigue`).
+
+---
+
+## 5. Protocolo de foliado
+
+**Objetivo del enunciado:** que cada célula haga solo lo que le corresponde y que cada GUI muestre
+solo lo que ella pidió. Se usaron las definiciones del PDF.
+
+### 5.1 Definiciones
+
+| Concepto | Definición en este sistema |
 |---|---|
-| Broadcast entre nodos y células | Inundación en `Nodo._difundir()` (sección 7) |
-| Transportar los códigos de solicitud y respuesta | Campo `codigo` |
-| Impedir la circulación indefinida | `ttl`, `ruta` y registro de vistos (sección 8) |
-| Detectar mensajes ya recibidos | `id` + `RegistroVistos` en cada nodo y en cada célula |
-| Asociar la respuesta con su solicitud | `cuerpo.id_operacion` y `cuerpo.id_solicitud` (sección 6) |
+| **Folio** | `F-<hash8 de la GUI>-<n>` (`F-07b96e1e-0001`). Lo genera la GUI con su contador, sin autoridad central. Es el mismo en todos los reintentos y va en **todos** los mensajes del evento (`REQ`, `ACK`, `RES`, `FIN`) |
+| **Huella** | Identifica el origen y la trayectoria lógica: `origen` (hash de la GUI), `nodo` de entrada, **sello** y **rastro**. El sello amarra folio, origen, código y operandos; el rastro es la lista de pasos lógicos (`REQ` de la GUI, `ACK` de cada madre, `RES` de quien respondió, `FIN` de la GUI). La `ruta` del sobre sigue siendo la trayectoria física (nodos) |
+| **ACK** | `X_ACK`: la madre confirma que recibió y participa. Sale de inmediato, antes de encolar, y agrega su paso al rastro |
+| **Mínimo de ACK** | Acuses del intento vigente necesarios para **aceptar** el evento. Por código, 2 por defecto, editable en vivo en la GUI |
+| **Evento** | El ciclo de vida de una solicitud con folio, con cuatro fases identificables: **INICIO** (la GUI publica `X_REQ`), **CONFIRMACIÓN** (llegan los ACK del mínimo: evento *aceptado*), **PROCESAMIENTO** (la titular o un relevo publica `X_RES`) y **FINALIZACIÓN** (la GUI acepta la respuesta, o agota intentos, y publica `X_FIN`, con lo que las madres cierran sus rondas) |
+| **Esperadas / ausentes** | Esperadas = madres vivas con el gen al iniciar (por latidos). Al cerrar la ventana de confirmación (`VENTANA_ACUSES`, 1.5 s, o antes si acusaron todas) la GUI registra las **ausentes**. Con el mínimo alcanzado el evento sigue (**tolerancia**); sin él, reintenta y, tras `MAX_INTENTOS`, cierra como fallido |
+
+El sello es un SHA-256 sobre datos que tanto la GUI como cualquier madre pueden recalcular:
+
+```
+sello = sha256( origen | folio | código del gen | repr(float(a)) | repr(float(b)) )
+```
+
+Usa el código del gen (`SUM`), no el del mensaje, así que vale para todo el evento. Si alguien
+altera un operando o el folio en el camino, el sello deja de coincidir.
+
+### 5.2 Mensajes del evento
+
+```
+X_REQ {folio, intento, a, b, huella}                                          GUI → todas
+X_ACK {folio, intento, id_solicitud, en_cola, gen: "SUM@1.0", huella + ACK}   madre → todas
+X_RES {folio, intento, id_solicitud, resultado, error, rol, ms, gen, huella + RES}
+X_FIN {folio, intento, estado: resuelta|fallida, id_respuesta, acuses, ausentes, huella + FIN}
+```
+
+### 5.3 Reglas de atención (folio + Código de Contenido)
+
+**La madre** atiende un mensaje solo si:
+
+1. el código es de un gen que tiene **activo** (si no: `IGNORA … no tengo el gen SUB`);
+2. en el `REQ`, `huella.origen` coincide con el origen del sobre y el sello recalculado coincide
+   (si no: `DROP huella inválida`, y no acusa);
+3. la ronda `(código, folio, intento)` no está terminada (resuelta, superada o cerrada);
+4. un `X_FIN` cierra todas las rondas del folio: un `REQ` tardío de ese folio ya no se acusa.
+
+**La GUI** muestra un `X_ACK` o `X_RES` solo si el folio es suyo, `huella.origen` es su hash y
+el sello es el que ella generó. Todo lo demás suma al contador **"ajenas ignoradas"**, visible en
+la ventana. Así, aunque por broadcast **todas las GUIs reciben todo**, cada una muestra solo lo
+suyo, y varias operaciones pueden estar en vuelo a la vez (el folio las distingue).
+
+### 5.4 Un evento real, paso a paso
+
+```
+GUI-1                         Campo de Datos                       M1-N1  M1-N2  M1-N3  M1-N4
+  │  INICIO: SUM_REQ F-07b96e1e-0001, 7 + 5, sello b501b200  ──▶  (las 4 lo reciben)
+  │  ◀── SUM_ACK de M1-N1 (1/2), M1-N4 (2/2)  →  CONFIRMACIÓN: evento aceptado
+  │  ◀── SUM_ACK de M1-N3 (3/2), M1-N2 (4/2)       cada madre espera 0.5 s y ordena por HRW:
+  │                                                 titular M1-N1; respaldos M1-N3, M1-N4, M1-N2
+  │  ◀── SUM_RES 12 de M1-N1 (titular, SUM@1.0)  →  PROCESAMIENTO
+  │  FINALIZACIÓN: SUM_FIN (resuelta, rastro completo)  ──▶  las 4 cierran su ronda
+```
+
+Bitácora de la GUI-1 (escenario 1):
+
+```
+17:08:54.885 [EVENTO_INICIO] F-07b96e1e-0001 · SUM_REQ 7 + 5 · sello b501b200 · esperadas 4: M1-N1, M1-N2, M1-N3, M1-N4
+17:08:54.886 [ACUSE] F-07b96e1e-0001 · 1/2 de M1-N1 (4acf4b5d) · intento 1
+17:08:54.887 [ACUSE] F-07b96e1e-0001 · 2/2 de M1-N4 (be9db0a8) · intento 1
+17:08:54.887 [CONFIRMADO] F-07b96e1e-0001 · ACK 2/2 de 4 esperada(s) · intento 1: evento aceptado
+17:08:54.888 [ACUSE] F-07b96e1e-0001 · 3/2 de M1-N3 (c3340f85) · intento 1
+17:08:54.889 [ACUSE] F-07b96e1e-0001 · 4/2 de M1-N2 (8610fb2c) · intento 1
+17:08:55.398 [RESULTADO] F-07b96e1e-0001 · 7 + 5 = 12 · titular M1-N1 · SUM@1.0 · solicitud 261b0d8a ↔ respuesta 4b700224 · 514 ms
+17:08:55.399 [FIN] F-07b96e1e-0001 · resuelta · rastro: GUI-1 REQ → M1-N1 ACK → M1-N4 ACK → M1-N3 ACK → M1-N2 ACK → M1-N1 RES → GUI-1 FIN
+```
+
+Y de la madre titular, M1-N1, que acusa al recibir y solo responde tras la elección:
+
+```
+17:08:54.886 [RX] SUM_REQ SUM F-07b96e1e-0001 · intento 1 de GUI-1: 7 + 5 con SUM@1.0 · sello b501b200 ✓ …
+17:08:54.886 [ACUSE] SUM_ACK SUM F-07b96e1e-0001 · intento 1 → GUI-1 con SUM@1.0 (acuse 5f5f8310)
+17:08:55.397 [TITULAR] SUM F-07b96e1e-0001 · intento 1 · rank 0 de 4 [M1-N1, M1-N3, M1-N4, M1-N2]
+17:08:55.397 [RES] SUM_RES SUM F-07b96e1e-0001 · intento 1 · 7 + 5 = 12 · titular · SUM@1.0 · … · 511 ms
+17:08:55.401 [FIN] SUM_FIN SUM F-07b96e1e-0001 resuelta por GUI-1: evento finalizado; nada abierto
+```
+
+Los ~0.5 s del evento son la ventana de elección; el resto del recorrido tarda milisegundos.
+
+### 5.5 Lo que muestra la GUI
+
+La GUI dibuja el evento seleccionado como una **tarjeta**: folio, operación, las cuatro fases
+como pasos (inicio → confirmado → procesado → finalizado), sello, ACK `k/mínimo` con nombres,
+esperadas, ausentes, quién respondió con qué gen y versión, y el rastro compacto. La pestaña
+"Mis eventos" lista los folios propios y el pie cuenta las ajenas ignoradas.
+
+![Figura 3. Escenarios 1 y 3. Izquierda: GUI-1 con el evento F-07b96e1e-0001 (7 + 5 = 12), ACK 4/2, rastro completo y las cuatro fases. Centro: GUI-2 en el mismo momento; no muestra ese evento y su contador de ajenas ignoradas subió a 7. Derecha: 2 + 2 con una madre muda: ACK 4/2 de 5 esperadas, ausente SUM-N1m, y el evento termina igual.](docs/capturas/fig_guis_foliado.png)
 
 ---
 
-## 6. Códigos de Contenido y formato de los mensajes
+## 6. Genes activos y carga dinámica de microservicios
 
-### 6.1 Catálogo
+**Objetivo del enunciado:** que la funcionalidad de una célula viva en sus genes activos y no en
+su programa base.
 
-Los códigos `REQ` y `RES` son los del enunciado (§7). Se agregan `ACK`, por el modelo de acuses
-visto en clase (sección 10), y `SRV_LAT`, por los latidos de disponibilidad (sección 12).
+### 6.1 El gen en disco
 
-| Servicio | Solicitud | Acuse | Respuesta | Símbolo |
-|---|---|---|---|---|
-| Suma | `SUM_REQ` | `SUM_ACK` | `SUM_RES` | + |
-| Resta | `SUB_REQ` | `SUB_ACK` | `SUB_RES` | − |
-| Multiplicación | `MUL_REQ` | `MUL_ACK` | `MUL_RES` | × |
-| División | `DIV_REQ` | `DIV_ACK` | `DIV_RES` | ÷ |
+Un gen es una carpeta `microservicios/<CÓDIGO>/<versión>/` con dos archivos:
 
-Hay dos códigos más que no pertenecen a un servicio. `SRV_LAT` es el latido de cualquier servidor, y
-`SONDA_PRUEBA` solo lo inyecta la sonda de demostración; ninguna célula lo procesa.
+```
+manifiesto.json   {"codigo": "SUM", "version": "2.0", "nombre": "Suma decimal exacta",
+                   "archivo": "servicio.py", "sha256": "765cbef9…", "interfaz": 1,
+                   "pruebas": [[2, 3, 5], [0.1, 0.2, 0.3], [-1.5, 1.5, 0]]}
 
-### 6.2 Cuerpo de cada tipo de mensaje
+servicio.py       SERVICIO = "SUM"
+                  VERSION = "2.0"
+                  def calcular(a, b):
+                      exacta = Decimal(repr(a)) + Decimal(repr(b))
+                      return float(exacta), None
+```
 
-| Código | Campos del `cuerpo` |
+El gen contiene **solo** la operación. Los manifiestos se firman con `herramientas/firmar.py`,
+que calcula el SHA-256 de cada `servicio.py`. `SUM 9.9` es un gen **manipulado a propósito**: su
+programa (`return a + b + 1`) se cambió después de firmarlo, y toda célula y todo gestor lo
+detectan.
+
+### 6.2 El programa base no sabe sumar
+
+En `madre/` no hay ninguna operación aritmética. Lo que la madre sí hace es **protocolo**:
+`genes.ejecutar()` exige operandos numéricos finitos (no `bool`), llama a `calcular(a, b)` del gen
+activo, exige un resultado finito y convierte cualquier excepción del gen en una respuesta con
+error, para que un gen roto no tumbe a la célula. Una madre sin genes arranca, se conecta, late
+con `genes: []` y aparece como **vacía** en la topología: está viva, esperando.
+
+### 6.3 Almacén propio y tres vías de llegada
+
+Cada madre tiene **su propio almacén en disco**,
+`datos/celulas/<nombre>-<hash8>/genes/<CÓDIGO>/<versión>/`, y **todo** gen pasa por ahí antes de
+cargarse, venga de donde venga (requisito M1):
+
+| Vía | Cuándo | Qué hace la madre |
+|---|---|---|
+| Banco local | Modo "con servicios" (`--genes SUM@1.0`) | Copia `microservicios/SUM/1.0/` a su almacén |
+| Inyección | El gestor manda `GEN_INYECTA` con el programa dentro del mensaje | Escribe manifiesto y programa en su almacén |
+| Entrega | Un reemplazo pide sus genes con `GEN_PIDE` (§7.5) | Escribe lo que le llega en `GEN_ENTREGA` |
+
+### 6.4 Localizar, validar, cargar, activar y descargar
+
+Este es el mecanismo que pide explicar el requisito M5 (`madre/genes.py`):
+
+| Paso | Qué hace | Si falla |
+|---|---|---|
+| **Localizar** | Ruta `almacén/CÓDIGO/versión/manifiesto.json`, resuelta y **confinada al almacén** (sin `..`) | `no existe` |
+| **Validar** | Sin ejecutar nada: esquema del manifiesto, `servicio.py` ≤ 32 KiB y `sha256(servicio.py) == manifiesto.sha256` | `sha256 no coincide` (caso `SUM 9.9`) |
+| **Cargar** | `importlib.util.spec_from_file_location` + `module_from_spec`, y se ejecutan **los mismos bytes que se validaron** (no se vuelve a leer el archivo: entre validar y cargar nadie puede cambiarlo). El módulo no se registra en `sys.modules`. Se revisa que tenga `SERVICIO`, `VERSION` y `calcular` | `interfaz inválida` |
+| **Autoprueba** | Corre los vectores `pruebas` del manifiesto | `autoprueba falló` |
+| **Activar** | Bajo el lock del genoma lo pone en `activos[código]` y publica su `CEL_LAT` de inmediato: desde ese instante acusa `X_REQ` | — |
+| **Descargar** | Lo saca de `activos` (deja de acusar al instante). Las rondas en curso terminan con su propia referencia. Un `weakref` al módulo (Python Software Foundation, 2025d) y `gc.collect()` confirman que se **liberó de memoria**; luego se borra su copia del disco | — |
+
+Cada ronda guarda el gen con el que acusó (`SUM@1.0`) y lo usa hasta el final, así que un cambio a
+mitad de un evento no mezcla versiones.
+
+### 6.5 Sustituir con reversión
+
+Para cambiar `SUM 1.0` por `SUM 2.0`, la madre escribe, valida, carga y autoprueba la versión
+nueva **antes** de tocar la vieja. Si algo falla, la vieja sigue activa (reversión); si todo pasa,
+el cambio es atómico y la vieja se descarga. Por eso un gen manipulado nunca deja a la célula sin
+servicio.
+
+### 6.6 Evidencia real
+
+Alta de `MUL 1.0` en la madre vacía M5-N2 (escenario 4), del disco a memoria en milisegundos:
+
+```
+17:09:42.900 [ORDEN] O-c7d0cf83-0017 de G-N1: alta de MUL@1.0 · GEN_ACK enviado
+17:09:42.905 [GEN_ESCRITO] MUL@1.0 (inyección del gestor G-N1) → datos/celulas/M5-N2-542dbce1/genes/MUL/1.0/
+17:09:42.909 [GEN_VALIDADO] MUL@1.0 · sha256 6942cb86 coincide con el manifiesto · 114 bytes
+17:09:42.909 [GEN_CARGADO] MUL@1.0 en memoria con importlib (0.4 ms) · módulo gen_MUL_1_0_6942cb86_1
+17:09:42.909 [GEN_AUTOPRUEBA] MUL@1.0 pasó 3 prueba(s) del manifiesto
+17:09:42.909 [GEN_ACTIVO] MUL@1.0 activo: ahora atiendo MUL_REQ · genes: MUL@1.0
+17:09:48.970 [ACUSE] MUL_ACK MUL F-07b96e1e-0011 · intento 1 → GUI-1 con MUL@1.0
+```
+
+Sustitución por `SUM 2.0` y luego el intento con `SUM 9.9`, en M1-N1 (escenario 5):
+
+```
+17:10:06.913 [GEN_VALIDADO] SUM@2.0 · sha256 765cbef9 coincide con el manifiesto · 369 bytes
+17:10:06.923 [GEN_CARGADO] SUM@2.0 en memoria con importlib (9.0 ms) · módulo gen_SUM_2_0_765cbef9_2
+17:10:06.923 [GEN_SUSTITUIDO] SUM@1.0 → SUM@2.0 (cambio atómico; las rondas en curso terminan con SUM@1.0)
+17:10:07.139 [GEN_LIBERADO] SUM@1.0: módulo eliminado de memoria (weakref confirmado) y borrado del disco
+17:10:14.934 [GEN_RECHAZADO] SUM@9.9 (inyección del gestor G-N1): validar: sha256 no coincide
+             (declarado 448394e6, real 5ba78374); sigue activo SUM@2.0
+```
+
+Baja de `SUM` en M1-N4: deja de acusar de inmediato y la siguiente suma ya no la cuenta.
+
+```
+17:09:56.903 [GEN_BAJA] SUM@1.0 dado de baja: ya no acuso SUM_REQ · genes: ninguno (vacía)
+17:09:57.118 [GEN_LIBERADO] SUM@1.0: módulo eliminado de memoria (weakref confirmado) y borrado del disco
+```
+
+---
+
+## 7. Gestor de servicios y topología
+
+### 7.1 Por qué no es un orquestador
+
+| Un orquestador… | Este gestor… |
 |---|---|
-| `X_REQ` | `id_operacion`, `intento`, `a`, `b` |
-| `X_ACK` | `id_operacion`, `id_solicitud` (id del REQ acusado), `intento`, `en_cola` |
-| `X_RES` | `id_operacion`, `id_solicitud`, `intento`, `resultado` (o `null`), `error` (o `null`), `rol` (`"titular"` o `"relevo k"`), `ms` |
-| `SRV_LAT` | `servicio`, `en_cola`, `atendidas`, `nodo` (hash), `nodo_nombre` |
-| `SONDA_PRUEBA` | `nota` |
+| Decide solo dónde corre cada servicio | Solo actúa cuando el administrador pulsa un botón |
+| Lleva el registro oficial de la topología | No guarda topología: la reconstruye de latidos que **cualquiera** puede oír |
+| Instala el código | Publica una orden por broadcast; la **madre destino** escribe, valida y carga el gen, y puede rechazarlo |
+| Está en el camino de las operaciones | Nunca ve un `X_REQ`, no acusa ni responde |
+| Recupera fallas | La regeneración es de las madres (§8); el gestor solo la **muestra** |
+| Es único | Hay **uno por nodo**, cada uno con su BD; todos ven todo y ninguno manda sobre otro |
 
-### 6.3 Tres identificadores, tres propósitos
+### 7.2 Base de datos
 
-Una respuesta se puede asociar con su solicitud por dos caminos, y cada uno cubre algo distinto.
+SQLite (`sqlite3`, librería estándar), en `datos/gestor/<nombre>.sqlite3`, con dos tablas:
+`microservicio` (código, versión, nombre, manifiesto, **programa fuente**, sha256 declarado y
+real) y `orden` (folio, acción, destino, gen, estado, detalle y horas). Se llena con
+**"Importar carpeta"** (`microservicios/`) al abrir. Un gen cuyo sha256 real no coincide con el
+declarado se marca con ✘ y el gestor no lo ofrece como fuente:
 
-| Identificador | Qué identifica | Por qué hace falta |
-|---|---|---|
-| `id` (sobre) | **Este mensaje** en particular | Detectar duplicados en la malla (§11). La respuesta lleva **su propio** `id`, distinto del de la solicitud |
-| `id_solicitud` | El `X_REQ` exacto que se atendió | Es la "referencia al identificador de la solicitud original" que piden el §7 y el §11 |
-| `id_operacion` | La operación del usuario, **estable entre reintentos** | Un reintento lleva `id` nuevo (si no, la malla lo descartaría como duplicado) pero la misma operación. Así la GUI sabe que cualquier respuesta a cualquier intento es para ella |
+```
+17:08:24.837 [BD] importé 6 gen(es) de microservicios/ → 6 en la BD · ✘ manipulado(s): SUM@9.9
+```
 
-La estructura cumple con la que sugiere el §8 del enunciado.
+### 7.3 Órdenes por el Campo de Datos
 
-| Campo sugerido (§8) | Dónde está |
+```
+GEN_INYECTA {orden, destino, accion: "alta"|"cambio", manifiesto, fuente}   gestor → madre
+GEN_BAJA    {orden, destino, accion: "baja", codigo}
+CEL_RETIRO  {orden, destino, accion: "retiro"}       la madre publica CEL_ADIOS y termina
+GEN_ACK     {orden, destino, accion}                 madre → gestor: la recibí
+GEN_RES     {orden, destino, accion, ok, detalle, gen, sustituyo, genes, ms, ruta}
+```
+
+La orden lleva su propio folio `O-<hash8 del gestor>-<n>` y **el programa completo dentro del
+mensaje** (cabe holgado en una línea NDJSON de 64 KiB). Viaja por broadcast como cualquier dato;
+solo la madre con `destino == mi hash` la atiende, y solo si el origen es un `GESTOR`. Contesta
+`GEN_ACK` antes de trabajar y `GEN_RES` al terminar el ciclo de vida. Una orden repetida no se
+ejecuta dos veces. Estados en el gestor: `enviada → recibida → ok | rechazada | sin respuesta |
+sin resultado`.
+
+Dos atajos facilitan la demostración: **"Distribuir una de cada operación por nodo"** asigna a
+cada nodo una madre vacía por operación que le falte (la versión base, `SUM 1.0`), y **"Sustituir
+en todas las que lo tengan"** manda el cambio de versión a cada madre con ese código.
+
+![Figura 4. Escenario 5 en el gestor: baja de SUM en M1-N4 (ahora vacía, contorno punteado), cambio a SUM 2.0 en las cuatro madres con SUM y el intento con SUM 9.9 rechazado por M1-N1 (sha256 no coincide; sigue activo SUM 2.0). La madre seleccionada en el diagrama es el destino de la orden.](docs/capturas/e5a_gestor_ordenes.png)
+
+### 7.4 Topología: de dónde sale y cómo se representa
+
+El gestor **no le pregunta nada al nodo**: escucha lo que circula.
+
+| Fuente | Aporta |
 |---|---|
-| Identificador único del mensaje | `id` |
-| Identificador de la solicitud original, en una respuesta | `cuerpo.id_solicitud` |
-| Código de Contenido | `codigo` |
-| Operandos, en una solicitud | `cuerpo.a`, `cuerpo.b` |
-| Resultado, en una respuesta | `cuerpo.resultado` (o `cuerpo.error`) |
-| Identificador de la célula que originó el mensaje | `origen` |
-| Datos para el control del broadcast y de los ciclos | `ttl`, `ruta` |
+| `NODO_LAT` (cada nodo, cada 2 s y al cambiar sus enlaces) | Nodos disponibles y **enlaces reales** de la malla |
+| `CEL_LAT` (cada célula, cada 2 s) | Células conectadas, su tipo y nodo; en las madres, **genes activos** con versión y sha, generación, si es reemplazo o muda |
+| `CEL_ADIOS` | Retiro ordenado: se quita al instante |
+| `CLON_AVISO` / `CLON_LISTO` | Regeneración en curso, para dibujarla |
+| `TOPO_REQ` → `TOPO_RES` | Consulta inmediata (botón **Consultar**): cada célula contesta con su latido |
 
-### 6.4 Valores válidos
+Lo que no late en `LATIDO_CADUCIDAD` (6 s) se dibuja **caído** en rojo y se olvida poco después.
+La representación es un **diagrama vivo** (Tk `Canvas`): nodos con sus enlaces, cada célula
+alrededor de su nodo, madres **coloreadas por gen** con su versión, vacías punteadas, mudas
+tachadas, reemplazos con insignia `r1`, `r2`. **Un clic en una madre la elige como destino** de
+la orden; arriba, la disponibilidad por código. Así el administrador decide con la topología a la
+vista (G5, V9).
 
-`a`, `b` y `resultado` siempre son números finitos. El servidor responde con `error` si un operando
-no es número (o es `bool`, que en Python es un entero) o si el resultado no es finito, por ejemplo
-por un *overflow*. La división entre cero se responde con `error: "división entre cero"`. Es una
-**respuesta válida del sistema** y no una falla, así que se difunde, se muestra en la GUI y cierra
-la operación.
+### 7.5 Pedidos de genes
+
+Una madre que necesita un gen (un reemplazo, §8) publica `GEN_PIDE {pedido, intento, codigo,
+version, sha}`. Pueden contestar las madres que lo tienen **activo** (lo leen de su disco) y los
+gestores que lo tienen **íntegro** en su BD. Para que normalmente salga **una sola** entrega, cada
+proveedor espera un retardo derivado de su hash (≤ 0.4 s) y se calla si ya vio una
+`GEN_ENTREGA` para ese pedido. Quien pidió toma la primera que **valide** (mismo sha) y, si una
+llega alterada, la rechaza y sigue esperando. Si nadie entrega tras sus reintentos, usa el banco
+local solo si el sha coincide.
 
 ---
 
-## 7. Broadcast
+## 8. Protocolo de autorrecuperación
 
-### 7.1 El algoritmo de inundación
+**Objetivo del enunciado:** detectar la pérdida de células y recuperar la capacidad mediante
+clonación controlada, sin controlador central.
 
-Esto es lo que hace un nodo cuando recibe un mensaje de datos por un enlace `L`
-(`Nodo._difundir()`).
+### 8.1 Estado distribuido en cada madre
 
-```
-validar la estructura del sobre                 → si falla: DROP (el enlace sigue vivo)
-si el id ya está en el registro de vistos       → DUP: no se procesa ni se retransmite
-ttl = min(ttl, 16)
-si ttl <= 0                                      → TTL: no se procesa
-ttl -= 1 ;  ruta.append(mi_hash)
-serializar UNA vez
-entregar a TODAS mis células, excepto L
-si ttl > 0: entregar a cada vecino NODO, excepto L y los que ya están en la ruta
-bitácora FWD: código, id, origen, de, ruta, destinos
-```
+**Cada** madre lleva, por su cuenta y solo con lo que oye: un **directorio** de madres (por
+`CEL_LAT`: nombre, nodo, genes con sha, generación, cuándo la oyó), los nodos vivos (por
+`NODO_LAT`), las **pérdidas** pendientes y la regeneración en curso (por `CLON_AVISO`). No hay
+una copia "oficial": todas llegan a lo mismo porque oyen los mismos latidos y aplican la misma
+regla determinista (`madre/regeneracion.py`).
 
-La inundación es **genérica** (Tanenbaum & Van Steen, 2023). No usa tablas de ruteo ni conoce la
-topología, y funcionaría igual en una malla incompleta. En la malla completa de 4 nodos, cada
-mensaje se procesa **una vez en cada nodo**, y cada nodo distinto del de entrada recibe además **dos
-copias duplicadas** que descarta. Esa es la evidencia en vivo de la prevención de duplicados.
+### 8.2 Nivel requerido: reemplazo 1 a 1
 
-### 7.2 Un mensaje real, nodo por nodo
+No hay un número de réplicas que el sistema "rellene". El nivel requerido es **el que había**:
+cada **pérdida** (una madre que dejó de latir **sin** `CEL_ADIOS`) genera **una** necesidad de
+reemplazo, con los genes que tenía. Si el administrador levantó una sola `SUM`, se mantiene una
+sola. Una baja o un retiro hechos con el gestor publican `CEL_ADIOS` o cambian el latido: **no
+son pérdidas**, son el nuevo nivel que el administrador quiso.
 
-Así se ve la solicitud `7 + 5` de la GUI-1 (`SUM_REQ #b8a83064`) en las bitácoras de los cuatro
-nodos.
+### 8.3 Algoritmo
 
-```
-Nodo 1  05.852 [FWD] SUM_REQ #b8a83064 origen=GUI-1 de=GUI-1  ruta=N1     ttl=7 → 3 nodo(s) / 4 célula(s)
-Nodo 2  05.853 [FWD] SUM_REQ #b8a83064 origen=GUI-1 de=Nodo 1 ruta=N1→N2 ttl=6 → 2 nodo(s) / 5 célula(s)
-Nodo 2  05.853 [DUP] SUM_REQ #b8a83064 de Nodo 3: ya procesado; no se retransmite
-Nodo 2  05.854 [DUP] SUM_REQ #b8a83064 de Nodo 4: ya procesado; no se retransmite
-Nodo 3  05.853 [FWD] SUM_REQ #b8a83064 origen=GUI-1 de=Nodo 1 ruta=N1→N3 ttl=6 → 2 nodo(s) / 5 célula(s)
-Nodo 3  05.854 [DUP] SUM_REQ #b8a83064 de Nodo 4: ya procesado; no se retransmite
-Nodo 3  05.854 [DUP] SUM_REQ #b8a83064 de Nodo 2: ya procesado; no se retransmite
-Nodo 4  05.853 [FWD] SUM_REQ #b8a83064 origen=GUI-1 de=Nodo 1 ruta=N1→N4 ttl=6 → 2 nodo(s) / 5 célula(s)
-Nodo 4  05.853 [DUP] SUM_REQ #b8a83064 de Nodo 3: ya procesado; no se retransmite
-Nodo 4  05.855 [DUP] SUM_REQ #b8a83064 de Nodo 2: ya procesado; no se retransmite
-```
+Cada madre revisa cada 0.5 s, sin input de nadie:
 
-De la bitácora se desprende lo siguiente.
+1. **Detectar.** Una madre sin latido en 6 s y sin `CEL_ADIOS` se registra como pérdida, con sus
+   genes, su nodo y su nombre (`CAIDA … pérdida → necesita 1 reemplazo`).
+2. **Turno (gradual).** Si hay una regeneración en curso en el sistema, las demás pérdidas
+   esperan (`EN_ESPERA`). Si no, va la pendiente de menor hash: todas eligen la misma.
+3. **Clonador.** Ranking HRW de las madres **aptas** con la clave `clon:<hash de la pérdida>`.
+   El rango 0 regenera. El rango r espera `r · RELEVO_CLON` (3 s) y regenera solo si no vio un
+   `CLON_AVISO` para esa pérdida: si el clonador también cae, otra toma su lugar.
+4. **Topes** justo antes de lanzar (§8.5). Si alguno falla, la pérdida se descarta en todas a la
+   vez (`NO_CLONA <motivo>`).
+5. **Avisar y lanzar.** El clonador publica `CLON_AVISO {reemplaza, perdida, genes, hijo, nodo,
+   generacion, intento, rango}` y lanza un proceso **madre vacía** desacoplado:
+   `python -m madre --reemplaza <hash> --perdida M1-N2 --generacion 1 --copiar SUM@2.0:765cbef9`,
+   en el nodo de la perdida si sigue vivo o en el nodo vivo con menos madres.
+6. **Copiar funcionalidad.** El reemplazo (`M1-N2·r1`) nace vacío y **pide sus genes** por el
+   Campo de Datos (§7.5); los escribe en su disco, los valida y los carga. Al tenerlos publica
+   `CLON_LISTO` y empieza a latir con ellos.
+7. **Cerrar.** Con `CLON_LISTO` la pérdida queda resuelta en todas; tras `PAUSA_REGENERACION`
+   (2 s) va la siguiente. Si el reemplazo no aparece en `PLAZO_CLON` (15 s), el aviso caduca y se
+   reintenta la **misma** pérdida (máximo 2 reintentos).
+8. **Alto.** Sin pérdidas pendientes, todas registran `NIVEL_OK` y **no se clona nada más**.
 
-- El **Nodo 1**, que es el de entrada, lo entrega a sus otras 4 células (no se lo devuelve a la
-  GUI-1, que lo envió) y a los 3 nodos. No registra ningún `DUP`, porque la `ruta` ya lo incluye y
-  los demás no se lo regresan.
-- Los **Nodos 2, 3 y 4** lo entregan a sus 5 células y lo reenvían a los 2 nodos que no están en la
-  ruta. Las copias que se cruzan entre ellos son `DUP`.
-- El campo `ruta` muestra el **recorrido observable** que pide el §15 (`N1→N2`).
-- En total, el mensaje llegó **exactamente una vez** a cada una de las otras 19 células.
+Las madres aptas son las vivas, no mudas, con generación menor a `MAX_GENERACION`, con cupo y
+**no recién llegadas** (una recién llegada aún no conoce a todas y su ranking podría diferir).
 
-### 7.3 Las células filtran por código
+### 8.4 Cuándo clonar y cuándo detenerse
 
-Toda célula recibe **todo** lo que su nodo inunda y decide qué hacer según el Código de Contenido.
+**Se clona** solo si se cumplen todas: (a) una madre dejó de latir **sin despedirse**; (b) le
+toca su turno (no hay otra regeneración en curso y es la pérdida pendiente de menor hash); (c) yo
+soy el rango 0 del ranking, o soy el rango r y pasaron `r · RELEVO_CLON` sin aviso de nadie; (d)
+pasan los topes: no hay ya un reemplazo vivo de esa pérdida, no se rebasa `MAX_MADRES` ni
+`MAX_POR_GEN`, y tengo cupo.
 
-| Célula | Procesa | Ignora |
+**Se detiene** en cuanto el reemplazo publica `CLON_LISTO`: esa pérdida queda resuelta, y cuando
+no queda ninguna pendiente todas registran `NIVEL_OK`. Como cada pérdida pide exactamente un
+reemplazo, el sistema vuelve **al nivel previo y no más**. También se detiene si la "pérdida"
+vuelve a latir antes de su turno (`REVIVIO`: solo estaba lenta) o si el administrador retira al
+reemplazo en curso.
+
+### 8.5 Ocho límites contra el cáncer
+
+Cada límite vive en un solo método de `madre/regeneracion.py`.
+
+| # | Límite | Evita |
 |---|---|---|
-| Servidor X | `X_REQ`; `X_ACK` (para saber quiénes acusaron); `X_RES` (para saber que ya se respondió) | Todo lo demás. Los `SRV_LAT` se ignoran sin registrarlos, porque son ruido |
-| GUI | `*_ACK` y `*_RES` **solo si el `id_operacion` es suyo**; `SRV_LAT` | `*_REQ` siempre (así **no ve las solicitudes de las otras GUIs**) y los ACK y RES de operaciones ajenas |
+| 1 | Solo se regenera por **pérdida**; nunca por baja, retiro o carga, ni por "faltan para llegar a N" | Clonar por cualquier variación |
+| 2 | **Uno a uno**: cada pérdida tiene a lo más un reemplazo vivo | Pasarse del nivel requerido |
+| 3 | **Un clonador por pérdida**: HRW + `CLON_AVISO` que las demás respetan | Que todas clonen a la vez |
+| 4 | El **reemplazo en curso cuenta** hasta que aparece o caduca | Clonar dos veces mientras el hijo arranca |
+| 5 | **Gradual**: una regeneración a la vez en todo el sistema + pausa de 2 s | Ráfagas; da tiempo a que todos actualicen su conteo |
+| 6 | **Topes duros**: `MAX_MADRES` 40 en total y `MAX_POR_GEN` 8 por código | Crecimiento ilimitado por un error de conteo |
+| 7 | **Telómeros**: una madre de generación ≥ 3 ya no clona | Cadenas de clones de clones (como el límite de Hayflick, 1965) |
+| 8 | **Cupo**: a lo más 2 lanzamientos por madre por minuto | Una madre que clone sin parar |
 
-Las células que ignoran un mensaje lo anotan en su bitácora técnica, no en la vista del usuario. Por
-ejemplo, así quedan la GUI-2 ante la operación de la GUI-1 y una célula de otro servicio.
+### 8.6 Una regeneración real
+
+En el escenario 6 se tumbó M1-N2 con el panel y **nadie tocó nada más**. Las 17 madres restantes
+la detectaron; todas calcularon el mismo ranking: M3-N1 fue el rango 0 y, por ejemplo, M5-N2 se
+supo rango 7 y esperó.
 
 ```
-GUI-2   19:10:05.853 [IGNORA] SUM_REQ de GUI-1 (b8a83064): no es para una GUI
-GUI-2   19:10:06.365 [IGNORA] SUM_RES de SUM-N4 (06164ef7): operación ajena
-DIV-N3  19:10:05.854 [IGNORA] SUM_REQ de GUI-1 (b8a83064): no es de DIV
+M3-N1  17:10:29.031 [CAIDA] M1-N2 (SUM 2.0) sin latido en 6 s y sin CEL_ADIOS: pérdida → necesita 1 reemplazo
+M3-N1  17:10:31.051 [CLONADOR] para M1-N2 (intento 1): rango 0 = M3-N1 de 16 aptas · yo: rango 0
+M3-N1  17:10:31.052 [CLON_AVISO] yo (rango 0) regenero a M1-N2 → M1-N2·r1 en Nodo 2: nace vacía y copia SUM 2.0
+M5-N2  17:10:31.052 [CLON_AVISO] M3-N1 (rango 0) regenera a M1-N2 → M1-N2·r1 en Nodo 2 (intento 1); yo espero
 ```
+
+El reemplazo nace vacío y copia su gen **de otra madre**, por el Campo de Datos:
+
+```
+M1-N2·r1  17:10:31.287 [REEMPLAZO] nací vacía para reemplazar a M1-N2 (generación 1); copio: SUM@2.0
+M1-N2·r1  17:10:31.287 [GEN_PIDE] P-50f95a39-0001 · intento 1: ¿quién tiene SUM@2.0 sha 765cbef9?
+M1-N2·r1  17:10:31.366 [GEN_ESCRITO] SUM@2.0 (entrega por el Campo de Datos de M1-N1) → datos/celulas/M1-N2·r1-50f95a39/…
+M1-N2·r1  17:10:31.375 [GEN_ACTIVO] SUM@2.0 activo: ahora atiendo SUM_REQ · genes: SUM@2.0
+M1-N2·r1  17:10:31.376 [CLON_LISTO] reemplazo listo: SUM@2.0 de M1-N1
+M3-N1     17:10:31.379 [NIVEL_OK] nivel recuperado: 18 madres (SUM 3 · SUB 4 · MUL 5 · DIV 4); regeneración detenida
+```
+
+El reemplazo copió `SUM 2.0`, el gen que tenía la perdida en ese momento (no el `1.0` del banco
+con el que arrancó la demo). De la caída al nivel recuperado pasaron unos 8 s: 6 de detección,
+2 de turno y 0.3 de copia.
+
+![Figura 5. Escenario 6 en el gestor: M1-N2·r1 (insignia r1) ya vive en el Nodo 2 con SUM 2.0. La pestaña Regeneración se abrió sola y cuenta la secuencia: caída → clonador → conectada → gen → listo → nivel ok. Nadie tocó el gestor.](docs/capturas/e6b_gestor_regenerada.png)
+
+### 8.7 Tres pérdidas, una por una
+
+En el escenario 7, tras el alto, pasaron 10 s **sin un solo aviso nuevo**. Luego se tumbaron tres
+`SUM` a la vez. Las madres las repusieron **una por una** y se detuvieron (línea de tiempo del
+gestor):
+
+```
+17:11:05 CAIDA      M1-N1, M1-N3 y M1-N2·r1 (SUM 2.0) dejaron de latir sin CEL_ADIOS
+17:11:07 CLON_AVISO M3-N2 (rango 0) regenera a M1-N1 → M1-N1·r1 en Nodo 1
+17:11:07 CLON_LISTO M1-N1·r1 reemplaza a M1-N1: SUM@2.0 de SUM-N1m (disco → memoria)
+17:11:07 EN_ESPERA  gradual: falta(n) M1-N3, M1-N2·r1; va una a la vez
+17:11:10 CLON_AVISO M3-N3 (rango 0) regenera a M1-N2·r1 → M1-N2·r2 en Nodo 2
+17:11:10 CLON_LISTO M1-N2·r2 reemplaza a M1-N2·r1: SUM@2.0 de SUM-N1m (disco → memoria)
+17:11:10 EN_ESPERA  gradual: falta(n) M1-N3; va una a la vez
+17:11:12 CLON_AVISO M3-N2 (rango 0) regenera a M1-N3 → M1-N3·r1 en Nodo 3
+17:11:13 CLON_LISTO M1-N3·r1 reemplaza a M1-N3: SUM@2.0 de M1-N1·r1 (disco → memoria)
+17:11:13 NIVEL_OK   nivel recuperado (SUM 3 · SUB 4 · MUL 5 · DIV 4): las madres dejan de clonar
+```
+
+Tres detalles muestran que no hay coordinador. Cada pérdida tuvo su propio clonador, elegido por
+hash. La perdida M1-N2·r1 ya era un reemplazo, así que el suyo es generación 2 (`·r2`). Y el
+tercer reemplazo copió su gen del **primero** (M1-N1·r1), que había nacido segundos antes. `SUM`
+volvió a 3 porque ese era su nivel tras la baja del escenario 5, sin contar a la madre muda:
+reemplazo 1 a 1.
+
+![Figura 6. Escenario 7: las tres SUM repuestas (M1-N1·r1, M1-N2·r2, M1-N3·r1), la línea de tiempo con "en espera" entre una y otra, y la píldora "nivel ok · sin clonar".](docs/capturas/e7b_gestor_alto.png)
 
 ---
 
-## 8. Prevención de ciclos y duplicados
+## 9. Tolerancia a fallas
 
-Una malla completa está llena de ciclos (N1→N2→N3→N1…). Sin defensas, un solo mensaje se
-multiplicaría para siempre. Se usan **cuatro defensas**, y cada una cubre un hueco de las otras.
-
-### 8.1 Defensa 1. Id único y registro temporal
-
-Cada mensaje tiene un id SHA-256 irrepetible (sección 13). Cada nodo guarda los ids que ya procesó
-en un `RegistroVistos` (`comun/vistos.py`).
-
-- Es un `OrderedDict` de `id → instante de expiración`, en orden de llegada.
-- **Vigencia de 60 s.** Como todos los ids tienen la misma vigencia, el orden de llegada es también
-  el de expiración. Purgar consiste solo en sacar del frente mientras el primero esté vencido.
-- Tiene un tope de 100 000 ids, por si llegara una avalancha.
-- **`marcar_si_nuevo(id)` es atómico**, porque va bajo un `Lock`. Si dos copias del mismo mensaje
-  llegan al mismo tiempo por dos enlaces (dos hilos lectores distintos), solo una recibe `True`, y
-  solo esa se reenvía.
-
-Es un registro **temporal**, como pide el §11, porque recordar todos los ids para siempre agotaría
-la memoria. El tamaño del registro se ve en vivo en la ventana del nodo ("ids en el registro
-temporal").
-
-### 8.2 Defensa 2. TTL
-
-El `ttl` cuenta cuántos nodos más pueden procesar el mensaje. Las células publican con 8 y cada nodo
-lo decrementa. Al llegar a 0, el nodo entrega el mensaje a sus células pero no lo reenvía a otros
-nodos. Si llega de la red un TTL mayor que 16, se recorta.
-
-El TTL cubre un límite del registro temporal. Si un duplicado llegara después de los 60 s de
-vigencia, el registro ya lo habría olvidado y el mensaje volvería a circular, pero el TTL lo frena
-de todos modos. En la malla completa el diámetro es 1, así que un TTL de 8 sobra. En topologías más
-grandes, el TTL debe ser al menos el diámetro.
-
-### 8.3 Defensa 3. Horizonte dividido y ruta
-
-Un nodo **nunca** devuelve un mensaje por el enlace por el que llegó, ni lo manda a un nodo que ya
-aparece en `ruta`. Esto no hace falta para la corrección, porque el registro de vistos ya lo
-cubriría, pero evita tráfico inútil. Por eso el nodo de entrada no registra `DUP`.
-
-### 8.4 Defensa 4. Deduplicación en la célula
-
-Cada célula tiene **su propio** `RegistroVistos`, que cubre un caso que el nodo no puede ver. Una
-célula que hizo failover a otro nodo podría recibir por el nodo nuevo copias de mensajes que ya le
-había entregado el viejo. Además, cada célula descarta los ecos de lo que ella misma publicó.
-
-### 8.5 Evidencia con la sonda
-
-La sonda (sección 18) inyecta mensajes `SONDA_PRUEBA`, que ninguna célula procesa, para probar cada
-defensa por separado. Esta es la corrida real en el Nodo 2, con el Nodo 1 ya caído (malla de 3
-nodos).
-
-```
-# py -m sonda --nodo 127.0.0.1:5002 --ttl 1      → solo lo procesa el Nodo 2
-Nodo 2  [FWD] SONDA_PRUEBA #e63ae6d9 origen=SONDA de=SONDA ruta=N2 ttl=0 → 0 nodo(s) / 10 célula(s)
-Nodo 2  [TTL] SONDA_PRUEBA #e63ae6d9: ttl agotado aquí; se entregó a mis células pero no se reenvía a nodos
-
-# py -m sonda --nodo 127.0.0.1:5002 --repetir 3  → la MISMA copia tres veces
-Nodo 2  [FWD] SONDA_PRUEBA #f65d1be2 origen=SONDA de=SONDA ruta=N2 ttl=7 → 2 nodo(s) / 10 célula(s)
-Nodo 2  [DUP] SONDA_PRUEBA #f65d1be2 de SONDA: ya procesado; no se retransmite
-Nodo 2  [DUP] SONDA_PRUEBA #f65d1be2 de SONDA: ya procesado; no se retransmite
-
-# py -m sonda --nodo 127.0.0.1:5003 --id b7ecd396…  → reinyecta en el Nodo 3 un id que ya circuló
-Nodo 3  [DUP] SONDA_PRUEBA #b7ecd396 de SONDA: ya procesado; no se retransmite
-```
-
-- Con `--ttl 1`, el mensaje no salió del Nodo 2.
-- Con `--repetir 3`, las dos copias repetidas murieron **en el Nodo 2** sin llegar a los demás. Es
-  la evidencia de que un nodo no retransmite un id repetido. Los Nodos 3 y 4 registraron 1 `FWD` y 1
-  `DUP` cada uno, igual que con cualquier otro mensaje.
-- Con `--id`, el Nodo 3 reconoce un id que había procesado antes y lo descarta. Esto muestra que la
-  detección funciona **en cualquier nodo** mientras el id siga vigente.
-
-![Figura 3. Tráfico del Nodo 2 durante las sondas --ttl 1 (FWD a 0 nodos y TTL) y --repetir 3 (1 FWD y 2 DUP). La tabla "Células: 10" incluye las cinco células del Nodo 1, que hicieron failover a este nodo.](docs/capturas/07_nodo2_sondas.png)
-
----
-
-## 9. Flujo de una operación (los 10 pasos del §12)
-
-Este es el recorrido real de **`7 + 5` desde la GUI-1**, con los 4 nodos y las 20 células vivos.
-Todas las horas son de las 19:10.
-
-**Paso 1. El usuario captura la operación en una GUI.** Teclea `7`, `+`, `5` y `=` en la GUI-1.
-Antes de aceptar el `=`, la GUI comprueba que está conectada y que el servicio `SUM` está habilitado
-(sección 12).
-
-**Paso 2. La GUI genera la solicitud con identificador único y Código de Contenido.**
-`Interfaz.solicitar()` crea el `id_operacion` y **registra la operación antes de publicarla**,
-porque un acuse muy rápido podría llegar antes de que exista. Luego publica el `SUM_REQ`, cuyo sobre
-recibe un `id` propio.
-
-```
-GUI-1   05.852 [SOLICITUD] SUM_REQ 7 + 5 · op adced3c6 · solicitud b8a83064
-```
-
-**Paso 3. La GUI la envía a su nodo.** La manda por su único enlace, al Nodo 1.
-
-**Paso 4. El nodo la difunde a los demás nodos y a sus células.**
-
-```
-Nodo 1  05.852 [FWD] SUM_REQ #b8a83064 origen=GUI-1 de=GUI-1 ruta=N1 ttl=7 → 3 nodo(s) / 4 célula(s)
-```
-
-**Paso 5. Los nodos descartan las copias ya procesadas.** Cada uno de los Nodos 2, 3 y 4 hace 1
-`FWD` y 2 `DUP` (sección 7.2).
-
-**Paso 6. Las células servidor revisan el código.** Las 16 células servidor y las otras 3 GUIs
-reciben el mensaje. Solo las 4 `SUM` lo procesan y las demás registran `IGNORA` (sección 7.3).
-
-**Paso 7. La célula servidor que debe atenderla ejecuta la operación.** Las 4 `SUM` **acusan de
-inmediato** (`SUM_ACK`) y encolan la operación. A los 0.5 s, las cuatro calculan el mismo ranking
-por hash entre las que acusaron y llegan a la misma conclusión sin hablarse. La titular es `SUM-N4`
-(sección 11). Estas son las bitácoras reales de la titular y de un respaldo.
-
-```
-SUM-N4  05.853 [RX] SUM_REQ op adced3c6 · intento 1 de GUI-1: 7 + 5 (solicitud b8a83064)
-SUM-N4  05.854 [ACUSE] SUM_ACK op adced3c6 · intento 1 → GUI-1 (acuse 8a47f4b9)
-SUM-N4  05.854 [COLA] op adced3c6 · intento 1 encolada (0 antes en espera)
-SUM-N4  05.856 [RX] SUM_ACK op adced3c6 · intento 1 de SUM-N1 → 2 acusador(es)
-SUM-N4  05.856 [RX] SUM_ACK op adced3c6 · intento 1 de SUM-N2 → 3 acusador(es)
-SUM-N4  05.856 [RX] SUM_ACK op adced3c6 · intento 1 de SUM-N3 → 4 acusador(es)
-SUM-N4  06.363 [TITULAR] op adced3c6 · intento 1 · rank 0 de 4 [SUM-N4, SUM-N3, SUM-N1, SUM-N2]
-
-SUM-N3  06.364 [RESPALDO] op adced3c6 · intento 1 · rank 1 de 4 [SUM-N4, SUM-N3, SUM-N1, SUM-N2];
-               titular SUM-N4; relevo si nadie responde en 1.5 s
-```
-
-**Paso 8. El servidor genera la respuesta.** La respuesta lleva un `id` de mensaje nuevo
-(`06164ef7`), el identificador de la solicitud original (`b8a83064`), el resultado y el código
-`SUM_RES`.
-
-```
-SUM-N4  06.364 [RES] SUM_RES op adced3c6 · intento 1 · 7 + 5 = 12 · titular · solicitud b8a83064 ↔ respuesta 06164ef7 · 510 ms
-```
-
-**Paso 9. La respuesta se distribuye por broadcast.** Viaja igual que la solicitud, ahora desde el
-Nodo 4.
-
-```
-Nodo 4  06.364 [FWD] SUM_RES #06164ef7 origen=SUM-N4 de=SUM-N4 ruta=N4 ttl=7 → 3 nodo(s) / 4 célula(s)
-Nodo 1  06.364 [FWD] SUM_RES #06164ef7 origen=SUM-N4 de=Nodo 4 ruta=N4→N1 ttl=6 → 2 nodo(s) / 5 célula(s)
-```
-
-Los otros tres servidores `SUM` también reciben la respuesta y con eso dejan de ser respaldo.
-
-```
-SUM-N3  06.365 [RX] SUM_RES op adced3c6 · intento 1 de SUM-N4 (titular); 1 ronda(s) mía(s) quedan resueltas
-SUM-N3  07.855 [LIBERADO] op adced3c6 · intento 1 ya está resuelta; respaldo 1 liberado
-```
-
-**Paso 10. Las GUIs reciben la respuesta y la GUI correspondiente la muestra.** Las cuatro GUIs
-reciben el `SUM_RES`, pero solo la GUI-1 reconoce el `id_operacion` como suyo. Este es su mini log
-de protocolo.
-
-```
-GUI-1   05.852 [SOLICITUD] SUM_REQ 7 + 5 · op adced3c6 · solicitud b8a83064
-GUI-1   05.854 [ACUSE] 1/2 de SUM-N1 (acaa1219) · intento 1
-GUI-1   05.855 [ACUSE] 2/2 de SUM-N2 (276a507e) · intento 1
-GUI-1   05.855 [QUÓRUM] 2/2 · intento 1 · op adced3c6
-GUI-1   05.856 [ACUSE] 3/2 de SUM-N3 (34044ed9) · intento 1
-GUI-1   05.856 [ACUSE] 4/2 de SUM-N4 (6f210c5d) · intento 1
-GUI-1   06.365 [RESULTADO] 7 + 5 = 12 · titular SUM-N4 · solicitud b8a83064… ↔ respuesta 06164ef7… · 513 ms
-```
-
-La línea `RESULTADO` muestra la **asociación solicitud ↔ respuesta** que pide el §14. Trae el `id`
-de la solicitud y el de la respuesta, que son distintos, y quién respondió.
-
-**Resultado de la verificación completa.** En la misma corrida se hicieron `7 + 5`, `10 − 4`, `6 ×
-7`, `7 ÷ 2` y `1 ÷ 0`, repartidas entre las cuatro GUIs. Las cinco dejan el mismo patrón en las
-bitácoras, con **4 `ACUSE`, 1 `TITULAR`, 3 `LIBERADO` y exactamente 1 `RES`**. Las otras tres GUIs
-registraron `IGNORA`, y cada nodo distinto del de entrada vio 1 `FWD` y 2 `DUP` por mensaje. La
-división entre cero llegó como respuesta válida con su error (`1 ÷ 0 → ERROR: división entre cero`).
-
-![Figura 4. GUI-1 después de 7 + 5 y 1 ÷ 0, con la disponibilidad por latidos (4 vivas por servicio), "Mis operaciones" y el mini log de protocolo con SOLICITUD, ACUSE, QUÓRUM y RESULTADO.](docs/capturas/03_gui1_operaciones.png)
-
-**Sobre la latencia.** Una operación tarda ~510 ms y casi todo es espera deliberada, los 0.5 s de la
-ventana de elección (sección 11). El viaje por la malla y el cálculo suman unos milisegundos. Es el
-costo de tener una respuesta única sin coordinador, y se puede ajustar con `VENTANA_ELECCION` en
-`comun/config.py`.
-
----
-
-## 10. Acuses y mínimo de acuses
-
-### 10.1 El servidor acusa al recibir, no al terminar
-
-Cuando una célula servidor recibe un `X_REQ` de su servicio, **publica el `X_ACK` de inmediato**, en
-el mismo hilo que leyó el mensaje y **antes** de encolarlo. El acuse prueba **recepción**, no
-cálculo. El retardo artificial (`--retardo-ms`, que sirve para simular una célula lenta) solo afecta
-al cálculo y nunca atrasa el acuse.
-
-Los acuses viajan por broadcast como cualquier mensaje y sirven para dos cosas.
-
-1. La **GUI** los cuenta para saber cuántas células tienen su operación.
-2. Las **otras células servidor** del mismo servicio los usan para saber quiénes participan en la
-   elección (sección 11).
-
-### 10.2 Quórum por intento
-
-Cada operación tiene un **mínimo de acuses** configurable. Es 2 por defecto, se puede cambiar con
-`--acuses-min` al arrancar la GUI y también en vivo, con un control por operación en la ventana. La
-GUI aplica dos reglas.
-
-- **Cuenta los acusadores por intento**, en un conjunto separado para cada uno. No los acumula entre
-  intentos, porque una célula que acusó el intento 1 y luego murió ya no tiene la operación, y
-  contarla daría un quórum falso.
-- **Acepta la respuesta solo con quórum.** Si la respuesta llega antes que el quórum (puede pasar,
-  porque los mensajes viajan por caminos distintos), se **retiene** y se acepta en cuanto el quórum
-  se completa.
-
-**Por qué importa el mínimo.** Garantiza que al menos K células tienen la operación en su cola, y
-esas son justo las que pueden relevar a la titular si falla. Con un mínimo de 2 siempre hay al menos
-un respaldo.
-
-### 10.3 Plazos y reintentos
-
-Un reloj de 100 ms revisa la operación en vuelo.
-
-| Situación | Plazo | Acción al vencer |
+| Falla | Mecanismo | Qué se ve |
 |---|---|---|
-| Sin quórum | 1.5 s desde el envío del intento actual | Reintento |
-| Con quórum pero sin respuesta | `t_quorum + 0.5 + 1.5 · n_acusadores + 2` s (es dinámico, para dar tiempo a todos los respaldos) | Reintento |
-| Vence el plazo del tercer intento | El que corresponda de los dos anteriores | `FALLIDA`, con el motivo |
+| Una madre no acusa (muda o lenta) | Esperadas/ausentes; basta el mínimo de ACK | `AUSENTES: SUM-N1m`, el evento sigue (escenario 3) |
+| No se alcanza el mínimo de ACK | Reintento con el mismo folio, hasta `MAX_INTENTOS`; luego `X_FIN` fallida | Evento `FALLIDA` (prueba `test_madre_muda_sale_en_ausentes…`) |
+| La titular calla después de acusar | Respaldos escalonados: el rango r responde a los `r · 1.5` s | Respuesta del relevo; sigue siendo una sola |
+| Un mensaje alterado | Sello que no coincide: la madre no acusa; la GUI lo ignora | `DROP huella inválida`; "ajenas ignoradas" |
+| Cae un nodo | Failover de sus células a otro nodo; la malla sigue | Las células reaparecen en otro nodo |
+| Mueren una o varias madres | Regeneración 1 a 1 con copia de genes, una a la vez (§8) | Rojo → naciendo → `·r1`; `EN_ESPERA` entre reemplazos |
+| Muere el clonador antes de avisar | El rango 1 regenera a los 3 s | Aviso con `rango 1` (prueba `test_si_el_clonador_no_actua…`) |
+| Muere el nodo de la perdida | El reemplazo va al nodo vivo con menos madres | El `·r1` aparece en otro nodo |
+| Nadie tiene el gen que hay que copiar | Banco local si el sha coincide; si no, `CLON_LISTO` con `faltan` | Bitácora del reemplazo |
+| Gen manipulado | Validación por sha256 antes de ejecutar; la versión vieja sigue | `GEN_RECHAZADO`, orden `rechazada` |
+| Se cierra el gestor o el panel | Nada depende de ellos | Se sigue operando y regenerando (escenario final) |
 
-Un **reintento** usa el mismo `id_operacion` con `intento + 1` y un `id` de mensaje **nuevo**. Si
-llevara el mismo `id`, la malla lo descartaría como duplicado.
-
-### 10.4 Respuestas de más
-
-- Una respuesta para una operación ya `RESUELTA` se registra como `DUPLICADA descartada`. Es la
-  última línea de defensa. En condiciones normales no ocurre, y en la corrida final no ocurrió ni
-  una vez.
-- Una respuesta para una operación `FALLIDA` se registra como `TARDÍA descartada`.
-
----
-
-## 11. Respuesta única
-
-El §9 del enunciado reconoce el problema. Hay una célula servidor de cada operación en cada nodo,
-así que **varias reciben cada solicitud**, y el diseño debe definir cómo se evita que respondan
-todas. La estrategia elegida es una **elección determinista sin coordinador**.
-
-### 11.1 Elección por hash entre las que acusaron (HRW)
-
-Cada célula servidor hace lo siguiente.
-
-1. Recibe el `X_REQ`, acusa y encola (sección 10).
-2. Escucha los `X_ACK` de las demás y arma el conjunto de **acusadores** de esa ronda
-   (`id_operacion`, `intento`).
-3. Espera la **ventana de elección** (0.5 s desde que recibió el REQ) para que lleguen los acuses.
-4. Ordena a los acusadores por
-
-   ```
-   prioridad(célula) = SHA-256( hash_célula | id_operacion | intento )
-   ```
-
-   y ve su posición `r` en ese orden.
-
-Esto es *rendezvous hashing*, o HRW (Thaler & Ravishankar, 1998). Cada célula calcula **el mismo
-orden** sobre **el mismo conjunto**, así que todas llegan a la misma conclusión **sin intercambiar
-ningún mensaje extra y sin que nadie la designe**.
-
-| Posición | Rol | Qué hace |
-|---|---|---|
-| `r = 0` | **TITULAR** | Calcula y responde con `rol = "titular"` |
-| `r ≥ 1` | **RESPALDO r** | Agenda una revisión a los `r · 1.5 s`. Si para entonces nadie respondió, toma el **RELEVO** y responde con `rol = "relevo r"`. Si ya hubo respuesta, queda **LIBERADO** |
-
-La elección tiene tres propiedades.
-
-- **Sin punto único de falla.** Si la titular muere después de acusar, el respaldo 1 responde a los
-  ~2 s. Si también muere, responde el respaldo 2, y así sucesivamente.
-- **Balanceo.** El hash reparte las titularidades de manera uniforme. En la prueba `test_huella`,
-  sobre 4 000 operaciones, cada una de 4 células fue titular 1 000 ± 150 veces. En la corrida en
-  vivo, las titulares de las primeras cinco operaciones fueron `SUM-N4`, `SUB-N1`, `MUL-N2`,
-  `DIV-N2` y `DIV-N4`.
-- **Un reintento es una ronda nueva.** El `intento` entra al hash, así que un reintento puede
-  tocarle a otra titular, por ejemplo si la anterior está colgada.
-
-### 11.2 Caso normal
-
-Operación `7 + 5` (op `adced3c6`), con tiempos reales relativos al REQ.
-
-```
-t (s)     0.0    0.5                  2.0                  3.5                  5.0
-          │      │                    │                    │                    │
-GUI-1     REQ────RES ►✓ 12 (513 ms)
-
-SUM-N4    RX·ACK─TITULAR·RES (510 ms)
-SUM-N3    RX·ACK─RESPALDO 1·ve RES────LIBERADO
-SUM-N1    RX·ACK─RESPALDO 2·ve RES─────────────────────────LIBERADO
-SUM-N2    RX·ACK─RESPALDO 3·ve RES──────────────────────────────────────────────LIBERADO
-                 └ ventana de elección (0.5 s): todas eligen a SUM-N4
-```
-
-### 11.3 Titular lenta, relevo y respuesta suprimida
-
-Para la demostración se levantó una quinta célula de suma, `SUM-N3b`, con `--retardo-ms 4000`. En la
-cuarta operación que se intentó (`4 + 100`, op `1106c0a0`), el hash la eligió titular.
-
-```
-t (s)     0.0    0.5                  2.0                  3.5           4.5    5.0                  6.5
-          │      │                    │                    │             │      │                    │
-GUI-3     REQ─────────────────────────RES ►✓ 104 (relevo 1 SUM-N2, 2006 ms)
-
-SUM-N3b   RX·ACK─TITULAR: calcula 4 s────────────────────────────────────SUPRIMIDA
-SUM-N2    RX·ACK─RESPALDO 1───────────RELEVO·RES
-SUM-N4    RX·ACK─RESPALDO 2───────────ve RES───────────────LIBERADO
-SUM-N3    RX·ACK─RESPALDO 3───────────ve RES────────────────────────────────────LIBERADO
-SUM-N1    RX·ACK─RESPALDO 4───────────ve RES─────────────────────────────────────────────────────────LIBERADO
-```
-
-Estas son las bitácoras reales del caso.
-
-```
-SUM-N3b 18.571 [TITULAR] op 1106c0a0 · intento 1 · rank 0 de 5 [SUM-N3b, SUM-N2, SUM-N4, SUM-N3, SUM-N1]
-SUM-N2  18.571 [RESPALDO] op 1106c0a0 · intento 1 · rank 1 de 5 […]; titular SUM-N3b;
-               relevo si nadie responde en 1.5 s
-SUM-N2  20.071 [RELEVO] op 1106c0a0 · intento 1: nadie respondió; tomo el relevo 1
-SUM-N2  20.071 [RES] SUM_RES op 1106c0a0 · intento 1 · 4 + 100 = 104 · relevo 1 ·
-               solicitud bebf367e ↔ respuesta aecce809 · 2000 ms
-GUI-3   20.073 [RESULTADO] 4 + 100 = 104 · relevo 1 SUM-N2 · solicitud bebf367e… ↔ respuesta aecce809…
-               · 2006 ms
-SUM-N3b 22.576 [SUPRIMIDA] op 1106c0a0 · intento 1 ya está resuelta; no envío mi respuesta (titular)
-```
-
-La clave es la **doble revisión**. La titular lenta termina de calcular a los 4.5 s, pero **antes de
-publicar vuelve a revisar el estado de la ronda**. Como ya vio el `SUM_RES` del relevo, suprime su
-respuesta. El resultado es **una sola respuesta**, aunque la titular seguía viva.
-
-![Figura 5. GUI-3 tras la operación atendida por relevo ("relevo 1 SUM-N2 · acuses 5/2 · 2006 ms"). En "Mis operaciones" se ve la anterior, atendida por una titular normal.](docs/capturas/04_gui3_relevo.png)
-
-### 11.4 Titular que muere después de acusar
-
-Este caso se verifica con la prueba automatizada `test_titular_tumbada_despues_de_acusar`, que
-detiene a la titular justo después de que acusa.
-
-```
-t (s)     0.0    0.5                  2.0                  3.5
-          │      │                    │                    │
-GUI       REQ─────────────────────────RES ►✓ (relevo 1)
-
-Titular   RX·ACK─TITULAR: muere sin responder
-Resp. 1   RX·ACK─RESPALDO 1───────────RELEVO·RES
-Resp. 2   RX·ACK─RESPALDO 2───────────ve RES───────────────LIBERADO
-```
-
-La respuesta llega con 1.5 s de retraso (un `RELEVO`), sin reintentos de la GUI y sin que nadie
-intervenga.
-
-### 11.5 Las capas contra respuestas duplicadas
-
-La elección hace que, en condiciones normales, responda una sola célula. Los casos de borde
-(mensajes que llegan en desorden por la malla, acuses tardíos, reintentos) se cubren con capas
-adicionales.
-
-| Capa | Dónde | Qué evita |
-|---|---|---|
-| 1. Elección HRW | `Servidor._elegir()` | Que respondan todas las que recibieron la solicitud |
-| 2. Respaldos escalonados | `_revisar_respaldo()` | Que los respaldos respondan si la titular ya lo hizo |
-| 3. Doble revisión antes de publicar | `_ejecutar()` | Que una titular lenta responda después de un relevo (`SUPRIMIDA`) |
-| 4. Regla ≤ k | `_marcar_resueltas()` | Un `RES` del intento k resuelve las rondas ≤ k, **nunca** las posteriores (un reintento posterior significa que la GUI no recibió esa respuesta) |
-| 5. Ronda superada | `_rx_req()` | Al llegar el intento k+1, las rondas anteriores dejan de responder. Y si un REQ viejo llega **después** de uno nuevo (desorden en la malla), se marca superado al llegar |
-| 6. Deduplicación en la GUI | `Interfaz._rx_res()` | Si aun así llegara una segunda respuesta, se registra `DUPLICADA descartada` |
-
-**La ventana de carrera.** Si un acuse llegara *después* de que cerró la ventana de elección (por
-ejemplo, de una célula muy atrasada), esa célula podría calcular el ranking sobre un conjunto
-distinto y creerse titular. Las capas 3 y 6 absorben ese caso. La célula tardía suele ver la
-respuesta de la titular antes de publicar la suya, y si no la ve, la GUI descarta la segunda. En
-todas las pruebas y corridas en vivo hubo exactamente 1 respuesta por operación.
+La pieza clave es que **cualquier madre puede regenerar a cualquier otra**: todas tienen el mismo
+programa base y los genes se copian por la red. Perder todas las `SUM` no pierde el servicio
+mientras quede una madre viva para clonar y alguien (otra madre, un gestor o el banco) tenga el
+gen.
 
 ---
 
-## 12. Disponibilidad por latidos
+## 10. Información de control distribuida
 
-### 12.1 Latidos
+El requisito P7 pide que el control del foliado, los ACK, la topología y la recuperación se
+integre de forma distribuida. No hay ninguna tabla central: esta dice dónde vive cada pieza.
 
-Cada célula servidor publica un `SRV_LAT` **al conectarse**, para que las GUIs la vean al instante,
-y luego **cada 2 s**. La GUI mantiene, por servicio, el conjunto de células vivas. Un acuse también
-cuenta como señal de vida. Una célula **caduca** si pasan 6 s (tres latidos) sin noticias de ella.
+| Información de control | La produce | Viaja | La usan |
+|---|---|---|---|
+| Folio, sello y rastro | La GUI; cada madre agrega su paso al rastro | Dentro de cada mensaje del evento | Madres (validan), GUI (filtra y muestra) |
+| ACK y su conteo | Cada madre, al recibir | Broadcast | Madres (elección HRW), GUI (confirmación) |
+| Mínimo de ACK | Cada GUI, por código | Local | Esa GUI |
+| Disponibilidad | Cada célula (`CEL_LAT`) | Broadcast cada 2 s | GUIs (operadores), madres (directorio), gestores |
+| Topología | Cada nodo (`NODO_LAT`) y cada célula (`CEL_LAT`) | Broadcast | Cualquiera puede armarla; el gestor la dibuja |
+| Pérdidas y turno de regeneración | Cada madre, por su cuenta | Se coordina con `CLON_AVISO` / `CLON_LISTO` | Todas las madres; el gestor solo lo muestra |
+| Genes | Cada madre, en su disco | `GEN_ENTREGA`, `GEN_INYECTA` | Esa madre; quien pida una copia |
 
-### 12.2 Operadores habilitados y deshabilitados
+# PARTE III. EVIDENCIA Y CONCLUSIÓN
 
-Si las células vivas de un servicio son **menos que su mínimo de acuses**, la GUI **deshabilita ese
-operador** y lo anota en su mini log, porque con menos vivas que el mínimo la operación nunca podría
-juntar quórum. Cuando se recupera, lo vuelve a habilitar. Al arrancar, todo está deshabilitado
-"esperando latidos…" y se habilita en menos de 2 s.
+## 11. Pruebas automatizadas
 
-En la verificación en vivo se tumbaron 3 de las 4 células `DIV` desde el panel y luego se levantó
-una nueva (`DIV-N2b`).
-
-```
-GUI-2  19:10:39.465 [CADUCA] DIV DIV-N2 (43e6338f) sin latido en 6 s; se da por muerta
-GUI-2  19:10:39.465 [CADUCA] DIV DIV-N3 (5d3ab27a) sin latido en 6 s; se da por muerta
-GUI-2  19:10:39.569 [CADUCA] DIV DIV-N4 (e638bef5) sin latido en 6 s; se da por muerta
-GUI-2  19:10:39.569 [DESHABILITADA] DIV deshabilitada: 1 viva(s) < 2 mínima(s)
-GUI-2  19:10:46.550 [VIVA] DIV DIV-N2b (63688213) en Nodo 2
-GUI-2  19:10:46.551 [HABILITADA] DIV habilitada: 2/2 (nueva: DIV-N2b · 63688213)
-```
-
-Las cuatro GUIs deshabilitaron `÷` en el mismo instante, y en la GUI-2 teclear `/` mostraba "DIV no
-disponible". En cuanto `DIV-N2b` se presentó, su primer latido llegó a las cuatro GUIs y el operador
-se volvió a habilitar. La siguiente división (`8 ÷ 2 = 4`) la atendieron las dos células vivas, con
-2 acuses y 1 respuesta. Así se integra una célula nueva, sin configurar nada.
-
-![Figura 6. GUI-2 con la división deshabilitada, con "vivas: 1" contra un mínimo de 2, la marca ✗ y el aviso "DIV no disponible".](docs/capturas/06_gui2_div_deshabilitada.png)
-
----
-
-## 13. Identificadores
-
-**Todo** en el sistema tiene un hash SHA-256 de 64 caracteres hexadecimales (NIST, 2015), ya sean
-nodos, células, mensajes u operaciones. **Cada entidad genera el suyo** al arrancar y lo presenta en
-su `HOLA`. Nadie asigna identidades, así que tampoco ahí hay un punto central.
-
-```python
-def generar(tipo, *datos) -> str:
-    # sha256("tipo|datos…|hostname|pid|time_ns|contador_del_proceso|token_aleatorio_de_128_bits")
-```
-
-- **Unicidad.** Se mezclan 128 bits aleatorios (`secrets`), el reloj en nanosegundos, un contador
-  por proceso, el PID y el nombre del host. La probabilidad de colisión es del orden de 2⁻¹²⁸, y el
-  contador garantiza unicidad dentro del proceso aunque el reloj repita un valor. La prueba
-  `test_huella` genera 50 000 hashes y verifica que no se repite ninguno.
-- **Los nombres son etiquetas.** "Nodo 1", "SUM-N3" y "GUI-2" solo sirven para mostrar, y la
-  identidad es el hash. Si un proceso se reinicia, es una entidad nueva.
-- **El ranking de elección** (sección 11) es otro uso del mismo SHA-256. Es determinista (la misma
-  entrada da el mismo orden en cualquier célula) y no depende del orden en que se conocieron los
-  acusadores.
-
----
-
-## 14. Failover
-
-Si muere el nodo de una célula, la célula **se pasa sola a otro nodo de la malla**
-(`Celula._recuperar()`).
-
-1. Reintenta 2 veces con su nodo, con 1 s entre intentos y un tiempo de espera corto de 0.5 s, por
-   si fue un corte momentáneo.
-2. Luego rota por los demás nodos candidatos, que son los que recibió en la `BIENVENIDA`,
-   actualizados con cada `PARES`.
-3. Si ninguno responde en una vuelta completa, espera con backoff (hasta 8 s) y empieza otra vuelta.
-4. **Conserva su hash**, así que para el resto del sistema sigue siendo la misma célula.
-5. Si su nodo original revive, **no regresa** a él, para no oscilar.
-
-En la verificación en vivo se tumbó el Nodo 1 desde el panel, con sus cinco células conectadas.
-
-```
-GUI-1   19:10:21.370 [DESCONEXION] se perdió Nodo 1 (error de lectura: [WinError 10054] …); buscando nodo…
-GUI-1   19:10:22.877 [INALCANZABLE] 127.0.0.1:5001: timed out
-GUI-1   19:10:24.381 [INALCANZABLE] 127.0.0.1:5001: timed out
-GUI-1   19:10:24.395 [FAILOVER] → Nodo 2 (42dafcce) en 127.0.0.1:5002 · candidatos: …5001, …5002, …5003, …5004
-SUM-N1  19:10:24.386 [FAILOVER] → Nodo 2 (42dafcce) en 127.0.0.1:5002 · …
-
-Nodo 2  19:10:21.368 [DESCONEXION] vecino Nodo 1 (3910bdcc): error de lectura: [WinError 10054] …
-Nodo 2  19:10:24.386 [CONEXION] célula SERVIDOR SUM SUM-N1 (acaa1219)
-Nodo 2  19:10:24.394 [CONEXION] célula INTERFAZ GUI-1 (dedbdb88)
-```
-
-Las cinco células del Nodo 1 hicieron failover al Nodo 2 en **~3.0 s**. Mientras tanto, **ninguna
-GUI dio por muerto a ningún servidor**, porque el failover es más rápido que la caducidad de 6 s y
-el servidor manda un latido en cuanto se reconecta. Seis segundos después, la GUI-1 hizo `9 × 9`
-desde su nodo nuevo y se resolvió en 512 ms, con 4 acuses y 1 respuesta.
-
-![Figura 7. Nodo 2 después de la caída del Nodo 1, con "Vecinos: 2" y "Células: 10 (2 GUI + 8 servidores)". En el tráfico se ven la DESCONEXION del Nodo 1 y las CONEXION de sus células.](docs/capturas/05_nodo2_failover.png)
-
-**Un detalle de Windows.** En las primeras corridas manuales se vio que en Windows un `connect()` a
-un puerto cerrado tarda ~2 s en devolver el rechazo. Con el tiempo de espera normal, el failover
-tardaba ~6 s, justo lo que tarda en caducar una célula, y las GUIs daban por muertos a todos los
-servidores del nodo caído. Se agregó un tiempo de espera corto (`REINTENTO_TIMEOUT`, 0.5 s) para los
-reintentos al nodo original. Además, la GUI no caduca células mientras ella misma está sin enlace,
-porque no poder oír latidos no prueba que alguien haya muerto.
-
----
-
-## 15. Concurrencia
-
-Cada proceso usa hilos de la librería estándar (Python Software Foundation, 2025b) y nunca bloquea
-la red esperando a otro componente.
-
-| Mecanismo | Dónde | Qué resuelve |
-|---|---|---|
-| Hilo lector + hilo escritor por enlace | `comun/protocolo.py` → `Enlace` | Un par lento no frena a nadie, porque quien difunde solo encola |
-| Cola de salida con tope (5 000) | `Enlace.enviar_bytes()` | Un par colgado se detecta (`LENTO`) en lugar de acumular memoria |
-| Hilo aceptador, supervisor y un marcador por endpoint | `Nodo` | Conexiones entrantes, descubrimiento y marcado en paralelo |
-| `threading.RLock` del nodo | `Nodo._lock` | Tablas `vecinos` y `celulas`, `conocidos`, `alias` y contadores |
-| `Lock` del registro de vistos | `RegistroVistos` | `marcar_si_nuevo` atómico, para que dos copias simultáneas den un solo reenvío |
-| Hilo conector | `Celula._mantener()` | Conexión inicial y failover sin bloquear a la célula |
-| Hilo trabajador + `queue.Queue` | `Servidor._trabajar()` | La cola FIFO de solicitudes. El cálculo nunca corre en el hilo lector |
-| Programador (heap + `Condition`) | `servidor/nucleo.py` → `Programador` | Las revisiones de los respaldos a la hora exacta, en un solo hilo |
-| `RLock` de las rondas | `Servidor._lock_rondas` | El estado de cada ronda, que tocan el lector, el trabajador y el programador |
-| Hilo de reloj (100 ms) + `RLock` | `Interfaz._vigilar()`, `_lock_ops` | Plazos, reintentos y caducidad de células |
-| `queue.Queue` + `after(100)` | Las tres ventanas | Puente entre la red y la interfaz. Tkinter solo se toca desde su hilo |
-
-**Condiciones de carrera consideradas.** Cada una tiene su prueba o se observó en las corridas
-manuales.
-
-- **Acuse antes que la solicitud.** Un `X_ACK` de otra célula puede llegarle a un servidor antes que
-  el `X_REQ`, porque viajan por caminos distintos de la malla. El servidor crea una **ronda
-  "esqueleto"** con el acuse y el REQ la completa al llegar
-  (`test_ack_antes_del_req_ranking_correcto`).
-- **Acuse antes de que exista la operación.** Por eso la GUI registra la operación *antes* de
-  publicar el REQ.
-- **Datos antes de la bienvenida.** El nodo encola la `BIENVENIDA` *antes* de agregar el enlace a su
-  tabla de vecinos, para que sea lo primero que reciba el par.
-- **Solicitud vieja que llega después de la nueva.** Es el bug 1 de la sección 17.3.
-
----
-
-## 16. Tolerancia a fallas
-
-Un sistema distribuido se caracteriza por sus **fallas parciales**, es decir, piezas que mueren
-mientras el resto sigue vivo (Coulouris et al., 2011). El §15 del enunciado exige que **ninguna
-instancia individual sea indispensable**. La tabla resume cada escenario y cómo se verificó.
-
-| Escenario | Comportamiento | Verificado |
-|---|---|---|
-| Cae un nodo | Sus vecinos lo sacan de la tabla, sus células hacen failover a otro nodo en ~3 s y el servicio sigue | En vivo y en pruebas |
-| El nodo caído vuelve en el mismo puerto | Reingresa a la malla solo (el supervisor lo reintenta con backoff) | En vivo y en pruebas |
-| Cae la titular después de acusar | El respaldo 1 responde a los ~2 s | Prueba automatizada |
-| Titular lenta | Relevo y `SUPRIMIDA`, con una sola respuesta | En vivo y en pruebas |
-| Caen servidores hasta quedar menos que el mínimo | La GUI deshabilita ese operador, y una célula nueva lo rehabilita al instante | En vivo y en pruebas |
-| Se pierde una respuesta (cae un nodo en tránsito) | La GUI reintenta y la ronda nueva sí se atiende (regla ≤ k) | Prueba automatizada |
-| Línea que no es JSON o mensaje mal formado | `DROP` con motivo; el enlace sigue vivo | Prueba automatizada |
-| Datos antes del `HOLA` | Se descartan, y si no llega el `HOLA` en 5 s se cierra la conexión | Prueba automatizada (los datos sin `HOLA`) |
-| Dos nodos se marcan a la vez | Regla de enlace duplicado; ambos lados conservan el mismo | En vivo y en pruebas (5 marcados simultáneos) |
-| Un nodo recibe su propio endpoint | `RECHAZO(autoconexion)` | Prueba automatizada |
-| Par lento o colgado | Cola por enlace. Si se desborda, `LENTO` y se cierra, sin bloquear a nadie más | Prueba automatizada |
-| División entre cero, operando inválido o resultado no finito | `X_RES` con `error`, nunca NaN ni Infinity en el JSON | En vivo y en pruebas |
-| Se cierra el panel sin detener los procesos | Los 24 procesos siguen vivos, sus bitácoras toleran el pipe roto y siguen en archivo, y `2 + 2` se resolvió sin panel | En vivo |
-| Caen todos los nodos | Las células ciclan con backoff y la GUI muestra "sin Campo de Datos" | Por diseño (`Celula._recuperar()`); no se ejercitó en la corrida final |
-
-**Puntos únicos de falla.** No hay. Ningún nodo es especial (cualquiera sirve de semilla), no hay
-coordinador de la elección, nadie asigna las identidades y el panel está fuera del sistema. Lo único
-de lo que depende cada célula es el nodo al que está conectada, y el failover cubre ese caso.
-
----
-
-## 17. Pruebas
-
-### 17.1 Suite automatizada
-
-```
-py -m unittest discover -s tests -t .
-```
-
-Son **106 pruebas**, todas con la librería estándar y sin ventanas. Las de integración levantan
-nodos y células reales **dentro del mismo proceso**, con puertos efímeros y tiempos acortados.
+`uv run python -m unittest discover -s tests -t .` levanta el sistema completo **dentro del
+proceso** (nodos, madres, GUIs y gestor sin ventanas, porque ningún núcleo importa Tkinter), con
+los tiempos acortados por `mock.patch` sobre `config`. La regeneración se prueba con un lanzador
+inyectable que crea los reemplazos en el mismo proceso.
 
 | Archivo | Pruebas | Qué cubre |
 |---|---|---|
-| `test_protocolo.py` | 17 | Framing con mensajes partidos y pegados, cierre, **línea inválida que no rompe el lector**, tope de longitud y rechazo de NaN |
-| `test_enlace.py` | 7 | La cola de escritura no bloquea, el desborde cierra el enlace (`LENTO`), el orden se respeta y el cierre vacía la cola |
-| `test_huella.py` | 10 | 64 hex, 50 000 hashes únicos, ranking determinista e independiente del orden, reparto uniforme, el intento cambia la titular |
-| `test_mensajes.py` | 14 | Sobre, validación campo por campo, `HOLA`, endpoints y catálogo |
-| `test_vistos.py` | 4 | Nuevo, repetido, caducidad con reloj falso, tope y atomicidad con 16 hilos |
-| `test_calculo.py` | 11 | Las 4 operaciones, división entre cero, no finitos, `bool` y `str` como operandos |
-| `test_formato.py` | 6 | Números y operaciones legibles |
-| `test_bitacora.py` | 5 | Formato y archivo. La bitácora nunca lanza con consola rota, solo archivo, callback que falla o escritura después de cerrar |
-| `test_malla.py` | 7 | Cadena de semillas que da malla completa **sin enlaces duplicados** (comprobando que ambos extremos son la misma conexión TCP), marcado simultáneo, autoconexión, 5º nodo, nodo tumbado y nodo que vuelve |
-| `test_broadcast.py` | 8 | Con la sonda real, **exactamente una vez** por célula, ruta y TTL, `--ttl 1`, `--ttl 0`, TTL recortado, `--repetir`, `--id`, basura y datos sin `HOLA` |
-| `test_flujo.py` | 17 | Sistema completo (4 nodos, 16 servidores, 4 GUIs y una célula espía que cuenta ACK y RES). Las 4 operaciones con **exactamente un `RES`**, ÷0, titular lenta, titular tumbada, 3 SUM tumbadas que dejan la suma deshabilitada hasta que una nueva la habilita, nodo tumbado con failover sin caducar a nadie, regla ≤ k, ronda superada, REQ desordenado, ACK antes del REQ y reglas de quórum, retenida, fallida y tardía |
+| `test_protocolo`, `test_mensajes`, `test_hashes`, `test_vistos`, `test_bitacora`, `test_formato`, `test_enlace` | 64 | Framing NDJSON, sobre y control, hashes y ranking HRW, registro de vistos, bitácora, formato de números, enlace con cola |
+| `test_malla`, `test_broadcast` | 15 | Malla por gossip (incluido un 5.º nodo con una sola semilla), inundación, TTL y duplicados |
+| `test_flujo` | 30 | Las 4 operaciones con un RES por folio, `X_FIN` que cierra rondas, ajenas ignoradas, sello alterado, madre muda en ausentes, ráfagas simultáneas, relevo y failover de nodo |
+| `test_foliado` | 15 | Folio, sello determinista y sensible a cada campo, rastro, validación |
+| `test_genes` | 20 | Localizar (confinado al almacén), validar, cargar, autoprueba, activar, descargar con `weakref`, sustituir con reversión |
+| `test_microservicios` | 14 | Cada gen real pasa sus pruebas; `SUM 9.9` se rechaza; `SUM 2.0` da `0.3` |
+| `test_gestor` | 24 | BD, topología, distribuir, alta, baja, sustituir, retiro, orden a célula muerta, pedidos y entregas, el sistema sin gestor |
+| `test_regeneracion` | 15 | Una pérdida → un reemplazo con sus genes copiados; tres → en secuencia; retiro y baja no regeneran; una sola `SUM` → una; clonador muerto → rango 1; topes, telómeros y cupo |
+| `test_panel` | 4 | Los dos modos de arranque y que el panel no abre gestores |
+| **Total** | **201** | |
 
-La suite completa tarda ~85 s y pasó en verde en tres corridas seguidas. Las pruebas que verifican
-"exactamente una respuesta" usan un `RELEVO` de al menos 1 s, para que la carga de la máquina no
-provoque relevos falsos.
+**Resultado:** 201 pruebas en verde **tres veces seguidas** (190.9 s, 191.4 s y 190.6 s), y
+`ruff check .` limpio.
 
-### 17.2 Verificación en vivo
+## 12. Escenarios ejecutados
 
-Con el panel real se levantó la configuración mínima (24 procesos al final) y se recorrieron todos
-los escenarios del §14 del enunciado y de la sección 16. Después, un script revisó las bitácoras de
-los 24 procesos.
+Los ocho escenarios del §10 del enunciado y el de "sin unidad central" se verificaron en vivo el
+17 de noviembre de 2026 con procesos reales (4 nodos con ventana, 16 madres vacías, 4 GUIs y el
+gestor G-N1), con un guion que operaba las ventanas como lo haría el usuario y revisaba bitácoras
+y estado. Resultado: **30 de 30 revisiones correctas** y, en las bitácoras de todos los procesos,
+**0 `ERROR`, 0 `Traceback` y 0 respuestas duplicadas**; **10 avisos de clonación y 10
+reemplazos listos**, ninguno de más.
 
-| Escenario | Resultado |
-|---|---|
-| 4 operaciones, una desde cada GUI, y la división entre cero | Por operación, 4 `ACUSE`, 1 `TITULAR`, 3 `LIBERADO` y **1 `RES`**. Las otras 3 GUIs con `IGNORA`. En cada nodo, 1 `FWD` y 2 `DUP` (0 `DUP` en el de entrada) |
-| Tumbar el Nodo 1 | Failover de sus 5 células en ~3.0 s, sin `CADUCA`; `9 × 9` siguió funcionando |
-| Tumbar 3 `DIV` y levantar una | `DESHABILITADA` en las 4 GUIs, `HABILITADA` al llegar `DIV-N2b` y `8 ÷ 2 = 4` |
-| `SUM-N3b` con 4 000 ms de retardo | Titular en la 4ª operación. `RELEVO 1` de `SUM-N2` a los 2.0 s, `SUPRIMIDA` a los 4.5 s y 1 `RES` |
-| Sondas `--ttl 1`, `--repetir 3` y `--id` | Como se describe en la sección 8.5 |
-| Relanzar el Nodo 1 y "+ Nodo" | Nodo 5 con 4 vecinos; `2 + 2` con 1 `FWD` y 3 `DUP` en cada nodo |
-| Cerrar el panel sin detener | 24 de 24 procesos vivos, bitácoras creciendo y `2 + 2 = 4` resuelto sin panel |
-| Errores | Ningún `ERROR`, `Traceback`, `PERDIDO`, `DROP` ni `LENTO` en ninguna bitácora |
+| # | Escenario | Qué se hizo | Resultado observado |
+|---|---|---|---|
+| 0 | Arranque | Modo vacío; "Distribuir" en el gestor | 16 altas `ok` en 270 ms; una madre de cada operación por nodo (Figura 1) |
+| 1 | Foliado | `7 + 5` en GUI-1 | `12`, ACK 4/2, rastro `REQ → 4×ACK → RES → FIN`, fase finalizado; GUI-2 no lo muestra (Figura 3) |
+| 2 | Simultáneas | Ráfaga ×8 en GUI-1 y GUI-2 a la vez | 16 eventos en vuelo; cada GUI con sus 8 folios resueltos y ninguno ajeno |
+| 3 | Mínimo de ACK | "+ Muda (SUM)" y `2 + 2` | ACK 4/2 de 5 esperadas, `AUSENTES: SUM-N1m`, resuelta |
+| 4 | Carga dinámica | "+ Madre" (M5-N2, vacía); alta de `MUL 1.0` desde el diagrama | Disco → validado → memoria → activo en 10 ms; `6 × 7 = 42` con M5-N2 entre las que acusan |
+| 5 | Baja y cambio | Baja de `SUM` en M1-N4; `SUM 2.0` en todas; `SUM 9.9` | M1-N4 deja de acusar; `0.1 + 0.2` pasa de `0.30000000000000004` a `0.3`; `9.9` rechazado (Figura 4) |
+| 6 | Autorrecuperación | "Tumbar SUM de Nodo 2" y nada más | Caída → clonador → `M1-N2·r1` con `SUM 2.0` copiado → `NIVEL_OK` (Figura 5) |
+| 7 | Anti-cáncer | Esperar; luego "Tumbar 3 SUM" | 10 s sin avisos; tres reemplazos uno por uno y alto (Figura 6) |
+| 8 | Topología | "+ Nodo" (Nodo 5), "+ Madre" en él, alta de `DIV` | El gestor dibuja el Nodo 5 con sus 4 enlaces y le inyecta `DIV 1.0` (Figura 8) |
+| — | Sin unidad central | Cerrar el gestor; `9 − 4`; tumbar M4-N3 | `5`; `M4-N3·r1` regenerado por las madres sin gestor; `DIV` vuelve a 5 |
 
-### 17.3 Bugs encontrados por las pruebas
+En el escenario 2, los 16 eventos de las dos GUIs se entrelazan en los mismos milisegundos y, aun
+así, cada `RESULTADO` llega solo a la GUI dueña del folio (bitácoras de GUI-1 y GUI-2 juntas):
 
-Las pruebas encontraron tres errores reales del código. Se reportan tal cual, junto con su
-corrección y la prueba que los cubre.
+```
+17:09:04.885 [EVENTO_INICIO] F-07b96e1e-0002 · SUM_REQ 90 + 47 · sello 7e3df316 · esperadas 4
+17:09:04.898 [EVENTO_INICIO] F-bc15ee47-0001 · SUM_REQ 97 + 75 · sello 36cce7e7 · esperadas 4
+17:09:05.401 [RESULTADO] F-07b96e1e-0002 · 90 + 47 = 137 · titular M1-N1 · SUM@1.0 · 516 ms
+17:09:05.413 [RESULTADO] F-bc15ee47-0001 · 97 + 75 = 172 · titular M1-N1 · SUM@1.0 · 516 ms
+```
 
-1. **Doble respuesta por desorden en la malla.** Un reintento (intento 2) podía llegarle a un
-   servidor **antes** que el intento 1, porque los mensajes viajan por caminos distintos. Cuando el
-   intento 1 llegaba tarde, el servidor lo trataba como nuevo, lo acusaba, participaba en su
-   elección y producía un **segundo `RES`**. Se vio en 1 de 6 operaciones con un script de
-   diagnóstico que forzaba ese orden. **Corrección.** Si un REQ llega cuando ya se conoce un intento
-   posterior de la misma operación, la ronda se marca **superada al llegar**, y el servidor no la
-   acusa ni la encola (`Servidor._rx_req()`). La cubre `test_req_viejo_que_llega_despues_del_nuevo`.
-2. **Caída falsa al formarse la malla.** En una de cada ~25 formaciones, el enlace sobrante de un
-   marcado simultáneo se cerraba sin avisar, y el otro lado lo registraba como `DESCONEXION` de un
-   nodo que seguía vivo. **Corrección.** El lado que descarta el enlace manda siempre
-   `RECHAZO(duplicado)` antes de cerrarlo. Después de corregirlo hubo 0 casos en 60 formaciones.
-3. **Reemplazo de enlace sin rastro.** Cuando la regla de enlace duplicado reemplazaba un enlace por
-   otro, la ventana del nodo mostraba dos `CONEXION` seguidas sin explicación. **Corrección.** Ahora
-   se registra un evento `DUPLICADO` que dice qué enlace se conservó. En la corrida final se ve, por
-   ejemplo, cuando se integra el Nodo 5.
+![Figura 7. GUI-1 en los escenarios 2, 4 y 5. Izquierda: "Mis eventos" tras la ráfaga, 8 folios propios resueltos. Centro: 6 × 7 = 42 con 5 madres MUL esperadas, incluida M5-N2, a la que se le acababa de inyectar el gen. Derecha: 0.1 + 0.2 = 0.3 con SUM 2.0, y SUM-N1m (muda) como ausente.](docs/capturas/fig_guis_escenarios.png)
 
-   ```
-   Nodo 3  19:11:39.147 [DUPLICADO] Nodo 5: dos enlaces; se conserva el iniciado por el preferido
-                        y se cierra el otro
-   ```
+![Figura 8. Escenario 8: el diagrama del gestor con el Nodo 5 conectado a los otros cuatro y su madre M1-N5 con DIV 1.0, inyectado desde el gestor tras elegirla en el diagrama. También se ven los reemplazos de los escenarios 6 y 7 (r1, r2).](docs/capturas/fig_e8_topologia.png)
 
-Antes de escribir la suite, las primeras corridas manuales dejaron otras dos correcciones, el tiempo
-de espera corto del failover y que la GUI no caduque células mientras ella está sin enlace (ambas en
-la sección 14).
+## 13. Bugs encontrados y corregidos
 
----
+| # | Síntoma | Causa | Corrección |
+|---|---|---|---|
+| 1 | Bajo carga, dos madres respondían como titulares | En las pruebas, `VENTANA_ELECCION` era más corta que en producción y un ACK tardío no entraba al ranking | Las pruebas usan la ventana real (0.5 s). La carrera sigue posible y está documentada (§14.2); la GUI descarta la respuesta duplicada |
+| 2 | `ENTREGA` repetida en la línea de tiempo del gestor | Dos madres entregaban el mismo gen casi a la vez | El gestor muestra solo la primera; la segunda va a la bitácora (prueba nueva) |
+| 3 | El diagrama dejaba de redibujarse | Su primer dibujo llegaba antes de que la ventana tuviera tamaño | Usa el tamaño pedido mientras no hay real |
+| 4 | `invalid command name` al cerrar una ventana | Quedaban `after()` de Tk pendientes | `estilo.cerrar(raiz)` los cancela antes de destruir |
+| 5 | Con varias ventanas en un proceso, el mínimo de ACK de una GUI cambiaba otra | `StringVar` y `BooleanVar` sin dueño se pegaban a la primera raíz | Dueño explícito en cada variable |
+| 6 | En el panel, la quinta madre de un nodo se cortaba | Fichas en una sola línea | Las fichas bajan de renglón según el ancho libre |
 
-## 18. Panel de despliegue y sonda
+Ninguno daba un resultado aritmético incorrecto. Los bugs 1 y 2 solo aparecieron con el sistema
+completo bajo carga, igual que en el segundo parcial: el orden de los eventos concurrentes es lo
+que más sorprende en un sistema distribuido.
 
-Las dos son **herramientas de demostración**. No forman parte del sistema ADS, y todo lo que hacen
-se puede hacer a mano desde la terminal.
+## 14. Decisiones de diseño y limitaciones
 
-### 18.1 Panel de despliegue (`py -m panel`)
-
-Lleva el rótulo *"Herramienta de despliegue: no forma parte del sistema ADS; solo lanza procesos del
-sistema operativo. Todo se puede lanzar a mano."*
-
-- **Matriz** de nodos por tipo de célula. Cada casilla muestra cuántas instancias vivas hay, con ▶
-  para levantar una más y ■ para tumbar la más reciente. "Tumbar" es un `terminate()` del proceso
-  sin avisarle a nadie, así que simula una caída real.
-- **"Levantar configuración mínima"** levanta los 4 nodos y, un segundo después, sus 20 células. Las
-  ventanas se acomodan solas.
-- **"+ Nodo"** agrega una fila (puerto 5000 + k) con una semilla al azar.
-- El campo **"retardo ms"** sirve para levantar servidores lentos.
-- La **lista de procesos** muestra el **comando exacto** de cada uno (`py -m servidor --servicio SUM
-  --nodo 127.0.0.1:5001 --nombre SUM-N1`) y la bitácora en vivo del que esté seleccionado. Los
-  servidores no tienen ventana, así que su bitácora se ve aquí.
-- Al cerrar, pregunta si se detienen los procesos. Si se contesta que no, **el sistema sigue
-  funcionando**, y así se demuestra que el panel no es un punto de falla.
-
-![Figura 8. Panel de despliegue con la configuración mínima. La matriz de 4 × 6 tiene una instancia viva en cada casilla, y la lista de procesos muestra sus comandos.](docs/capturas/02_panel_minima.png)
-
-### 18.2 Ventana del nodo
-
-Muestra el **control de conexiones activas** del §10.1 y el **recorrido de los mensajes** del §15
-(Figuras 1, 3 y 7). Contiene:
-
-- el encabezado con nombre, hash y endpoint;
-- los contadores de recibidos, reenviados, duplicados descartados, TTL agotado, descartados e ids en
-  el registro temporal;
-- la tabla **"Vecinos: 3"** (nombre, hash, endpoint, entrante o saliente, desde);
-- la tabla **"Células: 5 (1 GUI + 4 servidores)"** (tipo, servicio, nombre, hash, desde);
-- el **tráfico en vivo**, con hora, evento (`FWD`, `DUP`, `TTL`, `DROP`, `CONEXION`, `DESCONEXION`,
-  `DUPLICADO`), código, id, origen, de quién llegó, ruta y destinos. Los latidos se ocultan por
-  defecto, y hay una casilla para pausar.
-
-### 18.3 Sonda (`py -m sonda`)
-
-Se presenta ante un nodo como entidad `SONDA`, inyecta un `SONDA_PRUEBA` (que ninguna célula
-procesa), imprime el id que usó y termina. Sus opciones (`--ttl`, `--repetir`, `--id`) permiten
-probar cada defensa contra ciclos por separado (sección 8.5).
-
----
-
-## 19. Decisiones de implementación y reutilización
-
-### 19.1 Decisiones
+### 14.1 Decisiones
 
 | Decisión | Alternativa descartada | Por qué |
 |---|---|---|
-| Python 3 con **solo librería estándar** | Java (puntos extra); bibliotecas de red | No hay nada que instalar, basta `py -m panel`. Se renunció a propósito a los puntos de Java |
-| **Nodos que no leen el contenido** | Nodos que enrutan por servicio | En ADS el significado es asunto de las células, y el nodo no cambia si aparece un servicio nuevo |
-| **Todo por broadcast**, incluidos acuses y latidos | Mensajes dirigidos a una célula | Lo pide el §9, y es lo que hace que nadie necesite saber quién atiende qué |
-| **Malla por gossip** con una semilla cualquiera | Lista fija de nodos en un archivo | Cumple el §10.1 (cualquier número de instancias) y ningún nodo es especial |
-| **NDJSON** sobre TCP | Encabezado binario con longitud | Es legible en la demostración, y el framing ya estaba probado en el primer parcial |
-| **SHA-256 generado por cada entidad** | Ids secuenciales asignados por un nodo | No hay autoridad central y la probabilidad de colisión es despreciable |
-| **Elección HRW entre las que acusaron** | Que respondan todas y la GUI tome la primera | El §9 pide *evitar* las respuestas no deseadas, no solo filtrarlas (sección 20) |
-| **Acuse inmediato**, antes de encolar | Acusar al terminar el cálculo | El acuse prueba recepción. Si se atrasara con el cálculo, una célula lenta parecería muerta |
-| **Latidos** para la disponibilidad | Inferirla solo de los acuses | La GUI sabe *antes* de pedir si hay suficientes células vivas (sección 20) |
-| **Failover** de células | Que la célula muera con su nodo | Sin él, cada nodo sería un punto único de falla para sus cinco células |
-| Bind a **127.0.0.1** por defecto | 0.0.0.0 | Evita el diálogo del firewall de Windows en la demostración; `--host` sirve para LAN |
-| Constantes leídas como `config.X` al usarlas | `from config import X` | Las pruebas acortan los tiempos con `mock.patch` sin reiniciar nada |
+| Madre **genérica** que carga genes con `importlib` | Un programa por servicio | Es lo que pide el §5.2: la funcionalidad vive en los genes |
+| Todo gen pasa por el **disco propio** de la madre | Cargar directo desde el mensaje | Cumple M1 y deja evidencia física de cada gen activo |
+| Validar por **sha256 antes de ejecutar** y cargar los bytes validados | Confiar en el archivo | Un gen manipulado (`SUM 9.9`) nunca corre |
+| **El programa dentro de la orden** (`GEN_INYECTA`) | Que la madre lo descargue de una ruta compartida | Todo viaja por el Campo de Datos; no hay disco compartido ni servidor de archivos |
+| Regeneración **1 a 1** | Mantener N réplicas por servicio | Lo pidió el usuario: si se levanta una, se mantiene una |
+| Clonador por **HRW** + aviso | Elección con mensajes de votación | El acuerdo se calcula sin rondas de mensajes, como en la respuesta única |
+| Reemplazo que **copia genes por la red** | Que el clonador le pase sus propios genes | El clonador puede no tener el gen de la perdida; cualquiera que lo tenga lo entrega |
 
-### 19.2 Lo que no se hizo, a propósito
+### 14.2 Limitaciones conocidas
 
-- **Foliado** de operaciones. No lo pide este enunciado y queda para la entrega final.
-- **Células que levantan células.** Las células nuevas se levantan a mano o desde el panel, y en
-  vivo se muestra cómo se integran.
-- **Persistencia.** El enunciado de este parcial no la pide.
+1. **Una "pérdida" que solo estaba lenta.** Si una madre deja de latir más de 6 s y luego vuelve
+   después de que se lanzó su reemplazo, queda una de más. Los topes lo acotan.
+2. **Partición de red.** Si la malla se partiera, cada lado podría regenerar las madres del
+   otro. Los topes duros acotan el crecimiento, pero no lo evitan.
+3. **Ventana de carrera en la elección** (heredada): un ACK que llega después de 0.5 s puede
+   producir dos titulares. La GUI acepta una respuesta por folio y descarta la otra, pero la
+   carrera no es imposible.
+4. **Sin autenticación.** Cualquier proceso que hable el protocolo podría presentarse como
+   `GESTOR` y dar órdenes. El sha256 protege la integridad del gen, no su origen; firmar con una
+   llave sería el siguiente paso.
+5. **El gen es código Python que se ejecuta** en la célula. El sha256 y la autoprueba evitan
+   genes alterados, pero no un gen bien firmado y malicioso. Un entorno aislado (otro proceso con
+   permisos mínimos) lo resolvería.
+6. **Colisión de folios** entre dos GUIs: requiere el mismo prefijo de 8 hex (~1 en 4×10⁹ por
+   par), y aun así el sello de cada una sería distinto.
+7. **Detección en ~6 s** por latidos: es el compromiso entre reaccionar rápido y no confundir una
+   pausa con una muerte.
 
-### 19.3 Originalidad y reutilización de código
+## 15. Diferencias respecto a lo visto en clase
 
-Todo el código es original y se escribió para este proyecto. Las únicas piezas adaptadas vienen del
-**primer parcial del mismo autor**, para esta misma materia, y se declaran en la tabla.
+El modelo visto en clase fue la base del diseño. Para el foliado se usaron, a propósito, las
+definiciones del enunciado (huella, evento y mínimo de ACK), que es el documento de evaluación.
+Se conservan las dos diferencias del segundo parcial, ambas compatibles con lo visto en clase:
 
-| De (primer parcial) | A | Cambio |
-|---|---|---|
-| `comun/protocolo.py` | `comun/protocolo.py` | Lector tolerante a líneas inválidas, tope de longitud, `allow_nan=False` y `Enlace` con cola de escritura |
-| `servidor/calculo.py` | `servidor/calculo.py` | Un servicio por llamada, con control de tipos y de resultados no finitos |
-| `comun/formato.py` | `comun/formato.py` | Formato `.12g` y tope para mostrar flotantes como enteros |
-| `cliente/gui.py` | `interfaz/gui.py` | Teclado, display, atajos y el patrón cola + `after(100)` |
-| `tests/test_protocolo.py` | `tests/test_protocolo.py` | Base de la fuente falsa para probar el framing |
+1. **Latidos además de los acuses** para conocer la disponibilidad. En este parcial resultaron
+   indispensables: de ellos salen la topología del gestor y la detección de pérdidas.
+2. **Una sola respuesta por elección** en lugar de que todas respondan, porque el enunciado del
+   segundo parcial pedía *evitar* respuestas múltiples. La deduplicación en la GUI se conserva
+   como última capa.
 
-De la Práctica 3 del curso se tomaron **ideas, no código**, en concreto el gossip de pares, la
-validación estructural de mensajes y el filtrado por intereses (ACP/ASM). No se usó código de otros
-equipos, plantillas ni soluciones existentes.
+## 16. Originalidad y reutilización de código
 
----
+Todo el código se escribió para este proyecto. Lo único reutilizado es el **segundo parcial del
+mismo autor** para esta misma materia, que es la base obligatoria que pide el §4 del enunciado:
+nodo, célula base, GUI, protocolo, mensajes, hashes, vistos y bitácora, adaptados al foliado y a
+las madres. El `servidor/` y su `calculo.py` **desaparecieron**: la aritmética ahora vive en los
+genes. No se usó código de otros equipos, plantillas ni soluciones existentes. El repositorio
+conserva la historia completa, con la etiqueta `parcial-2` marcando el punto de partida.
 
-## 20. Diferencias respecto a lo visto en clase
+## 17. Conclusiones
 
-El modelo visto en clase fue la base de todo el diseño. Solo en dos puntos se aparta de él. El
-segundo lo exige el enunciado, que es el documento de evaluación, y el primero es una mejora que
-conserva lo visto en clase.
-
-**1. Disponibilidad por latidos, además de los acuses.** En clase se planteó que la disponibilidad
-de los servidores se conociera **solo por los acuses**. Aquí se agregaron latidos (`SRV_LAT`) porque
-permiten reaccionar **antes** de enviar una solicitud. La GUI sabe en todo momento cuántas células
-de cada servicio están vivas, deshabilita un operador si no alcanzan el mínimo y ve aparecer al
-instante una célula nueva. Con solo acuses, la GUI no se enteraría de que faltan servidores hasta
-que una operación fallara por falta de quórum. Los acuses se conservan y siguen contando como señal
-de vida.
-
-**2. Una sola respuesta por elección, en lugar de que todas respondan.** En clase se planteó que
-todas las células servidor que reciben la solicitud respondieran y que la GUI tomara la primera. El
-§9 del enunciado pide definir *"cómo se evita que una misma solicitud produzca múltiples respuestas
-no deseadas"*, y el §11 pide documentar la estrategia para *evitar* respuestas duplicadas. Por eso
-se optó por que **responda una sola célula** (sección 11). La redundancia de que todas respondan no
-se pierde, porque los respaldos escalonados responden si la titular falla. La deduplicación en la
-GUI que se vio en clase también se conserva, como última capa.
-
----
-
-# PARTE III. CONCLUSIÓN
-
-## 21. Conclusiones
-
-**Se cumplió el objetivo general.** La calculadora funciona sobre una arquitectura ADS, con cuatro
-nodos que forman solos una malla completa, veinte células que se comunican solo por broadcast con
-Códigos de Contenido y ningún componente indispensable.
-
-Los seis objetivos específicos de la sección 1.3 se verificaron. Los cinco primeros, con pruebas
-automatizadas y en vivo. El sexto, con las 106 pruebas y con las bitácoras y ventanas que hacen
-observable cada mensaje.
-
-**Resultados de la verificación final.** Con el panel real y la configuración mínima, cada operación
-probada recibió **exactamente una respuesta**, incluidas la división entre cero y la que se atendió
-por relevo. La malla descartó todas las copias duplicadas, y el sistema siguió dando servicio
-después de tumbar un nodo, tres servidores de un mismo servicio y el propio panel. No apareció
-ningún error en las bitácoras de los 24 procesos.
+**Se cumplió el objetivo general.** La calculadora sigue siendo un sistema ADS sin componente
+indispensable, y ahora su funcionalidad vive en genes que se cargan de disco, se cambian en
+caliente desde un gestor y se copian por la red cuando una célula muere. Los cinco objetivos
+específicos se verificaron: el foliado, la carga dinámica, el gestor y la autorrecuperación, con
+los ocho escenarios en vivo (30 de 30 revisiones) y con 201 pruebas automatizadas en verde tres
+veces seguidas.
 
 **Lo que enseñó el proyecto.**
 
-1. **Sin coordinador, el acuerdo se calcula en lugar de negociarse.** La elección HRW funciona
-   porque todas las células aplican la misma función determinista al mismo conjunto. Ese acuerdo no
-   requiere mensajes, solo información compartida. El costo es esperar a que esa información llegue
-   (la ventana de elección), y es lo que más pesa en la latencia.
-2. **En un sistema distribuido, el orden de los eventos no está garantizado.** Los tres bugs reales
-   que encontraron las pruebas (sección 17.3) vienen de eventos concurrentes que ocurrieron en un
-   orden que el diseño no había previsto, como un reintento que llega antes que la solicitud
-   original o dos nodos que se marcan al mismo tiempo. Solo las pruebas de integración, que levantan
-   el sistema completo, pudieron encontrarlos.
-3. **Un evento sin explicación es casi tan malo como un error.** Dos de los tres bugs no daban
-   resultados incorrectos, sino bitácoras engañosas (una caída que no era caída y dos conexiones sin
-   explicación). En un sistema distribuido la bitácora es la única forma de saber qué pasó, y
-   conviene tratarla como parte de la funcionalidad.
+1. **"Sin orquestador" es una regla de diseño, no una ausencia.** Cada vez que algo parecía
+   necesitar un coordinador (quién responde, quién regenera, quién entrega un gen), la solución
+   fue la misma: que todos apliquen la misma función determinista a la misma información
+   compartida (HRW y retardos derivados del hash). El costo es esperar a que esa información
+   llegue: la ventana de elección y la detección por latidos.
+2. **Los límites contra el cáncer tienen que ser varios y redundantes.** Uno solo (por ejemplo,
+   el uno a uno) depende de que todos cuenten igual; los topes duros, los telómeros y el cupo
+   existen para cuando ese conteo falla.
+3. **La regeneración se vuelve fácil cuando la funcionalidad es copiable.** Como el programa base
+   es el mismo en todas las madres y los genes viajan por el Campo de Datos, cualquier madre
+   puede reponer a cualquier otra, y el reemplazo de un reemplazo funciona igual.
+4. **Un nodo que no interpreta el contenido sigue rindiendo.** Por tercera entrega, todo lo nuevo
+   se agregó en las células sin tocar el reenvío del nodo.
 
-**Sobre las decisiones de diseño.** Las dos que más rindieron fueron estructurales.
-
-- **Que el nodo no interprete el contenido.** El nodo se mantuvo pequeño, se probó una sola vez, y
-  todo lo nuevo (acuses, latidos, elección) se agregó en las células sin tocarlo.
-- **Que los núcleos no importen Tkinter.** Eso permitió levantar 4 nodos, 16 servidores y 4 GUIs
-  dentro de una prueba automatizada, que es donde aparecieron los bugs de orden.
-
-## 22. Limitaciones conocidas y trabajo futuro
-
-El diseño tiene estos límites conocidos.
-
-1. **Enlaces "medio abiertos".** Si un par deja de responder sin cerrar la conexión TCP (por
-   ejemplo, por un cable desconectado), el sistema no lo detecta hasta que el sistema operativo da
-   el error o hasta que se llena la cola del enlace. Un latido entre nodos con tiempo de espera lo
-   resolvería.
-2. **Datos durante un marcado simultáneo.** Mientras dos nodos deciden cuál de sus dos enlaces
-   conservan, un mensaje que viaje justo por el que se descarta se pierde. Solo ocurre al formarse
-   la malla, y los reintentos de la GUI lo cubren.
-3. **El registro de vistos es temporal.** Un duplicado que llegara después de 60 s volvería a
-   circular. El TTL lo acota, pero no lo elimina.
-4. **Ventana de carrera en la elección.** Un acuse que llegue después de la ventana de elección
-   puede producir dos titulares. Las capas de la sección 11.5 lo absorben, pero no lo hacen
-   imposible.
-5. **Sin autenticación.** Cualquier proceso que hable el protocolo puede presentarse como nodo o
-   como servidor. Firmar los mensajes con una llave compartida sería el primer paso.
-6. **El failover no regresa** al nodo original cuando revive, así que tras varias caídas las células
-   se pueden concentrar en pocos nodos.
-7. **Latencia mínima de ~0.5 s** por la ventana de elección. Es aceptable para una calculadora, pero
-   no para un servicio de tiempo real.
-
-**Trabajo futuro**, en orden de prioridad:
-
-- el **algoritmo de foliado** para numerar las operaciones de manera distribuida;
-- **células que levantan células**, para que el sistema reponga por sí mismo un servicio que quedó
-  debajo de su mínimo;
-- detección de enlaces medio abiertos con latidos entre nodos;
-- seguridad y autenticación de las entidades.
+**Trabajo futuro:** autenticación de gestores y firma de genes con llave; ejecutar cada gen en un
+proceso aislado; y detectar particiones de red antes de regenerar.
 
 ---
 
@@ -1368,62 +959,51 @@ El diseño tiene estos límites conocidos.
 
 | Término | Qué significa en este proyecto |
 |---|---|
-| **ADS** | Sistema autónomo descentralizado. Sus subsistemas operan y se coordinan sin un controlador central |
-| **Campo de Datos** | El medio compartido por el que circulan todos los mensajes. Aquí es la malla de nodos |
-| **Célula** | Unidad autónoma conectada al Campo de Datos, ya sea una GUI o un servidor |
-| **Código de Contenido** | Etiqueta que dice *qué es* un mensaje (`SUM_REQ`), no a quién va |
-| **ACP** | Vocabulario de la Práctica 3. La parte común de comunicación de una célula |
-| **ASM** | Vocabulario de la Práctica 3. La lógica de servicio de una célula |
-| **Broadcast o inundación** | Reenviar un mensaje a todos los enlaces, excepto por el que llegó |
-| **Gossip** | Difundir de vecino en vecino la lista de nodos conocidos hasta que todos conocen a todos |
-| **Semilla** | El nodo que un nodo nuevo conoce al arrancar. Basta uno cualquiera |
-| **TTL** | Cuántos nodos más pueden procesar un mensaje |
-| **Registro temporal de vistos** | Los ids ya procesados, recordados 60 s |
-| **Horizonte dividido** | No devolver un mensaje por el enlace por el que llegó |
-| **Acuse (ACK)** | Aviso inmediato de una célula servidor de que recibió una solicitud |
-| **Quórum** | Mínimo de acuses del intento vigente para aceptar una respuesta |
-| **HRW (rendezvous hashing)** | Elegir entre varios candidatos ordenándolos por un hash que combina candidato y clave |
-| **Titular** | La célula elegida para responder |
-| **Respaldo** | Cada una de las demás células que acusaron, en el orden del ranking |
-| **Relevo** | El respaldo que responde porque la titular no lo hizo |
-| **Ronda** | Un intento de una operación, es decir, el par (`id_operacion`, `intento`) |
-| **Latido** | Mensaje periódico con el que un servidor anuncia que está vivo |
-| **Failover** | Que una célula se pase sola a otro nodo cuando el suyo cae |
-| **Punto único de falla** | Componente cuya caída detiene el sistema. Aquí no hay ninguno |
+| **ADS** | Sistema autónomo descentralizado: sus partes operan y se coordinan sin controlador central |
+| **Campo de Datos** | La malla de nodos por la que circula todo mensaje, por broadcast |
+| **Código de Contenido** | Dice *qué es* un mensaje (`SUM_REQ`), no a quién va |
+| **Célula madre** | Célula servidor genérica, sin aritmética, que adquiere funcionalidad cargando genes |
+| **Gen (microservicio)** | Programa en disco (`servicio.py` + manifiesto) que implementa un código |
+| **Genoma / almacén** | Los genes activos de una madre / su carpeta en disco, por donde pasa todo gen |
+| **HRW** | Rendezvous hashing: ordenar candidatos por un hash de candidato + clave |
+| **Pérdida / clonador / reemplazo** | Madre que dejó de latir sin `CEL_ADIOS` / la que la regenera (rango 0) / la nueva (`M1-N2·r1`) |
+| **Generación / telómeros** | Cuántas regeneraciones lleva una madre; a partir de 3 ya no clona |
+| **Cáncer** | Crecimiento ilimitado de células; lo impiden los ocho límites del §8.5 |
 
-## Anexo B. Constantes del sistema
+## Anexo B. Constantes
 
-Todas están en `comun/config.py`, y los tiempos están en segundos.
+Todas están en `comun/config.py`; los tiempos en segundos. Las heredadas conservan sus valores
+del segundo parcial (`LATIDO` 2, `LATIDO_CADUCIDAD` 6, `VENTANA_ACUSES` 1.5, `VENTANA_ELECCION`
+0.5, `RELEVO` 1.5, `MAX_INTENTOS` 3, `ACUSES_MIN_DEFECTO` 2, `TTL_INICIAL` 8). Las nuevas:
 
 | Constante | Valor | Constante | Valor |
 |---|---|---|---|
-| `TTL_INICIAL` | 8 | `TTL_MAX` | 16 |
-| `VISTOS_VIGENCIA` | 60 | `VISTOS_MAX` | 100 000 |
-| `LATIDO` | 2 | `LATIDO_CADUCIDAD` | 6 |
-| `VENTANA_ACUSES` | 1.5 | `VENTANA_ELECCION` | 0.5 |
-| `RELEVO` | 1.5 | `MARGEN_RESULTADO` | 2 |
-| `MAX_INTENTOS` | 3 | `ACUSES_MIN_DEFECTO` | 2 |
-| `HOLA_TIMEOUT` | 5 | `BIENVENIDA_TIMEOUT` | 3 |
-| `BACKOFF_MIN` / `BACKOFF_MAX` | 1 / 8 | `SUPERVISOR` | 2 |
-| `REINTENTOS_MISMO_NODO` | 2 | `REINTENTO_TIMEOUT` | 0.5 |
-| `MAX_LINEA` | 64 KiB | `COLA_ENLACE_MAX` | 5 000 |
+| `GEN_MAX_BYTES` | 32 KiB | `GEN_ACK_TIMEOUT` / `GEN_RES_TIMEOUT` | 2 / 10 |
+| `PLAZO_PEDIDO` / `REINTENTOS_PEDIDO` | 2 / 3 | `ENTREGA_RETARDO_MAX` | 0.4 |
+| `REVISION_REGENERACION` | 0.5 | `RELEVO_CLON` | 3 |
+| `PLAZO_CLON` | 15 | `MAX_REINTENTOS_CLON` | 2 |
+| `PAUSA_REGENERACION` | 2 | `MAX_MADRES` / `MAX_POR_GEN` | 40 / 8 |
+| `MAX_GENERACION` | 3 | `MAX_CLONES_MINUTO` | 2 |
 
-## Anexo C. Documentación complementaria en el repositorio
+## Anexo C. Cómo correrlo y documentación complementaria
 
-| Archivo | Contenido |
-|---|---|
-| `README.md` | Qué es el proyecto, cómo arrancarlo y dónde está cada cosa |
-| `tests/` | Las 106 pruebas automatizadas (sección 17) |
-| `docs/capturas/` | Las capturas de las figuras de este reporte |
-| `logs/` | Las bitácoras de cada proceso. Se generan al correr el sistema y no se versionan |
+```
+uv sync                                          # una vez
+uv run python -m panel                           # panel de la demostración
+uv run python -m unittest discover -s tests -t . # pruebas
+uv run python -m herramientas.firmar --verificar # integridad del banco de genes
+```
+
+En el repositorio, `README.md` explica cómo arrancar cada programa; `GUION_VIDEO.md` es el guion
+del video; `docs/REQUISITOS.md` lista cada requisito con su evidencia; `docs/PLAN.md` tiene el
+diseño completo; `docs/capturas/` guarda las figuras y la bitácora completa de la verificación en
+vivo; y `docs/parcial2/` lo entregado en el segundo parcial.
 
 ---
 
 # REFERENCIAS
 
-Fuentes consultadas, en formato APA (7.ª edición).
-
-**Libros y artículos**
+**Libros y artículos** (formato APA, 7.ª edición)
 
 Coulouris, G., Dollimore, J., Kindberg, T., & Blair, G. (2011). *Distributed systems: Concepts and
 design* (5.ª ed.). Addison-Wesley.
@@ -1431,6 +1011,9 @@ design* (5.ª ed.). Addison-Wesley.
 Demers, A., Greene, D., Hauser, C., Irish, W., Larson, J., Shenker, S., Sturgis, H., Swinehart, D.,
 & Terry, D. (1987). Epidemic algorithms for replicated database maintenance. En *Proceedings of the
 Sixth Annual ACM Symposium on Principles of Distributed Computing* (pp. 1-12). ACM.
+
+Hayflick, L. (1965). The limited in vitro lifetime of human diploid cell strains. *Experimental
+Cell Research, 37*(3), 614-636.
 
 Mori, K. (1993). Autonomous decentralized systems: Concept, data field architecture and future
 trends. En *Proceedings ISADS 93: International Symposium on Autonomous Decentralized Systems*.
@@ -1455,14 +1038,14 @@ National Institute of Standards and Technology. (2015). *Secure Hash Standard (S
 
 **Documentación técnica**
 
-Python Software Foundation. (2025a). *hashlib: Secure hashes and message digests*. En *The Python
-standard library* (versión 3.14). https://docs.python.org/3/library/hashlib.html
+Python Software Foundation. (2025a). *importlib: The implementation of import*. En *The Python
+standard library* (versión 3.14). https://docs.python.org/3/library/importlib.html
 
-Python Software Foundation. (2025b). *threading: Thread-based parallelism*. En *The Python standard
-library* (versión 3.14). https://docs.python.org/3/library/threading.html
+Python Software Foundation. (2025b). *sqlite3: DB-API 2.0 interface for SQLite databases*. En *The
+Python standard library* (versión 3.14). https://docs.python.org/3/library/sqlite3.html
 
-Python Software Foundation. (2025c). *tkinter: Python interface to Tcl/Tk*. En *The Python standard
-library* (versión 3.14). https://docs.python.org/3/library/tkinter.html
+Python Software Foundation. (2025c). *tkinter: Python interface to Tcl/Tk*. En *The Python
+standard library* (versión 3.14). https://docs.python.org/3/library/tkinter.html
 
-Python Software Foundation. (2025d). *socket: Low-level networking interface*. En *The Python
-standard library* (versión 3.14). https://docs.python.org/3/library/socket.html
+Python Software Foundation. (2025d). *weakref: Weak references*. En *The Python standard library*
+(versión 3.14). https://docs.python.org/3/library/weakref.html

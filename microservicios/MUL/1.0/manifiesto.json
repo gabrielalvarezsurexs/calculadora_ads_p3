@@ -1,0 +1,26 @@
+{
+  "codigo": "MUL",
+  "version": "1.0",
+  "nombre": "Multiplicación",
+  "archivo": "servicio.py",
+  "sha256": "6942cb8603074150e18c6dbbaa7d650bb4b4c771e24388bff5a0670fa2c6a4ab",
+  "interfaz": 1,
+  "pruebas": [
+    [
+      6,
+      7,
+      42
+    ],
+    [
+      -2,
+      3,
+      -6
+    ],
+    [
+      0.5,
+      4,
+      2
+    ]
+  ],
+  "descripcion": "Multiplicación en punto flotante."
+}
