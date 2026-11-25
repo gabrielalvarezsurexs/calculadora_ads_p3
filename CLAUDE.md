@@ -67,7 +67,9 @@ compensa; revisar con Word, notas del `ROADMAP.md`), `README.md`, `ENTREGA.md`. 
 `GUION_VIDEO.md` (11 escenas; si cambia una etiqueta de ventana, actualizar el guion) y
 Auditoría final hecha (registro del `ROADMAP.md`): el clonador cancela a su hijo vencido (`cancelar=` en `Madre`/`Regeneracion`; `lanzar_proceso` devuelve el registro); un enlace duplicado se cierra con `drenar=True` (sigue
 leyendo hasta el fin de datos del par). Sin minutos (mensaje 19): la columna "Escena" del §2 del reporte remite a las escenas del guion;
-si se reordenan escenas, actualizarla. En pruebas,
+si se reordenan escenas, actualizarla. **Reporte entregado (mensaje 21):**
+`Reporte_Tecnico_Calculadora_ADS.pdf`, editado por el usuario (29 páginas, resumido). El `.md` y el
+`.docx` son la versión extendida: no regenerar ni sobrescribir el PDF desde el `.md`. En pruebas,
 `Sistema(regenerar=True)` para que las madres clonen (en proceso).
 Para humo con procesos reales, redirigir su stdout a archivo (un pipe sin leer los bloquea).
 Capturas de ventanas Tk: **nunca asomarlas** (el usuario las minimiza); al fondo + `PrintWindow`

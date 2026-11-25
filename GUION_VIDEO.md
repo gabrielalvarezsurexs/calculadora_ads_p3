@@ -388,5 +388,6 @@ Remove-Item run\*.json -ErrorAction SilentlyContinue
 - [ ] No se ve información personal, contraseñas ni ventanas ajenas.
 - [ ] El video está subido con acceso para cualquiera con el enlace (YouTube como *no listado*, o
   Drive), y la liga abre en una ventana de incógnito.
-- [ ] La liga del video ya está en la portada del reporte (`<LIGA AL VIDEO>`) y el `.docx` se
-  regeneró (sigue en 30 páginas o menos).
+- [ ] La liga del video ya está en la portada del reporte (donde dice "AGREGAR LIGA DEL VIDEO"),
+  volviste a exportar el PDF y con él reemplazaste `Reporte_Tecnico_Calculadora_ADS.pdf` en el
+  repo (mismo nombre).

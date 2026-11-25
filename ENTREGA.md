@@ -7,38 +7,31 @@ hacer a mano.
 
 | Entregable | Estado | Dónde / qué falta |
 |---|---|---|
-| **Reporte técnico** | Escrito (30 páginas en Word) | [REPORTE_TECNICO.md](REPORTE_TECNICO.md) y `Reporte_Tecnico_Calculadora_ADS.docx`. Falta llenar la portada y regenerar el `.docx` |
+| **Reporte técnico** | **Final** (PDF, 29 páginas) | [Reporte_Tecnico_Calculadora_ADS.pdf](Reporte_Tecnico_Calculadora_ADS.pdf). Solo falta la liga del video en la portada. `REPORTE_TECNICO.md` y el `.docx` son la versión extendida de trabajo |
 | **Video con audio** | Guion listo, **falta grabar** | [GUION_VIDEO.md](GUION_VIDEO.md): 11 escenas, ~12 min (los ocho escenarios + arranque + "sin unidad central") |
 | **Liga al código fuente** | Publicado en GitHub (`calculadora_ads_p3`) | Falta subir lo último: commit + push, y la etiqueta `parcial-2` |
 
 ## Lo que falta que hagas tú
 
-1. **Llenar la portada del reporte.** [REPORTE_TECNICO.md](REPORTE_TECNICO.md) tiene 5
-   marcadores: `<NOMBRE COMPLETO>`, `<MATRÍCULA>`, `<GRUPO>`, `<LIGA AL REPOSITORIO>` y
-   `<LIGA AL VIDEO>`.
-2. **Subir lo último al repositorio.** El repo ya está en GitHub, pero la auditoría y los
-   arreglos finales aún no están en commits: pídeme el commit cuando quieras, o hazlo tú, y haz
-   push. Sube también la etiqueta del punto de partida (`git push origin parcial-2`), que el §16
-   del reporte menciona. El `.gitignore` ya excluye `logs/`, `datos/`, `run/`, `__pycache__/` y
-   `.venv/`.
-3. **Grabar el video** siguiendo [GUION_VIDEO.md](GUION_VIDEO.md). Antes, haz su sección "Antes de
+1. **Subir la etiqueta del punto de partida** (`git push origin parcial-2`): la sección 16 del
+   reporte la menciona y aún no está en GitHub. Haz también commit + push del PDF final.
+2. **Grabar el video** siguiendo [GUION_VIDEO.md](GUION_VIDEO.md). Antes, haz su sección "Antes de
    grabar" (procesos, bitácoras, pruebas y checklist). **Prueba el micrófono**: el enunciado pide
    video *con audio*. Graba la pantalla completa (OBS o Recortes).
    Graba las escenas en el orden del guion: la columna "Escena" de la matriz del reporte (§2)
    remite a ellas.
-4. **Subir el video** con acceso "cualquiera con el enlace" y comprobar la liga en incógnito.
-5. **Regenerar el `.docx`** cuando ya no le muevas al reporte:
-   `uv run python docs/md_a_docx.py`. Ábrelo en Word y revisa portada, matriz y que siga en
-   30 páginas o menos.
-6. **Entregar las tres ligas**: reporte, video y repositorio.
+3. **Subir el video** con acceso "cualquiera con el enlace" y comprobar la liga en incógnito.
+4. **Poner la liga en la portada** (donde dice "AGREGAR LIGA DEL VIDEO"), volver a exportar el
+   PDF y reemplazar `Reporte_Tecnico_Calculadora_ADS.pdf` en el repo con el mismo nombre.
+   **No** regeneres el `.docx` encima: el PDF es tu versión editada y el `.md` es más largo.
+5. **Entregar las tres ligas**: reporte, video y repositorio.
 
 ## Checklist final
 
-- [ ] La portada del reporte no tiene ningún `<…>` pendiente.
-- [ ] `Reporte_Tecnico_Calculadora_ADS.docx` se regeneró después de lo anterior y tiene ≤ 30 páginas.
+- [ ] La portada del PDF ya tiene la liga del video.
 - [ ] El video se escucha de principio a fin y su liga abre en incógnito.
 - [ ] El repositorio en GitHub es visible para el profesor y tiene el último commit, con el
-      `.docx`, `microservicios/` y las capturas.
+      PDF final, `microservicios/` y las capturas, y la etiqueta `parcial-2`.
 - [ ] (Opcional) En el repo publicado, `uv run python -m unittest discover -s tests -t .` sigue
       en verde.
 
@@ -50,7 +43,7 @@ de verificación con su evidencia, en [docs/REQUISITOS.md](docs/REQUISITOS.md).
 | § | Requisito | Estado |
 |---|---|---|
 | 1 | Cualquier lenguaje | Python 3.14 con librería estándar y uv (se renuncia a los puntos de Java) |
-| 2 | Reporte, video con audio y liga al código | Reporte escrito y guion listo; video y liga los haces tú |
+| 2 | Reporte, video con audio y liga al código | Reporte final (PDF) y repo en GitHub; falta grabar el video |
 | 3 | Originalidad | Código propio; la base es el segundo parcial del mismo autor (§16 del reporte) |
 | 4 | Base del segundo parcial (B1–B12) | Cumple; nodo y célula base heredados, `servidor/` sustituido por `madre/` |
 | 5.1 | Foliado (F1–F8) | Cumple: folio, huella (sello + rastro), ACK, mínimo de ACK, evento de 4 fases con `X_FIN` |

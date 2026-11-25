@@ -1,9 +1,11 @@
 # Resumen técnico del proyecto Calculadora ADS (Tercer Parcial)
 
 Documento de referencia con todo lo técnico del proyecto en un solo lugar, **sacado del código**
-(no del reporte), para auditar `REPORTE_TECNICO.md` por tu cuenta o preparar la exposición. Cada
-dato dice en qué archivo y función se puede comprobar. El reporte sigue siendo la versión oficial,
-con las bitácoras reales y las figuras.
+(no del reporte), para auditar el reporte por tu cuenta o preparar la exposición. Cada dato dice
+en qué archivo y función se puede comprobar. La versión oficial del reporte es
+`Reporte_Tecnico_Calculadora_ADS.pdf` (29 páginas, editada por ti); `REPORTE_TECNICO.md` es la
+versión extendida, con algunas bitácoras y tablas que el PDF resume. Las secciones se numeran igual
+en los dos; en el PDF, las constantes son el Anexo A.
 
 La sección 27 es una guía para la auditoría: qué revisar del reporte, contra qué y lo que ya se
 corrigió.
@@ -749,7 +751,7 @@ detectar particiones antes de regenerar.
 | `PAUSA_REGENERACION` | 2 | Gradual |
 | `MAX_MADRES` / `MAX_POR_GEN` / `MAX_GENERACION` / `MAX_CLONES_MINUTO` | 40 / 8 / 3 / 2 | Anti-cáncer |
 
-El Anexo B del reporte lista las heredadas y las nuevas principales; `DRENAJE`, `GEN_LIBERACION`,
+El anexo de constantes del reporte (A en el PDF, B en el `.md`) lista las heredadas y las nuevas principales; `DRENAJE`, `GEN_LIBERACION`,
 `GEN_VIGILANCIA`, `CAIDA_VISIBLE`, `ESPERA_REEMPLAZO` y las de conexión no están ahí (no son
 necesarias para entender el diseño).
 
@@ -788,7 +790,7 @@ uv run python -m gestor --nodo 127.0.0.1:5001 --nombre G-N1
 | De la caída al nivel recuperado | ~8 s: 6 de detección, 2 de turno, 0.3 de copia | §8.6 |
 | Verificación en vivo | 30/30; 0 `ERROR`, 0 `Traceback`, 0 duplicadas; 10 avisos = 10 reemplazos | §12 |
 | Pruebas | 217 ×3 (190.4, 192.7, 193.8 s) | §11 |
-| Reporte | 30 páginas en Word | `ENTREGA.md` |
+| Reporte | 29 páginas (PDF entregado) | `Reporte_Tecnico_Calculadora_ADS.pdf` |
 | Video | 11 escenas, ~12 min | `GUION_VIDEO.md` |
 
 ---
@@ -810,7 +812,7 @@ uv run python -m gestor --nodo 127.0.0.1:5001 --nombre G-N1
 | §11 Pruebas | §19.1 | `tests/` (contar `def test_` por archivo) |
 | §13 Bugs | §19.3, §19.4 | `ROADMAP.md` (registro) |
 | §14.2 Limitaciones | §23 | — |
-| Anexo B | §24 | `comun/config.py` |
+| Anexo A (PDF) / B (`.md`) | §24 | `comun/config.py` |
 
 Preguntas útiles al leer cada sección: ¿el número coincide con `config.py`? ¿El nombre de la
 función existe? ¿El orden de los pasos es el del código? ¿La bitácora citada usa etiquetas que el
@@ -830,8 +832,7 @@ extensión:
 
 ### 27.3 Lo que queda a tu criterio
 
-- La portada tiene 5 marcadores (`<NOMBRE COMPLETO>`, `<MATRÍCULA>`, `<GRUPO>`, `<LIGA AL
-  REPOSITORIO>`, `<LIGA AL VIDEO>`).
+- En la portada del PDF solo falta la liga del video.
 - La matriz (§2) ya no lleva minutos: su columna "Escena" remite a las escenas de
   `GUION_VIDEO.md`. Conviene revisar que cada requisito se vea de verdad en esa escena.
 - §1.4 y §12 dicen que las bitácoras y figuras son de la corrida del 17 de noviembre, anterior a
@@ -840,4 +841,4 @@ extensión:
 - §16 menciona la etiqueta `parcial-2`: existe en tu repositorio local, pero aún no está en
   GitHub (`git push origin parcial-2`).
 - El límite 8 de §23 (ventana de microsegundos del enlace duplicado) no está en el reporte; es
-  muy menor y agregarlo podría pasar de 30 páginas.
+  muy menor.

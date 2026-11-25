@@ -16,7 +16,8 @@ sin servidor central), con cuatro cosas nuevas:
 
 | Entregable | Dónde |
 |---|---|
-| Reporte técnico (30 páginas) | [REPORTE_TECNICO.md](REPORTE_TECNICO.md) → `Reporte_Tecnico_Calculadora_ADS.docx` (`uv run python docs/md_a_docx.py`) |
+| Reporte técnico (29 páginas, versión entregada) | [Reporte_Tecnico_Calculadora_ADS.pdf](Reporte_Tecnico_Calculadora_ADS.pdf) |
+| Reporte técnico, versión extendida de trabajo | [REPORTE_TECNICO.md](REPORTE_TECNICO.md) → `.docx` (`uv run python docs/md_a_docx.py`) |
 | Guion del video (11 escenas, ~12 min) | [GUION_VIDEO.md](GUION_VIDEO.md) (la matriz del reporte remite a sus escenas) |
 | Hoja de control de la entrega | [ENTREGA.md](ENTREGA.md) |
 | Resumen técnico (para auditar el reporte o preparar la exposición) | [RESUMEN_PROYECTO.md](RESUMEN_PROYECTO.md) |

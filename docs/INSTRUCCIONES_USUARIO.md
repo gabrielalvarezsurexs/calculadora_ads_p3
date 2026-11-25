@@ -233,6 +233,44 @@ nuevas (217 en verde).
 `docs/llenar_minutos.py`; la columna "Video" de la matriz del reporte ahora da la **escena** del
 video en que se demuestra cada requisito (no hay nada que cronometrar).
 
+## Mensaje 20 — 2026-11-25
+
+> Lo de minutos no lo piden las intrucciones vdd?
+
+**Cómo quedó:** confirmado: el enunciado solo pide un video con audio que demuestre los escenarios
+(§2 E2 y §10); los minutos eran una convención propia heredada del segundo parcial.
+
+## Mensaje 21 — 2026-11-25 (con el PDF final del reporte adjunto)
+
+> A ver, así quedó el reporte al final (solo falta lo del video); checa si tienes que ajustarle
+> algo al guion, y agrega este al repo, este es el bueno bueno (checa que no haya eliminado algo
+> por accidente innecesariamente pero si busque resumirlo)
+
+**Cómo quedó:** el PDF editado por el usuario (29 páginas) quedó en la raíz como
+`Reporte_Tecnico_Calculadora_ADS.pdf`, y es **la versión que se entrega**. `REPORTE_TECNICO.md` y el
+`.docx` quedan como la versión extendida de trabajo. Se cotejó el PDF contra el `.md`: no falta
+ningún requisito de la matriz, ni D1–D14, ni escenarios; los recortes fueron de detalle. El guion
+no cambia salvo su checklist final (la liga va en la portada del PDF). ENTREGA, README, RESUMEN,
+CLAUDE y ROADMAP apuntan al PDF.
+
+## Mensaje 22 — 2026-11-25
+
+> bueno esque esto es aprcial 3 ya ni aprical 2
+
+**Cómo quedó:** se aclaró que la etiqueta `parcial-2` no entrega nada del segundo parcial: marca
+el commit `cc7bdce` (17-oct), el último del segundo parcial dentro de este mismo repo, para que se
+vea qué es heredado y qué es nuevo (§16 del reporte). Subirla es opcional; si no se sube, conviene
+quitar esa frase del §16.
+
+## Mensaje 23 — 2026-11-25 (con el PDF corregido adjunto)
+
+> Aqui esta corregido el repotre, deja este como el bueno
+
+**Cómo quedó:** el PDF corregido reemplazó a `Reporte_Tecnico_Calculadora_ADS.pdf` (sigue en 29
+páginas). Trae `r x RELEVO` y `r x RELEVO_CLON` en los tres lugares, las celdas ya sin palabras
+partidas, "puntos suspensivos" en el §1.4, la fila "Cae un nodo" de vuelta en el §9 y fecha de
+entrega 25/11/2026. Solo falta la liga del video.
+
 ---
 
 ## Respuestas a las preguntas del primer borrador
