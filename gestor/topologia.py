@@ -170,6 +170,7 @@ class Topologia:
             c.en_cola, c.atendidas = _entero(cuerpo.get("en_cola")), _entero(
                 cuerpo.get("atendidas"))
             c.visto, c.estado, c.caido_en = ahora, VIVA, None
+            c.reemplazada_en = None   # late: ya no es una pérdida (si alguna vez lo fue)
             self._celulas[origen] = c
             if nodo and nodo not in self._nodos:
                 # Aún no llega su NODO_LAT: se dibuja ya con lo que dice la célula.
@@ -178,11 +179,16 @@ class Topologia:
             nacio = None
             if c.reemplaza:
                 perdida = self._celulas.get(c.reemplaza)
-                if perdida is not None and perdida.reemplazada_en is None:
+                if (perdida is not None and perdida.estado == CAIDA
+                        and perdida.reemplazada_en is None):
                     perdida.reemplazada_en = ahora
                 estaba_naciendo = self._naciendo.pop(c.reemplaza, None) is not None
                 if nueva and (estaba_naciendo or perdida is not None):
                     nacio = replace(c, genes=list(c.genes))
+                elif nueva:
+                    # Un reemplazo viejo que este gestor ve por primera vez (lo abrieron
+                    # después): no es "recién nacido".
+                    c.desde = ahora - 3600.0
             self._version += 1
             return nacio
 
@@ -212,6 +218,26 @@ class Topologia:
             c.estado, c.caido_en = CAIDA, self._reloj()
             self._version += 1
             return replace(c, genes=list(c.genes))
+
+    def tregua(self) -> None:
+        """Tras un hueco sin enlace: plazo completo desde ahora para todo lo vivo."""
+        with self._lock:
+            ahora = self._reloj()
+            for x in (*self._nodos.values(), *self._celulas.values()):
+                if x.estado == VIVA:
+                    x.visto = max(x.visto, ahora)
+
+    def olvidar(self, h: str) -> None:
+        """Se quita de inmediato (un reemplazo que murió antes de estar listo): su
+        pérdida vuelve a esperar reemplazo, porque las madres la reintentan."""
+        with self._lock:
+            c = self._celulas.pop(h, None)
+            if c is None:
+                return
+            perdida = self._celulas.get(c.reemplaza) if c.reemplaza else None
+            if perdida is not None:
+                perdida.reemplazada_en = None
+            self._version += 1
 
     def pendientes(self) -> list[CelulaVista]:
         """Madres caídas sin reemplazo todavía + reemplazos naciendo (para "nivel ok")."""

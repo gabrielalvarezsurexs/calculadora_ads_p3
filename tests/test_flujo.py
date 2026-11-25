@@ -701,7 +701,14 @@ class TestReglasInterfaz(unittest.TestCase):
         self.assertTrue(op.finalizado, "sin ausentes posibles, el FIN sale con la respuesta")
         self.assertEqual(self.registro.contar("AUSENTES"), 0)
 
+    def conectada(self):
+        parche = mock.patch.object(Interfaz, "conectado", new_callable=mock.PropertyMock,
+                                   return_value=True)
+        parche.start()
+        self.addCleanup(parche.stop)
+
     def test_sin_minimo_al_cerrar_la_ventana_reintenta(self):
+        self.conectada()
         for quien in "ABC":
             self.latido(quien, "SUM")
         op = self.en_vuelo()
@@ -711,6 +718,42 @@ class TestReglasInterfaz(unittest.TestCase):
         self.assertEqual(self.registro.contar("AUSENTES", "sin el mínimo"), 1)
         self.assertEqual(self.registro.contar("REINTENTO", op.folio), 1)
         self.assertFalse(op.ventana_cerrada, "el intento nuevo abre su propia ventana")
+
+    def test_sin_enlace_no_se_gastan_intentos(self):
+        op = self.en_vuelo()
+        self.gui.al_desconectar("prueba")           # se cayó el nodo: failover en curso
+        for _ in range(config.MAX_INTENTOS + 1):
+            self.cerrar_ventana(op)
+        self.assertEqual((op.intento, op.estado), (1, EN_VUELO), "no se perdió ningún intento")
+        self.conectada()
+        with mock.patch.object(self.gui, "publicar", return_value={"id": "x" * 64}):
+            self.gui.al_conectar({"nombre": "Nodo 2", "endpoint": "127.0.0.1:2"}, "failover")
+            self.gui._revisar()
+        self.assertEqual(op.intento, 2, "al reconectar se reintenta ya, por el nodo nuevo")
+
+    def test_fin_que_no_salio_se_publica_al_reconectar(self):
+        op = self.en_vuelo()
+        for _ in range(config.MAX_INTENTOS):
+            self.vencer(op)                         # sin red: FALLIDA y su X_FIN no sale
+        self.assertEqual(op.estado, FALLIDA)
+        with mock.patch.object(self.gui, "publicar", return_value={"id": "x" * 64}) as publicar:
+            self.gui.al_conectar({"nombre": "Nodo 1", "endpoint": "127.0.0.1:1"}, "reconexion")
+        codigos_publicados = [c.args[0] for c in publicar.call_args_list]
+        self.assertEqual(codigos_publicados, ["SUM_FIN"], "las madres sí cierran sus rondas")
+
+    def test_res_retenido_de_otro_intento_no_se_usa(self):
+        op = self.en_vuelo()
+        self.ack("A", op, 1)
+        self.res("A", op, 1, 3)                     # retenida: el intento 1 no llegó al mínimo
+        self.vencer(op)                             # intento 2
+        self.assertIsNone(op.retenido)
+        self.res("B", op, 1, 3)                     # otra del intento viejo: no se retiene
+        self.assertIsNone(op.retenido)
+        self.ack("A", op, 2)
+        self.ack("C", op, 2)
+        self.assertEqual(op.estado, EN_VUELO, "espera la respuesta del intento vigente")
+        self.res("C", op, 2, 3)
+        self.assertEqual((op.estado, op.respondio), (RESUELTA, "SUM-C"))
 
     def latido(self, quien: str, *genes: str) -> None:
         cuerpo = {"tipo": mensajes.MADRE, "nodo_nombre": "Nodo 1",

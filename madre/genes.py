@@ -121,7 +121,7 @@ def cargar(carpeta: Path, informar: Informar | None = None) -> Gen:
     try:
         codigo_objeto = compile(paquete.fuente, str(archivo), "exec")
         exec(codigo_objeto, modulo.__dict__)  # noqa: S102 — es justo lo que hace exec_module
-    except Exception as e:
+    except (Exception, SystemExit) as e:   # un sys.exit() del gen no tumba el hilo
         raise GenRechazado(CARGAR, f"el programa falló al importarse: {e!r}"[:200]) from None
     finally:
         sys.modules.pop(nombre_modulo, None)  # por si el propio gen se registró
@@ -184,12 +184,12 @@ def ejecutar(gen: Gen, a, b) -> tuple[float | None, str | None]:
         return None, error
     try:
         resultado, error = gen.modulo.calcular(x, y)
+        if error is not None:
+            return None, str(error)[:120]
     except OverflowError:
         return None, "resultado fuera de rango"
-    except Exception as e:
+    except (Exception, SystemExit) as e:   # un sys.exit() del gen no tumba el hilo
         return None, f"el gen {gen.id} falló: {type(e).__name__}"
-    if error is not None:
-        return None, str(error)[:120]
     if isinstance(resultado, bool) or not isinstance(resultado, (int, float)):
         return None, f"el gen {gen.id} no devolvió un número"
     try:

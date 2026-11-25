@@ -49,6 +49,7 @@ REINTENTO_TIMEOUT = 0.5
 # --- Transporte -------------------------------------------------------------
 MAX_LINEA = 64 * 1024     # una línea NDJSON más larga se descarta
 COLA_ENLACE_MAX = 5_000   # mensajes pendientes por enlace antes de darlo por LENTO
+DRENAJE = 2.0             # enlace duplicado que se cierra: lo que se sigue leyendo de él
 
 # --- Célula madre: rondas ---------------------------------------------------
 RONDAS_VIGENCIA = 120.0   # rondas más viejas que esto se purgan
@@ -56,6 +57,9 @@ RONDAS_VIGENCIA = 120.0   # rondas más viejas que esto se purgan
 # --- Genes (microservicios cargables) ----------------------------------------
 GEN_MAX_BYTES = 32 * 1024     # tope de un servicio.py: viaja dentro de una línea NDJSON
 GEN_LIBERACION = (0.2, 1.0, 3.0)  # cuándo se revisa (s) que un gen descargado se liberó
+# Si una ronda en curso aún lo retiene, se sigue revisando cada GEN_LIBERACION[-1] s hasta
+# este total: para entonces la ronda ya terminó o se purgó (RONDAS_VIGENCIA).
+GEN_VIGILANCIA = RONDAS_VIGENCIA + 10.0
 GEN_ACK_TIMEOUT = 2.0         # gestor: sin GEN_ACK en este tiempo, "sin respuesta"
 GEN_RES_TIMEOUT = 10.0        # gestor: con GEN_ACK pero sin GEN_RES en este tiempo, "sin resultado"
 PLAZO_PEDIDO = 2.0            # GEN_PIDE: espera de una GEN_ENTREGA

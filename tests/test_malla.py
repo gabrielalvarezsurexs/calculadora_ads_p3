@@ -2,11 +2,13 @@
 semilla cualquiera, sin enlaces duplicados, y se repara cuando cae un nodo."""
 
 import socket
+import threading
 import time
 import unittest
+from unittest import mock
 
-from comun import mensajes
-from comun.protocolo import enviar, leer_mensajes
+from comun import hashes, mensajes
+from comun.protocolo import Enlace, enviar, leer_mensajes
 from nodo.nucleo import Nodo
 from tests.apoyo import Receptor, Registro, Sistema, acortar, esperar, puertos_libres
 
@@ -152,6 +154,61 @@ class TestMalla(unittest.TestCase):
             enviar(s, {**mensajes.hola(mensajes.SONDA, "a" * 64, "x"), "entidad": "IMPOSTOR"})
             m, _ = next(leer_mensajes(s))
         self.assertEqual((m["ctrl"], m["motivo"]), (mensajes.RECHAZO, mensajes.INVALIDO))
+
+    def test_nodo_detenido_mientras_marca_no_deja_enlace_abierto(self):
+        """Si detener() llega mientras un marcador hace connect(), ese enlace no
+        sobrevive: el par ve el cierre, sin HOLA."""
+        servidor = socket.create_server(("127.0.0.1", 0))
+        servidor.settimeout(5)
+        self.addCleanup(servidor.close)
+        reg = Registro("Solo")
+        n = Nodo(0, "Solo", semillas=[f"127.0.0.1:{servidor.getsockname()[1]}"],
+                 bitacora=reg.bitacora)
+        self.sis.nodos.append(n)
+        real = socket.create_connection
+
+        def conectar_y_detener(*args, **kwargs):
+            s = real(*args, **kwargs)
+            n.detener()   # se detiene justo cuando el connect() ya salió
+            return s
+
+        with mock.patch.object(socket, "create_connection", side_effect=conectar_y_detener):
+            n.iniciar()
+            par, _ = servidor.accept()
+            with par:
+                par.settimeout(3)
+                self.assertEqual(par.recv(4096), b"", "el enlace se cierra sin mandar HOLA")
+        self.assertEqual(n._enlaces, set())
+
+    def test_bienvenida_que_llega_tras_rendirse_no_cuenta_como_vecino_ni_caida(self):
+        """El marcador venció justo antes de que llegara la BIENVENIDA: ni el nodo
+        ni la célula la toman, y el cierre no se registra como DESCONEXION."""
+        otro = hashes.de_entidad(mensajes.NODO, "Otro")
+        bienvenida = mensajes.bienvenida(otro, "Otro", [])
+        reg = Registro("Solo")
+        n = Nodo(0, "Solo", bitacora=reg.bitacora)
+        self.sis.nodos.append(n)
+        n.iniciar()
+        uno, dos = socket.socketpair()
+        self.addCleanup(dos.close)
+        enlace = n._nuevo_enlace(uno, saliente=True, ep="127.0.0.1:9")
+        enlace.vencido = True
+        n._al_mensaje(enlace, bienvenida)
+        enlace.cerrar("sin BIENVENIDA")
+        n._al_cerrar(enlace, "sin BIENVENIDA")
+        self.assertEqual(n.vecinos, {})
+        self.assertEqual((reg.contar("CONEXION"), reg.contar("DESCONEXION")), (0, 0))
+
+        celula = Receptor("REC", "127.0.0.1:9")   # sin iniciar: solo su lado del enlace
+        tres, cuatro = socket.socketpair()
+        self.addCleanup(cuatro.close)
+        enlace = Enlace(tres, saliente=True, endpoint="127.0.0.1:9",
+                        al_mensaje=celula._al_mensaje, al_cerrar=celula._al_cerrar)
+        enlace.respuesta, enlace.rechazo, enlace.vencido = threading.Event(), None, True
+        celula._al_mensaje(enlace, bienvenida)
+        self.assertIsNone(celula._enlace, "no se toma como el enlace actual")
+        self.assertFalse(enlace.presentado)
+        enlace.cerrar("sin BIENVENIDA")
 
 
 if __name__ == "__main__":

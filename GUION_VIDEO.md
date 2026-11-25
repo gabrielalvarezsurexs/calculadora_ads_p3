@@ -46,7 +46,7 @@ Move-Item logs\*.log logs\anteriores\ -ErrorAction SilentlyContinue
 uv run python -m unittest discover -s tests -t .
 ```
 
-Cuando terminen las pruebas (`Ran 201 tests` y `OK`), abre **otra** terminal en la misma carpeta;
+Cuando terminen las pruebas (`Ran 217 tests` y `OK`), abre **otra** terminal en la misma carpeta;
 esa es la de la demo.
 
 Checklist:
@@ -337,14 +337,14 @@ cubre lo que pide el enunciado.
      Select-Object @{n='respuestas por folio';e={$_.Name}}, @{n='folios';e={$_.Count}}
    ```
 
-7. Trae al frente la terminal de las pruebas: `Ran 201 tests in …s` y `OK`.
+7. Trae al frente la terminal de las pruebas: `Ran 217 tests in …s` y `OK`.
 
 **Di esto.**
 
 > Por último, nada central. Cierro el gestor, tumbo una madre de división y cierro el panel sin
 > detener nada. Solo quedan nodos, madres y GUIs, y aun así la pérdida se regenera sola: la
 > división volvió a cinco. Nueve menos cuatro, cinco; ocho entre dos, cuatro. Este conteo, de las
-> bitácoras de todas las madres, dice que cada folio recibió exactamente una respuesta. Y las 201
+> bitácoras de todas las madres, dice que cada folio recibió exactamente una respuesta. Y las 217
 > pruebas automatizadas están en verde. En resumen: genes que se cargan y copian en caliente,
 > folio y huella en cada operación, un sistema que se cura solo sin crecer de más, y ninguna pieza
 > indispensable. Gracias.
@@ -381,97 +381,9 @@ Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
 Remove-Item run\*.json -ErrorAction SilentlyContinue
 ```
 
-### Minutos
-
-Mira el video completo y anota en "Minutos por escena" el minuto en que empieza cada escena. Si una
-evidencia aparece bastante después del inicio de su escena, escribe su minuto en la columna
-"Minuto" de "Matriz del reporte"; si no, déjala vacía y se usa el de la escena.
-
-Después corre:
-
-```powershell
-uv run python docs/llenar_minutos.py --revisar   # muestra qué minuto va en cada fila, sin escribir
-uv run python docs/llenar_minutos.py             # lo escribe en la columna "Video" del §2 del reporte
-uv run python docs/md_a_docx.py                  # regenera el .docx
-```
-
-El script revisa que las filas de "Matriz del reporte" coincidan con las de la matriz del reporte
-(mismo ID y mismo requisito, en el mismo orden) y no escribe nada si falta un minuto. Lo puedes
-volver a correr si corriges alguno.
-
-#### Minutos por escena
-
-| Escena | Título | Minuto |
-|---|---|---|
-| 1 | Qué cambió y con qué está hecho | `<mm:ss>` |
-| 2 | Arranque: nodos, madres vacías y el gestor | `<mm:ss>` |
-| 3 | Una operación con folio, de punta a punta | `<mm:ss>` |
-| 4 | Solicitudes simultáneas | `<mm:ss>` |
-| 5 | Mínimo de ACK y una célula que no acusa | `<mm:ss>` |
-| 6 | Carga dinámica | `<mm:ss>` |
-| 7 | Baja y cambio de versión | `<mm:ss>` |
-| 8 | Falla y autorrecuperación | `<mm:ss>` |
-| 9 | Prevención del cáncer | `<mm:ss>` |
-| 10 | Cambio de topología | `<mm:ss>` |
-| 11 | Sin unidad central y cierre | `<mm:ss>` |
-
-#### Matriz del reporte
-
-Son las filas de la matriz de trazabilidad (§2 del reporte) que se demuestran en el video, en el
-mismo orden.
-
-| ID | Requisito | Escena | Minuto |
-|---|---|---|---|
-| B1 | Suma, resta, multiplicación y división | 4 | |
-| B2 | Tres programas base | 2 | |
-| B3 | 4 nodos en malla completa | 2 | |
-| B4 | Cuatro GUIs | 2 | |
-| B5 | Cuatro células por operación | 2 | |
-| B6 | Por nodo: una GUI y una célula de cada operación | 2 | |
-| B7 | Conexión entre nodos | 2 | |
-| B8 | Conexión entre células y nodos | 2 | |
-| B9 | Comunicación por Código de Contenido | 3 | |
-| B10 | Broadcast sin ciclado | 3 | |
-| B11 | Sin límite de nodos ni de células | 10 | |
-| B12 | Sin unidad central ni nodo maestro | 11 | |
-| F1 | Folio que correlaciona eventos, ACK y respuestas | 3 | |
-| F2 | La GUI reconoce sus respuestas | 3 | |
-| F3 | Folio + Código de Contenido para atender o ignorar | 3 | |
-| F4 | Huella (origen y trayectoria lógica) | 3 | |
-| F5 | ACK de recepción y participación | 3 | |
-| F6 | Mínimo de ACK | 5 | |
-| F7 | Tolerancia si no responden todas | 5 | |
-| F8 | Evento: inicio, confirmación, procesamiento y finalización | 3 | |
-| M1 | Microservicios en disco | 6 | |
-| M2 | Carga en memoria durante la ejecución | 6 | |
-| M3 | Programa base sin la lógica de las operaciones | 6 | |
-| M4 | Los genes cambian en operación mediante el gestor | 7 | |
-| A1 | Detectar la baja de disponibilidad | 8 | |
-| A2 | Las células deciden cuándo generar otra instancia | 8 | |
-| A3 | La nueva célula recupera sus genes | 8 | |
-| A4 | Sin controlador central | 8 | |
-| A5 | Detener la clonación al nivel requerido | 9 | |
-| A6 | Impedir la generación ilimitada (cáncer) | 9 | |
-| A7 | Una falla local no pierde el servicio | 8 | |
-| G1 | Arrancar sin microservicios | 2 | |
-| G2 | Alta de un servicio | 6 | |
-| G3 | Baja de un servicio | 7 | |
-| G4 | Modificar o sustituir un servicio | 7 | |
-| G5 | Usar la topología para decidir | 6 | |
-| G6 | Topología con nodos, células y servicios activos | 2 | |
-| G7 | No depender del gestor | 11 | |
-| G8 | Alta, baja y cambio se reflejan en la carga dinámica | 7 | |
-| P1 | Sin unidad central indispensable | 11 | |
-| P3 | Nodos y células flexibles | 10 | |
-| P4 | Protocolos con altas, bajas, fallas y nuevas instancias | 10 | |
-| P5 | La pérdida de una célula no es punto único de falla | 8 | |
-| P6 | Recuperación gradual y controlada | 9 | |
-| C1 | Esquema de la Figura 1 del enunciado | 2 | |
-
 ### Antes de subirlo
 
 - [ ] El audio se escucha durante todo el video, no solo al principio.
-- [ ] Las 11 escenas tienen su minuto y `uv run python docs/llenar_minutos.py` corrió sin errores.
 - [ ] El texto de las ventanas se lee al ver el video en pantalla completa.
 - [ ] No se ve información personal, contraseñas ni ventanas ajenas.
 - [ ] El video está subido con acceso para cualquiera con el enlace (YouTube como *no listado*, o

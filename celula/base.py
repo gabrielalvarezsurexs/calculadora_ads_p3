@@ -162,12 +162,12 @@ class Celula:
         with self._lock:
             enlace = self._enlace
         if enlace is None or not enlace.enviar(m):
-            self.contadores["perdidos"] += 1
+            self._contar("perdidos")
             if codigo not in config.CODIGOS_SILENCIOSOS:
                 self.log("PERDIDO", f"{codigo} {hashes.corto(m['id'])} no salió: "
                                     f"sin conexión al Campo de Datos")
             return None
-        self.contadores["publicados"] += 1
+        self._contar("publicados")
         return m
 
     # ------------------------------------------------------------- conexión
@@ -240,11 +240,15 @@ class Celula:
                         bitacora=self.bitacora, etiqueta=self.nombre)
         enlace.respuesta = threading.Event()
         enlace.rechazo = None
+        enlace.vencido = False   # me rendí: una BIENVENIDA que llegue ya no cuenta
         enlace.enviar(mensajes.hola(self.entidad, self.hash, self.nombre, self.servicio))
         enlace.iniciar()
         if not enlace.respuesta.wait(config.BIENVENIDA_TIMEOUT):
-            enlace.cerrar("sin BIENVENIDA")
-            return False, "no contestó el HOLA"
+            with self._lock:   # misma decisión que _bienvenida: o llegó, o venció
+                enlace.vencido = not enlace.presentado
+            if enlace.vencido:
+                enlace.cerrar("sin BIENVENIDA")
+                return False, "no contestó el HOLA"
         if not enlace.presentado:
             if enlace.rechazo:
                 return False, f"RECHAZO({enlace.rechazo})"
@@ -303,6 +307,10 @@ class Celula:
             return
         enlace.entidad, enlace.hash, enlace.nombre = mensajes.NODO, h, nombre
         with self._lock:
+            if enlace.vencido:
+                # Llegó justo después del plazo: quien marcó ya lo está cerrando. Tomarlo
+                # como actual haría que ese cierre se viera como una DESCONEXION.
+                return
             if self._enlace is not None and self._enlace.vivo:
                 viejo_vivo = True
             else:
@@ -348,6 +356,11 @@ class Celula:
         except Exception as e:
             self.log("ERROR", f"al_desconectar: {e!r}")
 
+    def _contar(self, que: str) -> None:
+        """Los publican y reciben varios hilos (latido, lector, GUI): con lock."""
+        with self._lock:
+            self.contadores[que] += 1
+
     def _recibir(self, m: dict) -> None:
         motivo = mensajes.validar_datos(m)
         if motivo:
@@ -356,11 +369,11 @@ class Celula:
         if m["origen"] == self.hash:
             return  # eco de algo que yo publiqué
         if not self.vistos.marcar_si_nuevo(m["id"]):
-            self.contadores["duplicados"] += 1
+            self._contar("duplicados")
             self.log("DUP", f"{m['codigo']} {hashes.corto(m['id'])} ya procesado; se descarta",
                      consola=m["codigo"] not in config.CODIGOS_SILENCIOSOS)
             return
-        self.contadores["recibidos"] += 1
+        self._contar("recibidos")
         if m["codigo"] == codigos.TOPO_REQ:
             self._contestar_topologia(m)
             return

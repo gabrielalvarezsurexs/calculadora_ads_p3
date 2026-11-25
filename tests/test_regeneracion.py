@@ -41,10 +41,15 @@ class MadreSimulada:
         self.nodo_inicial = self.nodo_actual["endpoint"]
         self.viva = True
         self.listo_en = None          # si es un reemplazo: cuándo termina de copiar
+        self.nace_en = None           # si es un reemplazo lento: cuándo empieza a latir
+        self.sin_enlace = set()       # códigos cuyo publicar "no sale" (devuelve None)
         self.lineas = []
-        self.regeneracion = rg.Regeneracion(self, red.lanzar, reloj=red.reloj)
+        self.regeneracion = rg.Regeneracion(self, red.lanzar, reloj=red.reloj,
+                                            cancelar=red.cancelar)
 
     def publicar(self, codigo, cuerpo):
+        if codigo in self.sin_enlace:
+            return None
         self.red.difundir(self, codigo, cuerpo)
         return {}
 
@@ -63,7 +68,8 @@ class MadreSimulada:
 class Red:
     """Varias madres simuladas que se oyen entre sí, con un reloj manual."""
 
-    COPIA_S = 1.0   # lo que tarda un reemplazo en copiar sus genes
+    COPIA_S = 1.0     # lo que tarda un reemplazo en copiar sus genes
+    ARRANQUE_S = 0.0  # lo que tarda su proceso en empezar a latir
 
     def __init__(self, nodos=2):
         self.t = 1000.0
@@ -73,6 +79,9 @@ class Red:
         self.madres: list[MadreSimulada] = []
         self.encargos: list[tuple[float, rg.Encargo]] = []
         self.listos: list[float] = []
+        self.sordas: set[str] = set()     # no oyen nada ni revisan (sin enlace)
+        self.calladas: set[str] = set()   # nadie las oye
+        self.canceladas: list[str] = []
         self._proximo_latido = self.t
 
     def reloj(self):
@@ -95,8 +104,10 @@ class Red:
     def difundir(self, origen, codigo, cuerpo):
         m = {"origen": origen.hash, "nombre_origen": origen.nombre, "codigo": codigo,
              "cuerpo": cuerpo}
+        if origen.nombre in self.calladas:
+            return
         for otra in self.vivas():
-            if otra is origen:
+            if otra is origen or otra.nombre in self.sordas:
                 continue
             r = otra.regeneracion
             {codigos.CEL_LAT: r.rx_latido, codigos.NODO_LAT: r.rx_nodo,
@@ -109,9 +120,16 @@ class Red:
         hijo = MadreSimulada(self, encargo.nombre, (), encargo.generacion, False, nodo)
         hijo.reemplaza = encargo.reemplaza
         hijo.copiar = [g.partition("@")[0] for g in encargo.genes]
-        hijo.listo_en = self.t + self.COPIA_S
+        hijo.listo_en = self.t + self.ARRANQUE_S + self.COPIA_S
+        if self.ARRANQUE_S:
+            hijo.viva, hijo.nace_en = False, self.t + self.ARRANQUE_S
         hijo.regeneracion.conectada()
         self.madres.append(hijo)
+        return hijo
+
+    def cancelar(self, hijo):
+        self.canceladas.append(hijo.nombre)
+        hijo.viva, hijo.nace_en, hijo.listo_en = False, None, None
 
     # --- tiempo -------------------------------------------------------------------
 
@@ -119,6 +137,9 @@ class Red:
         fin = self.t + segundos
         while self.t < fin:
             self.t += paso
+            for m in self.madres:
+                if m.nace_en is not None and self.t >= m.nace_en:
+                    m.viva, m.nace_en = True, None
             if self.t >= self._proximo_latido:
                 self._proximo_latido = self.t + config.LATIDO
                 for h, nombre in self.nombres_nodo.items():
@@ -138,7 +159,8 @@ class Red:
                                                         "fuentes": {}, "faltan": []})
                     self.listos.append(self.t)
             for madre in list(self.vivas()):
-                madre.regeneracion.revisar()
+                if madre.nombre not in self.sordas:
+                    madre.regeneracion.revisar()
 
     def tumbar(self, *nombres):
         for nombre in nombres:
@@ -296,6 +318,50 @@ class TestRegla(unittest.TestCase):
         self.assertTrue(any(any("intento 2" in e[2] for e in lista) for lista in intentos))
         self.red.avanzar(60)
         self.assertEqual(len(self.red.encargos), 2, "una sola pérdida: no se clona de más")
+
+    def test_al_reconectarse_no_da_por_perdidas_a_las_vivas(self):
+        # SUB-N1 se queda sin enlace 10 s (no oye ni revisa; las demás sí la oyen).
+        self.red.sordas.add("SUB-N1")
+        self.red.avanzar(10)
+        self.red.sordas.clear()
+        self.red.por_nombre("SUB-N1").regeneracion.conectada()   # failover
+        self.red.avanzar(30)
+        self.assertEqual(self.red.encargos, [], "nadie murió: no se clona a nadie")
+        self.assertEqual(self.red.por_nombre("SUB-N1").eventos("CAIDA"), [])
+
+    def test_el_hijo_vencido_se_termina_y_no_quedan_dos(self):
+        perdida = self.red.por_nombre("MUL-N1")
+        self.red.ARRANQUE_S = config.PLAZO_CLON + 5   # el primero tarda en arrancar
+        self.red.tumbar("MUL-N1")
+        self.red.avanzar(10)
+        self.assertEqual(self.nombres_encargos(), ["MUL-N1·r1"])
+        self.red.ARRANQUE_S = 0.0                     # el del reintento arranca normal
+        self.red.avanzar(60)
+        self.assertEqual(self.red.canceladas, ["MUL-N1·r1"], "el clonador terminó a su hijo")
+        self.assertEqual(len(self.red.encargos), 2)
+        vivos = [m for m in self.red.vivas() if m.reemplaza == perdida.hash]
+        self.assertEqual(len(vivos), 1, "uno a uno: un solo reemplazo vivo de la pérdida")
+
+    def test_si_el_aviso_no_sale_no_lanza(self):
+        perdida = self.red.por_nombre("DIV-N1")
+        aptas = [m.hash for m in self.red.madres if m is not perdida]
+        rango0, rango1 = hashes.ranking(aptas, f"clon:{perdida.hash}", 1)[:2]
+        sin_red = next(m for m in self.red.madres if m.hash == rango0)
+        sin_red.sin_enlace.add(codigos.CLON_AVISO)
+        self.red.tumbar("DIV-N1")
+        self.red.avanzar(40)
+        self.assertEqual([e.clonador for _, e in self.red.encargos],
+                         [next(m.nombre for m in self.red.madres if m.hash == rango1)],
+                         "solo lanza quien pudo avisar")
+        self.assertTrue(sin_red.eventos("NO_CLONA"))
+
+    def test_la_que_se_despide_tras_darla_por_perdida_no_se_regenera(self):
+        self.red.calladas.add("SUB-N2")                   # sus latidos dejan de llegar
+        self.red.avanzar(config.LATIDO_CADUCIDAD + 0.6)   # detectada, aún sin turno
+        self.red.calladas.clear()
+        self.red.retirar("SUB-N2")                         # y se retira ordenadamente
+        self.red.avanzar(30)
+        self.assertEqual(self.red.encargos, [])
 
     def test_la_lenta_que_vuelve_no_se_regenera(self):
         lenta = self.red.por_nombre("SUB-N2")

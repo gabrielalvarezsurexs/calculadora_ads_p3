@@ -17,10 +17,11 @@ sin servidor central), con cuatro cosas nuevas:
 | Entregable | Dónde |
 |---|---|
 | Reporte técnico (30 páginas) | [REPORTE_TECNICO.md](REPORTE_TECNICO.md) → `Reporte_Tecnico_Calculadora_ADS.docx` (`uv run python docs/md_a_docx.py`) |
-| Guion del video (11 escenas, ~12 min) | [GUION_VIDEO.md](GUION_VIDEO.md) → minutos a la matriz con `uv run python docs/llenar_minutos.py` |
+| Guion del video (11 escenas, ~12 min) | [GUION_VIDEO.md](GUION_VIDEO.md) (la matriz del reporte remite a sus escenas) |
 | Hoja de control de la entrega | [ENTREGA.md](ENTREGA.md) |
+| Resumen técnico (para auditar el reporte o preparar la exposición) | [RESUMEN_PROYECTO.md](RESUMEN_PROYECTO.md) |
 
-Verificado: 201 pruebas en verde tres veces seguidas, `ruff` limpio y los ocho escenarios del
+Verificado: 217 pruebas en verde tres veces seguidas, `ruff` limpio y los ocho escenarios del
 enunciado en vivo (30/30 revisiones; bitácora y capturas en [docs/capturas/](docs/capturas/)). Lo
 entregado en el segundo parcial está archivado en [docs/parcial2/](docs/parcial2/).
 
@@ -90,7 +91,7 @@ carga desde ahí.
 | [comun/](comun/) | Protocolo, mensajes, códigos, foliado, hashes, config, tema y piezas visuales |
 | [panel/](panel/), [sonda/](sonda/) | Herramientas de demostración, fuera del sistema |
 | [herramientas/](herramientas/) | `firmar.py`: firma y verifica los manifiestos |
-| [tests/](tests/) | 201 pruebas (unitarias y de integración en proceso) |
+| [tests/](tests/) | 217 pruebas (unitarias y de integración en proceso) |
 | [docs/](docs/) | Enunciado, requisitos, plan, capturas, convertidor a Word |
 
 `datos/`, `logs/` y `run/` se generan al correr y no se versionan.

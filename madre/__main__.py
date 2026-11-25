@@ -60,7 +60,8 @@ def main(argv=None) -> int:
                       retardo_ms=args.retardo_ms, mudo=args.mudo,
                       generacion=max(0, args.generacion), reemplaza=args.reemplaza,
                       reemplaza_nombre=args.perdida, copiar=leer_lista(args.copiar),
-                      lanzador=None if args.sin_regenerar else lanzador.lanzar_proceso)
+                      lanzador=None if args.sin_regenerar else lanzador.lanzar_proceso,
+                      cancelar=lanzador.terminar)
     except ValueError as e:
         print(f"[ERROR] {e}", file=sys.stderr)
         return 2

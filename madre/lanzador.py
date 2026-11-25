@@ -39,16 +39,18 @@ def archivo(nombre: str, pid: int, carpeta: Path | None = None) -> Path:
     return (carpeta or config.DIR_RUN) / f"{seguro}-{pid}.json"
 
 
-def lanzar_proceso(encargo) -> int:
-    """El ``Lanzador`` de producción: un proceso nuevo por reemplazo. Devuelve su PID."""
+def lanzar_proceso(encargo) -> dict:
+    """El ``Lanzador`` de producción: un proceso nuevo por reemplazo. Devuelve su
+    registro (``pid``, ``inicio``, ``archivo``), que es lo que recibe ``terminar``."""
     comando = [interprete(), "-u", "-m", "madre", *encargo.argumentos()]
     opciones = {"creationflags": _DESACOPLADO} if os.name == "nt" else {"start_new_session": True}
     popen = subprocess.Popen(comando, cwd=config.RAIZ, stdin=subprocess.DEVNULL,
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True,
                              env={**os.environ, "PYTHONIOENCODING": "utf-8"}, **opciones)
-    registrar(encargo.nombre, popen.pid, comando, reemplaza=encargo.perdida,
-              clonador=encargo.clonador, nodo=encargo.nodo_nombre)
-    return popen.pid
+    ruta = registrar(encargo.nombre, popen.pid, comando, reemplaza=encargo.perdida,
+                     clonador=encargo.clonador, nodo=encargo.nodo_nombre)
+    datos = json.loads(ruta.read_text(encoding="utf-8"))
+    return {**datos, "archivo": str(ruta)}
 
 
 def registrar(nombre: str, pid: int, comando: list[str], **extra) -> Path:

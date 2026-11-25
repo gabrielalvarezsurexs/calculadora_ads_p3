@@ -198,6 +198,16 @@ class TestMadreSinRed(BaseTmp):
         self.assertTrue(esperar(lambda: self.reg.contar("GEN_LIBERADO", "DIV@1.0") == 1, 5))
         self.assertFalse(self.madre.dar_de_baja("DIV").ok)
 
+    def test_retenido_mas_alla_de_las_revisiones_se_libera_al_soltarlo(self):
+        self.madre.instalar_del_banco("DIV")
+        retenido = self.madre.genoma.activo("DIV")   # como una ronda que aún no termina
+        with mock.patch.object(config, "GEN_LIBERACION", (0.05, 0.05, 0.1)):
+            self.assertTrue(self.madre.dar_de_baja("DIV").ok)
+            self.assertTrue(esperar(lambda: self.reg.contar("GEN_EN_USO", "DIV@1.0") == 1, 3))
+            del retenido
+            self.assertTrue(esperar(lambda: self.reg.contar("GEN_LIBERADO", "DIV@1.0") == 1, 3))
+        self.assertEqual(self.reg.contar("GEN_EN_USO", "DIV@1.0"), 1, "un solo aviso")
+
     def test_reinstalar_lo_mismo_no_cambia_nada(self):
         self.madre.instalar_del_banco("MUL@1.0")
         r = self.madre.instalar(self.banco("MUL@1.0"), "inyección del gestor")

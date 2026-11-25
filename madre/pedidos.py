@@ -79,7 +79,12 @@ class Pedidos:
 
     def _vencer(self, p: Pedido, intento: int) -> None:
         with self._lock:
-            if p.estado != ESPERANDO or p.intento != intento:
+            if p.intento != intento or p.estado in (LISTO, FALLIDO):
+                return
+            if p.estado == INSTALANDO:
+                # Se está instalando una entrega: si falla, el pedido vuelve a esperar y
+                # necesita su plazo; se revisa de nuevo después.
+                self.madre.programador.en(config.PLAZO_PEDIDO, lambda: self._vencer(p, intento))
                 return
             if p.intento >= config.REINTENTOS_PEDIDO:
                 p.estado = FALLIDO

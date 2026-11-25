@@ -24,6 +24,7 @@ red. Una orden repetida (mismo folio) no se vuelve a ejecutar: se reenvía el
 resultado que ya se dio.
 """
 
+import threading
 from collections import OrderedDict
 
 from comun import codigos, foliado, hashes, mensajes
@@ -43,6 +44,7 @@ class Ordenes:
     def __init__(self, madre):
         self.madre = madre
         self.atendidas = 0
+        self._lock = threading.Lock()   # hilo de red (rx) y programador (_responder)
         self._resultados: OrderedDict[str, dict | None] = OrderedDict()  # orden -> GEN_RES
 
     def rx(self, m: dict) -> None:
@@ -62,15 +64,18 @@ class Ordenes:
             return
 
         madre.publicar(codigos.GEN_ACK, {"orden": orden, "destino": madre.hash, "accion": accion})
-        if orden in self._resultados:  # repetida: no se ejecuta dos veces
-            anterior = self._resultados[orden]
+        with self._lock:
+            repetida = orden in self._resultados
+            anterior = self._resultados.get(orden)
+            if not repetida:
+                self._resultados[orden] = None
+                while len(self._resultados) > RECORDAR:
+                    self._resultados.popitem(last=False)
+        if repetida:  # no se ejecuta dos veces
             madre.log("ORDEN", f"{orden} repetida ({codigo} de {gestor}): reenvío el resultado")
             if anterior is not None:
                 madre.publicar(codigos.GEN_RES, anterior)
             return
-        self._resultados[orden] = None
-        while len(self._resultados) > RECORDAR:
-            self._resultados.popitem(last=False)
         madre.log("ORDEN", f"{orden} de {gestor}: {self._describir(codigo, accion, cuerpo)} · "
                            f"GEN_ACK enviado")
         madre.programador.en(0, lambda: self._ejecutar(codigo, accion, orden, gestor, cuerpo))
@@ -115,8 +120,9 @@ class Ordenes:
         cuerpo = {"orden": orden, "destino": madre.hash, "accion": accion, "ok": ok,
                   "detalle": detalle, "gen": gen, "ms": ms, "ruta": ruta, "sustituyo": sustituyo,
                   "genes": madre.genoma.resumen()}
-        self._resultados[orden] = cuerpo
-        self.atendidas += 1
+        with self._lock:
+            self._resultados[orden] = cuerpo
+            self.atendidas += 1
         madre.publicar(codigos.GEN_RES, cuerpo)
         madre.log("GEN_RES", f"{orden}: {'ok' if ok else 'RECHAZADA'} · {gen or accion} · "
                              f"{detalle}")

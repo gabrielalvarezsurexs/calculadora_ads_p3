@@ -13,6 +13,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from comun import codigos, config, foliado, mensajes, microservicios
 from gestor import nucleo as gn
@@ -151,6 +152,34 @@ class TestTopologia(unittest.TestCase):
         self.topo.caducar()
         self.assertIsNone(self.topo.celula(h), "reemplazada: se olvida enseguida")
 
+    def test_la_que_revive_deja_de_contar_como_reemplazada(self):
+        h, hijo = hash_falso(10), hash_falso(20)
+        self.latido_madre(h, "SUM-N1", [("SUM", "1.0")])
+        self.t += config.LATIDO_CADUCIDAD + 0.1
+        self.topo.caducar()
+        self.latido_madre(hijo, "SUM-N1·r1", [("SUM", "1.0")], reemplaza=h)
+        self.latido_madre(h, "SUM-N1", [("SUM", "1.0")])   # solo estaba lenta: vuelve
+        self.assertIsNone(self.topo.celula(h).reemplazada_en)
+        self.t += 1.0
+        self.latido_madre(hijo, "SUM-N1·r1", [("SUM", "1.0")], reemplaza=h)
+        self.assertIsNone(self.topo.celula(h).reemplazada_en, "viva: no se marca reemplazada")
+        self.t += config.LATIDO_CADUCIDAD + 0.1                 # ahora sí muere
+        self.latido_madre(hijo, "SUM-N1·r1", [("SUM", "1.0")], reemplaza=h)
+        self.topo.caducar()
+        self.t += 3.0
+        self.topo.caducar()
+        self.assertIsNotNone(self.topo.celula(h), "sigue en rojo: es una pérdida nueva")
+        self.assertEqual([c.nombre for c in self.topo.pendientes()], ["SUM-N1"])
+
+    def test_tregua_tras_un_hueco_sin_enlace(self):
+        h = hash_falso(10)
+        self.latido_madre(h, "SUM-N1", [("SUM", "1.0")])
+        self.t += config.LATIDO_CADUCIDAD + 5   # estuve aislado
+        self.topo.tregua()
+        self.assertEqual(self.topo.caducar(), [], "el hueco no prueba que alguien muriera")
+        self.t += config.LATIDO_CADUCIDAD + 0.1
+        self.assertIn(h, [a[2] for a in self.topo.caducar()], "si sigue sin latir, entonces sí")
+
     def test_datos_mal_formados_no_rompen(self):
         self.topo.celula_lat(hash_falso(3), "X", {"tipo": "OTRO"})
         self.topo.celula_lat(hash_falso(4), "Y", {"tipo": mensajes.MADRE, "genes": "nada",
@@ -180,6 +209,72 @@ class TestLineaDeTiempo(unittest.TestCase):
                         "cuerpo": {"destino": hijo, "gen": "SUM@1.0"}})
         eventos = [(e, t.split()[0]) for _, e, t in g.linea_tiempo]
         self.assertEqual(eventos, [("ENTREGA", "SUM-N3")])
+
+    def gestor_sin_red(self):
+        carpeta = Path(tempfile.mkdtemp(prefix="ads-gestor-"))
+        self.addCleanup(shutil.rmtree, carpeta, ignore_errors=True)
+        g = gn.Gestor("G-T", "127.0.0.1:1", bd=carpeta / "g.sqlite3")
+        self.addCleanup(g.bd.cerrar)
+        self.addCleanup(g.programador.detener)
+        self.t = 100.0
+        g.topologia = Topologia(reloj=lambda: self.t)
+        conectado = mock.patch.object(gn.Gestor, "conectado", new_callable=mock.PropertyMock,
+                                      return_value=True)
+        conectado.start()
+        self.addCleanup(conectado.stop)
+        return g
+
+    def test_reemplazo_que_muere_antes_de_estar_listo_no_es_otra_perdida(self):
+        g = self.gestor_sin_red()
+        perdida, hijo = hash_falso(10), hash_falso(20)
+        lat = {"tipo": mensajes.MADRE, "nodo": hash_falso(1),
+               "genes": [{"codigo": "SUM", "version": "1.0"}]}
+        g.topologia.celula_lat(perdida, "SUM-N1", lat)
+        self.t += config.LATIDO_CADUCIDAD + 0.1
+        g.al_latir()                                               # CAIDA SUM-N1
+        g.topologia.celula_lat(hijo, "SUM-N1·r1", {**lat, "genes": [], "reemplaza": perdida})
+        self.t += config.LATIDO_CADUCIDAD + 0.1
+        g.al_latir()                                               # muere sin CLON_LISTO
+        self.assertIsNone(g.topologia.celula(hijo), "se olvida: las madres reintentan")
+        caidas = [t for _, e, t in g.linea_tiempo if e == "CAIDA"]
+        self.assertEqual(len(caidas), 2)
+        self.assertIn("antes de estar listo", caidas[1])
+        self.assertNotIn("SUM-N1·r1", [c.nombre for c in g.topologia.pendientes()],
+                         "no bloquea el NIVEL_OK: lo que se reintenta es la pérdida original")
+
+    def test_distribuir_no_duplica_lo_que_se_esta_regenerando(self):
+        g = self.gestor_sin_red()
+        g.importar()
+        n1 = hash_falso(1)
+        g.topologia.nodo_lat(n1, {"nombre": "Nodo 1", "endpoint": "127.0.0.1:5001"})
+        lat = {"tipo": mensajes.MADRE, "nodo": n1, "nodo_nombre": "Nodo 1"}
+        g.topologia.celula_lat(hash_falso(10), "SUM-N1",
+                               {**lat, "genes": [{"codigo": "SUM", "version": "1.0"}]})
+        g.topologia.celula_lat(hash_falso(11), "SUB-N1m",
+                               {**lat, "genes": [{"codigo": "SUB", "version": "1.0"}],
+                                "mudo": True})
+        for k in range(12, 16):
+            g.topologia.celula_lat(hash_falso(k), f"M{k}-N1", lat)
+        self.t += 1.0
+        g.topologia.nodo_lat(n1, {"nombre": "Nodo 1", "endpoint": "127.0.0.1:5001"})
+        for k in range(11, 16):
+            g.topologia.celula_lat(hash_falso(k), *([f"M{k}-N1", lat] if k > 11 else
+                                                    ["SUB-N1m", {**lat, "genes": [
+                                                        {"codigo": "SUB", "version": "1.0"}],
+                                                        "mudo": True}]))
+        self.t += config.LATIDO_CADUCIDAD - 0.5
+        g.topologia.nodo_lat(n1, {"nombre": "Nodo 1", "endpoint": "127.0.0.1:5001"})
+        for k in range(11, 16):
+            g.topologia.celula_lat(hash_falso(k), *([f"M{k}-N1", lat] if k > 11 else
+                                                    ["SUB-N1m", {**lat, "genes": [
+                                                        {"codigo": "SUB", "version": "1.0"}],
+                                                        "mudo": True}]))
+        self.t += 1.0
+        g.topologia.caducar()                       # SUM-N1 cae: su reemplazo está en camino
+        self.assertEqual(g.topologia.celula(hash_falso(10)).estado, CAIDA)
+        ordenes, _ = g.distribuir()
+        self.assertEqual(sorted(o.codigo for o in ordenes), ["DIV", "MUL", "SUB"],
+                         "SUM no (se regenera); SUB sí (la muda no responde)")
 
 
 class TestGestorEnVivo(unittest.TestCase):

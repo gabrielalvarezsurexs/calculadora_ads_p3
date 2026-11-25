@@ -141,15 +141,27 @@ class Nodo:
 
     # ------------------------------------------------------------ conexiones
 
-    def _nuevo_enlace(self, sock: socket.socket, saliente: bool, ep: str | None) -> Enlace:
+    def _nuevo_enlace(self, sock: socket.socket, saliente: bool, ep: str | None) -> Enlace | None:
+        """None si el nodo se detuvo mientras se abría la conexión (se cierra el socket)."""
         sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         enlace = Enlace(sock, saliente, ep, al_mensaje=self._al_mensaje,
                         al_problema=self._al_problema, al_cerrar=self._al_cerrar,
                         bitacora=self.bitacora, etiqueta="saliente" if saliente else "entrante")
         enlace.respuesta = threading.Event()  # para el marcador: llegó BIENVENIDA o RECHAZO
         enlace.rechazado = False              # el par contestó, pero el enlace sobra
+        enlace.vencido = False                # el marcador se rindió: una BIENVENIDA tardía no cuenta
         with self._lock:
-            self._enlaces.add(enlace)
+            # detener() apaga _activo y luego toma el lock para cerrar los enlaces: o este
+            # entra en esa lista, o aquí ya se ve detenido. Ninguno queda abierto.
+            activo = self._activo.is_set()
+            if activo:
+                self._enlaces.add(enlace)
+        if not activo:
+            try:
+                sock.close()
+            except OSError:
+                pass
+            return None
         return enlace
 
     def _aceptar(self) -> None:
@@ -163,6 +175,8 @@ class Nodo:
                 continue
             try:
                 enlace = self._nuevo_enlace(sock, saliente=False, ep=None)
+                if enlace is None:
+                    continue
                 enlace.iniciar()
                 t = threading.Timer(config.HOLA_TIMEOUT, self._vencer_hola, args=(enlace,))
                 t.daemon = True
@@ -217,10 +231,15 @@ class Nodo:
                 self._fallo_marcado(ep, str(e))
                 return
             enlace = self._nuevo_enlace(sock, saliente=True, ep=ep)
+            if enlace is None:
+                return   # el nodo se detuvo mientras se marcaba
             enlace.enviar(mensajes.hola(mensajes.NODO, self.hash, self.nombre,
                                         escucha=self.puerto))
             enlace.iniciar()
             if not enlace.respuesta.wait(config.BIENVENIDA_TIMEOUT):
+                with self._lock:   # misma decisión que _registrar_saliente: o llegó, o venció
+                    enlace.vencido = not enlace.presentado
+            if enlace.vencido:
                 enlace.cerrar("sin BIENVENIDA")
                 self._fallo_marcado(ep, "no contestó el HOLA")
             elif enlace.presentado:
@@ -264,7 +283,8 @@ class Nodo:
             if ctrl == mensajes.PARES and enlace.entidad == mensajes.NODO:
                 self._aprender(mensajes.endpoints_validos(m.get("nodos")))
             elif ctrl == mensajes.RECHAZO and m.get("motivo") == mensajes.DUPLICADO:
-                enlace.cerrar(f"duplicado: {enlace.nombre} conserva el otro enlace")
+                # drenar: lo ya encolado para el par sale antes de cerrar (él sigue leyendo).
+                enlace.cerrar(f"duplicado: {enlace.nombre} conserva el otro enlace", drenar=True)
             else:
                 self._descartar(enlace, f"control inesperado {ctrl!r}")
             return
@@ -367,6 +387,10 @@ class Nodo:
             enlace.respuesta.set()
             return
         with self._lock:
+            if enlace.vencido:
+                # Llegó justo después del plazo: el marcador ya lo está cerrando. Registrarlo
+                # ahora haría que ese cierre se viera como una DESCONEXION de un vecino.
+                return
             self.alias[enlace.endpoint] = h
             self._nombres[h] = nombre
             aceptado = self._registrar_vecino(enlace, h, nombre, dar_bienvenida=False)
@@ -378,8 +402,12 @@ class Nodo:
             enlace.rechazado = True
             # El par ya registró este enlace (lo aceptó al recibir mi HOLA). Se le
             # avisa, para que lo cierre como DUPLICADO y no lo tome por una caída.
+            # Se identifica (sin entrar a la tabla) para que lo que el par alcance a
+            # mandar por aquí antes de leer el RECHAZO se lea y se difunda.
+            with self._lock:
+                self._identificar(enlace, mensajes.NODO, h, nombre)
             enlace.enviar(mensajes.rechazo(mensajes.DUPLICADO, self.hash))
-            enlace.cerrar("duplicado: ya había enlace con ese nodo", vaciar=True)
+            enlace.cerrar("duplicado: ya había enlace con ese nodo", drenar=True)
             self._log("RECHAZO", f"enlace saliente a {nombre} sobra (ya hay uno); se cierra")
         enlace.respuesta.set()
         self._aprender(mensajes.endpoints_validos(bienvenida.get("nodos")))
@@ -425,8 +453,9 @@ class Nodo:
                 # Se avisa al par para que registre el cierre como DUPLICADO y no
                 # como una caída.
                 existente.enviar(mensajes.rechazo(mensajes.DUPLICADO, self.hash))
+                # drenar: lo que el par ya mandó por el viejo todavía se lee y se difunde.
                 existente.cerrar("duplicado: se conserva el enlace iniciado por el preferido",
-                                 vaciar=True)
+                                 drenar=True)
                 # El viejo sale de la tabla sin pasar por _al_cerrar (ya no es el
                 # registrado): se anota aquí para que la segunda CONEXION se entienda.
                 self._log("DUPLICADO", f"{nombre}: dos enlaces; se conserva el iniciado por "

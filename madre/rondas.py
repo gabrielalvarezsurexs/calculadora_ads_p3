@@ -232,9 +232,15 @@ class Rondas:
             "folio": clave[1], "intento": clave[2], "id_solicitud": ronda.id_solicitud,
             "en_cola": en_cola, "gen": gen.id,
             "huella": foliado.con_paso(huella, madre.hash, madre.nombre, foliado.ACK)})
-        if ack is not None:
-            madre.log("ACUSE", f"{cod_ack} {ronda} → {gui} con {gen.id} "
-                               f"(acuse {hashes.corto(ack['id'])})")
+        if ack is None:
+            # Nadie oyó mi acuse: las demás no me cuentan en su ranking. Si yo sí me
+            # contara, podríamos elegir titulares distintas (dos RES). No participo.
+            with self._lock:
+                ronda.acusadores.discard(madre.hash)
+            madre.log("RETIRADA", f"{ronda}: mi acuse no salió (sin enlace); no participo")
+            return
+        madre.log("ACUSE", f"{cod_ack} {ronda} → {gui} con {gen.id} "
+                           f"(acuse {hashes.corto(ack['id'])})")
         for k in superadas:
             madre.log("SUPERADA", f"{codigo} {clave[1]} · intento {k}: la GUI ya va en el "
                                   f"intento {clave[2]}")
@@ -251,7 +257,9 @@ class Rondas:
                 return
             ronda = self._ronda(clave)
             ronda.acusadores.add(m["origen"])
-            ronda.nombres[m["origen"]] = m.get("nombre_origen") or hashes.corto(m["origen"])
+            nombre = m.get("nombre_origen")
+            ronda.nombres[m["origen"]] = (nombre if isinstance(nombre, str) and nombre
+                                          else hashes.corto(m["origen"]))
             esqueleto = not ronda.tiene_req
             n = len(ronda.acusadores)
         nota = " (aún sin REQ: ronda esqueleto)" if esqueleto else ""

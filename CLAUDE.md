@@ -65,8 +65,9 @@ con `estilo.cerrar(raiz)` (cancela los `after` pendientes). S6 hecha: `REPORTE_T
 `uv run python docs/md_a_docx.py` → `.docx` de **30 páginas exactas** (cualquier texto nuevo se
 compensa; revisar con Word, notas del `ROADMAP.md`), `README.md`, `ENTREGA.md`. S7 hecha:
 `GUION_VIDEO.md` (11 escenas; si cambia una etiqueta de ventana, actualizar el guion) y
-`docs/llenar_minutos.py` (la tabla "Matriz del reporte" del guion debe calcar ID y requisito de
-las filas con `<mm:ss>` del §2 del reporte, en orden). En pruebas,
+Auditoría final hecha (registro del `ROADMAP.md`): el clonador cancela a su hijo vencido (`cancelar=` en `Madre`/`Regeneracion`; `lanzar_proceso` devuelve el registro); un enlace duplicado se cierra con `drenar=True` (sigue
+leyendo hasta el fin de datos del par). Sin minutos (mensaje 19): la columna "Escena" del §2 del reporte remite a las escenas del guion;
+si se reordenan escenas, actualizarla. En pruebas,
 `Sistema(regenerar=True)` para que las madres clonen (en proceso).
 Para humo con procesos reales, redirigir su stdout a archivo (un pipe sin leer los bloquea).
 Capturas de ventanas Tk: **nunca asomarlas** (el usuario las minimiza); al fondo + `PrintWindow`

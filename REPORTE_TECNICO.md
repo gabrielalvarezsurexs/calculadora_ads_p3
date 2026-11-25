@@ -83,12 +83,7 @@ Todo está escrito en **Python 3.14 con la librería estándar** (sockets, hilos
 se maneja con **uv**. Se renunció a propósito a
 los puntos extra de Java (§1 del enunciado).
 
-### 1.4 Cómo leer este reporte
-
-La **Parte I** relaciona cada requisito del enunciado con el código, la sección y el minuto del
-video. La **Parte II** es el diseño: primero la arquitectura y, en resumen, lo heredado; después
-los cuatro mecanismos nuevos; al final la tolerancia a fallas y cómo se reparte la información de
-control. La **Parte III** presenta la evidencia, los bugs, las limitaciones y las conclusiones.
+### 1.4 Sobre las bitácoras
 
 Todas las bitácoras citadas son **reales**. Salen de la verificación en vivo del 17 de noviembre
 de 2026 con el código final (procesos reales: 4 nodos que luego fueron 5, 16 madres vacías, 4
@@ -100,9 +95,9 @@ primeros 8 caracteres y las líneas largas se recortan con `…`.
 ## 2. Matriz de trazabilidad con el enunciado
 
 Cada requisito del PDF con su identificador (el mismo de `docs/REQUISITOS.md`), dónde está
-implementado, la sección que lo explica y el minuto del video en que se demuestra.
+implementado, la sección que lo explica y la escena del video (`GUION_VIDEO.md`) que lo demuestra.
 
-| ID | Requisito | Implementación (archivo → función) | Sección | Video |
+| ID | Requisito | Implementación (archivo → función) | Sección | Escena |
 |---|---|---|---|---|
 | L1 | Cualquier lenguaje | Python 3.14, librería estándar; uv | §1.3 | N/A |
 | L2 | Java da puntos extra | Se renuncia a propósito | §1.3 | N/A |
@@ -110,54 +105,54 @@ implementado, la sección que lo explica y el minuto del video en que se demuest
 | E2 | Video con audio | `GUION_VIDEO.md` | §12 | N/A |
 | E3 | Código: clientes, servidores, nodos, microservicios y gestor | `interfaz/`, `madre/`, `nodo/`, `microservicios/`, `gestor/` | §3.1 | N/A |
 | O1 | Originalidad | Reutilización propia declarada | §16 | N/A |
-| B1 | Suma, resta, multiplicación y división | Genes `microservicios/{SUM,SUB,MUL,DIV}/1.0/`; `madre/genes.py` → `ejecutar()` | §6 | `<mm:ss>` |
-| B2 | Tres programas base | `interfaz/`, `madre/`, `nodo/` | §3.1 | `<mm:ss>` |
-| B3 | 4 nodos en malla completa | `nodo/nucleo.py` → `Nodo._supervisar()`, `_marcar()`, `_difundir_pares()` | §4.1 | `<mm:ss>` |
-| B4 | Cuatro GUIs | `interfaz/`; `panel/procesos.py` → `Procesos.configuracion()` | §3.2 | `<mm:ss>` |
-| B5 | Cuatro células por operación | `gestor/nucleo.py` → `Gestor.distribuir()`, o modo "con servicios" (`--genes`) | §3.2, §7.3 | `<mm:ss>` |
-| B6 | Por nodo: una GUI y una célula de cada operación | Ídem | §3.2 | `<mm:ss>` |
-| B7 | Conexión entre nodos | `HOLA` / `BIENVENIDA` / `PARES` / `RECHAZO`; `Nodo._registrar_vecino()` | §4.1 | `<mm:ss>` |
-| B8 | Conexión entre células y nodos | `celula/base.py` → `Celula._intentar()`; `Nodo._registrar_entrante()` | §4.1 | `<mm:ss>` |
-| B9 | Comunicación por Código de Contenido | `comun/codigos.py`; `Celula.publicar()` | §4.4 | `<mm:ss>` |
-| B10 | Broadcast sin ciclado | `Nodo._difundir()`; `comun/vistos.py`; TTL; horizonte dividido | §4.2 | `<mm:ss>` |
-| B11 | Sin límite de nodos ni de células | Gossip con una semilla cualquiera; panel "+ Nodo", "+ Madre" | §4.1, §12 | `<mm:ss>` |
-| B12 | Sin unidad central ni nodo maestro | Todo el diseño | §3.3, §10 | `<mm:ss>` |
-| F1 | Folio que correlaciona eventos, ACK y respuestas | `comun/foliado.py` → `folio()`; `interfaz/nucleo.py` → `Interfaz.solicitar()` | §5.1 | `<mm:ss>` |
-| F2 | La GUI reconoce sus respuestas | `Interfaz.procesar()`, `_huella_ajena()`; contador "ajenas ignoradas" | §5.3 | `<mm:ss>` |
-| F3 | Folio + Código de Contenido para atender o ignorar | `madre/nucleo.py` → `Madre.procesar()`; `madre/rondas.py` → `rx_req()`, `rx_fin()` | §5.3 | `<mm:ss>` |
-| F4 | Huella (origen y trayectoria lógica) | `foliado.huella()`, `sello()`, `con_paso()`, `validar()` | §5.1 | `<mm:ss>` |
-| F5 | ACK de recepción y participación | `Rondas.rx_req()` publica `X_ACK` antes de encolar | §5.1, §5.4 | `<mm:ss>` |
-| F6 | Mínimo de ACK | `Interfaz.ajustar_minimo()`, `_confirmar()` | §5.1 | `<mm:ss>` |
-| F7 | Tolerancia si no responden todas | `Interfaz._cerrar_ventana()` (ausentes); `_vencer()` (reintentos) | §5.1, §9 | `<mm:ss>` |
-| F8 | Evento: inicio, confirmación, procesamiento y finalización | `Interfaz._publicar_req()`, `_confirmar()`, `_aceptar()`, `_finalizar()` (`X_FIN`) | §5.1, §5.4 | `<mm:ss>` |
-| M1 | Microservicios en disco | `microservicios/`; `madre/almacen.py` → `Almacen.guardar()` | §6.1, §6.3 | `<mm:ss>` |
-| M2 | Carga en memoria durante la ejecución | `madre/genes.py` → `cargar()` (`importlib`) | §6.4 | `<mm:ss>` |
-| M3 | Programa base sin la lógica de las operaciones | `madre/` no contiene aritmética; `genes.ejecutar()` | §6.2 | `<mm:ss>` |
-| M4 | Los genes cambian en operación mediante el gestor | `Gestor.inyectar()`, `sustituir()`, `baja()`; `madre/ordenes.py` | §7.3 | `<mm:ss>` |
+| B1 | Suma, resta, multiplicación y división | Genes `microservicios/{SUM,SUB,MUL,DIV}/1.0/`; `madre/genes.py` → `ejecutar()` | §6 | 4 |
+| B2 | Tres programas base | `interfaz/`, `madre/`, `nodo/` | §3.1 | 2 |
+| B3 | 4 nodos en malla completa | `nodo/nucleo.py` → `Nodo._supervisar()`, `_marcar()`, `_difundir_pares()` | §4.1 | 2 |
+| B4 | Cuatro GUIs | `interfaz/`; `panel/procesos.py` → `Procesos.configuracion()` | §3.2 | 2 |
+| B5 | Cuatro células por operación | `gestor/nucleo.py` → `Gestor.distribuir()`, o modo "con servicios" (`--genes`) | §3.2, §7.3 | 2 |
+| B6 | Por nodo: una GUI y una célula de cada operación | Ídem | §3.2 | 2 |
+| B7 | Conexión entre nodos | `HOLA` / `BIENVENIDA` / `PARES` / `RECHAZO`; `Nodo._registrar_vecino()` | §4.1 | 2 |
+| B8 | Conexión entre células y nodos | `celula/base.py` → `Celula._intentar()`; `Nodo._registrar_entrante()` | §4.1 | 2 |
+| B9 | Comunicación por Código de Contenido | `comun/codigos.py`; `Celula.publicar()` | §4.4 | 3 |
+| B10 | Broadcast sin ciclado | `Nodo._difundir()`; `comun/vistos.py`; TTL; horizonte dividido | §4.2 | 3 |
+| B11 | Sin límite de nodos ni de células | Gossip con una semilla cualquiera; panel "+ Nodo", "+ Madre" | §4.1, §12 | 10 |
+| B12 | Sin unidad central ni nodo maestro | Todo el diseño | §3.3, §10 | 11 |
+| F1 | Folio que correlaciona eventos, ACK y respuestas | `comun/foliado.py` → `folio()`; `interfaz/nucleo.py` → `Interfaz.solicitar()` | §5.1 | 3 |
+| F2 | La GUI reconoce sus respuestas | `Interfaz.procesar()`, `_huella_ajena()`; contador "ajenas ignoradas" | §5.3 | 3 |
+| F3 | Folio + Código de Contenido para atender o ignorar | `madre/nucleo.py` → `Madre.procesar()`; `madre/rondas.py` → `rx_req()`, `rx_fin()` | §5.3 | 3 |
+| F4 | Huella (origen y trayectoria lógica) | `foliado.huella()`, `sello()`, `con_paso()`, `validar()` | §5.1 | 3 |
+| F5 | ACK de recepción y participación | `Rondas.rx_req()` publica `X_ACK` antes de encolar | §5.1, §5.4 | 3 |
+| F6 | Mínimo de ACK | `Interfaz.ajustar_minimo()`, `_confirmar()` | §5.1 | 5 |
+| F7 | Tolerancia si no responden todas | `Interfaz._cerrar_ventana()` (ausentes); `_vencer()` (reintentos) | §5.1, §9 | 5 |
+| F8 | Evento: inicio, confirmación, procesamiento y finalización | `Interfaz._publicar_req()`, `_confirmar()`, `_aceptar()`, `_finalizar()` (`X_FIN`) | §5.1, §5.4 | 3 |
+| M1 | Microservicios en disco | `microservicios/`; `madre/almacen.py` → `Almacen.guardar()` | §6.1, §6.3 | 6 |
+| M2 | Carga en memoria durante la ejecución | `madre/genes.py` → `cargar()` (`importlib`) | §6.4 | 6 |
+| M3 | Programa base sin la lógica de las operaciones | `madre/` no contiene aritmética; `genes.ejecutar()` | §6.2 | 6 |
+| M4 | Los genes cambian en operación mediante el gestor | `Gestor.inyectar()`, `sustituir()`, `baja()`; `madre/ordenes.py` | §7.3 | 7 |
 | M5 | Explicar localizar, validar, cargar, activar y descargar | Este reporte | §6.4 | N/A |
-| A1 | Detectar la baja de disponibilidad | `madre/regeneracion.py` → `Regeneracion._detectar()` | §8.3 | `<mm:ss>` |
-| A2 | Las células deciden cuándo generar otra instancia | `Regeneracion._turno()`, `_aptas()`; `comun/hashes.py` → `ranking()` | §8.3, §8.4 | `<mm:ss>` |
-| A3 | La nueva célula recupera sus genes | `madre/copia.py` → `Copia._copiar()`; `Madre.pedir_gen()` | §8.3, §7.5 | `<mm:ss>` |
-| A4 | Sin controlador central | Cada madre corre `Regeneracion.revisar()` | §8.1 | `<mm:ss>` |
-| A5 | Detener la clonación al nivel requerido | `Regeneracion._quizas_nivel_ok()` → `NIVEL_OK` | §8.4 | `<mm:ss>` |
-| A6 | Impedir la generación ilimitada (cáncer) | `Regeneracion._topes()`, `_aptas()`, `_cupo()` | §8.5 | `<mm:ss>` |
-| A7 | Una falla local no pierde el servicio | Rango r con `RELEVO_CLON`; copia desde cualquier madre, gestor o banco | §8.4, §9 | `<mm:ss>` |
-| G1 | Arrancar sin microservicios | `python -m madre` sin `--genes`; panel "Configuración mínima — vacía" | §3.2, §6.3 | `<mm:ss>` |
-| G2 | Alta de un servicio | `Gestor.inyectar()` → `GEN_INYECTA` | §7.3 | `<mm:ss>` |
-| G3 | Baja de un servicio | `Gestor.baja()` → `GEN_BAJA`; `Madre.dar_de_baja()` | §7.3 | `<mm:ss>` |
-| G4 | Modificar o sustituir un servicio | `Gestor.sustituir()`, `sustituir_en_todas()`; `Madre._instalar()` | §6.5, §7.3 | `<mm:ss>` |
-| G5 | Usar la topología para decidir | `gestor/topologia.py`; clic en el diagrama = destino; `distribuir()` | §7.4 | `<mm:ss>` |
-| G6 | Topología con nodos, células y servicios activos | `NODO_LAT`, `CEL_LAT` → `Topologia.nodo_lat()`, `celula_lat()` | §7.4 | `<mm:ss>` |
-| G7 | No depender del gestor | Órdenes por broadcast; la regeneración es de las madres | §7.1, §12 | `<mm:ss>` |
-| G8 | Alta, baja y cambio se reflejan en la carga dinámica | `GEN_ESCRITO` → `GEN_VALIDADO` → `GEN_CARGADO` → `GEN_ACTIVO` en la madre | §6.6 | `<mm:ss>` |
-| P1 | Sin unidad central indispensable | Gestor y panel fuera del camino de las operaciones | §3.3 | `<mm:ss>` |
+| A1 | Detectar la baja de disponibilidad | `madre/regeneracion.py` → `Regeneracion._detectar()` | §8.3 | 8 |
+| A2 | Las células deciden cuándo generar otra instancia | `Regeneracion._turno()`, `_aptas()`; `comun/hashes.py` → `ranking()` | §8.3, §8.4 | 8 |
+| A3 | La nueva célula recupera sus genes | `madre/copia.py` → `Copia._copiar()`; `Madre.pedir_gen()` | §8.3, §7.5 | 8 |
+| A4 | Sin controlador central | Cada madre corre `Regeneracion.revisar()` | §8.1 | 8 |
+| A5 | Detener la clonación al nivel requerido | `Regeneracion._quizas_nivel_ok()` → `NIVEL_OK` | §8.4 | 9 |
+| A6 | Impedir la generación ilimitada (cáncer) | `Regeneracion._topes()`, `_aptas()`, `_cupo()` | §8.5 | 9 |
+| A7 | Una falla local no pierde el servicio | Rango r con `RELEVO_CLON`; copia desde cualquier madre, gestor o banco | §8.4, §9 | 8 |
+| G1 | Arrancar sin microservicios | `python -m madre` sin `--genes`; panel "Configuración mínima — vacía" | §3.2, §6.3 | 2 |
+| G2 | Alta de un servicio | `Gestor.inyectar()` → `GEN_INYECTA` | §7.3 | 6 |
+| G3 | Baja de un servicio | `Gestor.baja()` → `GEN_BAJA`; `Madre.dar_de_baja()` | §7.3 | 7 |
+| G4 | Modificar o sustituir un servicio | `Gestor.sustituir()`, `sustituir_en_todas()`; `Madre._instalar()` | §6.5, §7.3 | 7 |
+| G5 | Usar la topología para decidir | `gestor/topologia.py`; clic en el diagrama = destino; `distribuir()` | §7.4 | 6 |
+| G6 | Topología con nodos, células y servicios activos | `NODO_LAT`, `CEL_LAT` → `Topologia.nodo_lat()`, `celula_lat()` | §7.4 | 2 |
+| G7 | No depender del gestor | Órdenes por broadcast; la regeneración es de las madres | §7.1, §12 | 11 |
+| G8 | Alta, baja y cambio se reflejan en la carga dinámica | `GEN_ESCRITO` → `GEN_VALIDADO` → `GEN_CARGADO` → `GEN_ACTIVO` en la madre | §6.6 | 7 |
+| P1 | Sin unidad central indispensable | Gestor y panel fuera del camino de las operaciones | §3.3 | 11 |
 | P2 | Sin nodo maestro | Gossip y failover (`Celula._rotacion()`); `test_nodo_tumbado_failover_y_el_servicio_sigue` | §4.5 | N/A |
-| P3 | Nodos y células flexibles | Nodo 5 y madres nuevas en vivo | §4.1, §12 | `<mm:ss>` |
-| P4 | Protocolos con altas, bajas, fallas y nuevas instancias | Escenarios 4 a 8 | §12 | `<mm:ss>` |
-| P5 | La pérdida de una célula no es punto único de falla | Cualquier madre regenera a cualquiera | §8.4, §9 | `<mm:ss>` |
-| P6 | Recuperación gradual y controlada | Turno único + `PAUSA_REGENERACION` + topes | §8.5 | `<mm:ss>` |
+| P3 | Nodos y células flexibles | Nodo 5 y madres nuevas en vivo | §4.1, §12 | 10 |
+| P4 | Protocolos con altas, bajas, fallas y nuevas instancias | Escenarios 4 a 8 | §12 | 6–10 |
+| P5 | La pérdida de una célula no es punto único de falla | Cualquier madre regenera a cualquiera | §8.4, §9 | 8 |
+| P6 | Recuperación gradual y controlada | Turno único + `PAUSA_REGENERACION` + topes | §8.5 | 9 |
 | P7 | Control de foliado, ACK, topología y recuperación distribuido | Ver tabla | §10 | N/A |
-| C1 | Esquema de la Figura 1 del enunciado | Diagrama del gestor (Figura 1 de este reporte) | §3.2 | `<mm:ss>` |
+| C1 | Esquema de la Figura 1 del enunciado | Diagrama del gestor (Figura 1 de este reporte) | §3.2 | 2 |
 
 ### 2.1 Escenarios y evidencias mínimas
 
@@ -492,7 +487,7 @@ Este es el mecanismo que pide explicar el requisito M5 (`madre/genes.py`):
 | **Cargar** | `importlib.util.spec_from_file_location` + `module_from_spec`, y se ejecutan **los mismos bytes que se validaron** (no se vuelve a leer el archivo: entre validar y cargar nadie puede cambiarlo). El módulo no se registra en `sys.modules`. Se revisa que tenga `SERVICIO`, `VERSION` y `calcular` | `interfaz inválida` |
 | **Autoprueba** | Corre los vectores `pruebas` del manifiesto | `autoprueba falló` |
 | **Activar** | Bajo el lock del genoma lo pone en `activos[código]` y publica su `CEL_LAT` de inmediato: desde ese instante acusa `X_REQ` | — |
-| **Descargar** | Lo saca de `activos` (deja de acusar al instante). Las rondas en curso terminan con su propia referencia. Un `weakref` al módulo (Python Software Foundation, 2025d) y `gc.collect()` confirman que se **liberó de memoria**; luego se borra su copia del disco | — |
+| **Descargar** | Lo saca de `activos` (deja de acusar al instante) y borra su copia del disco. Las rondas en curso terminan con su propia referencia. Un `weakref` al módulo (Python Software Foundation, 2025d) y `gc.collect()` confirman que se **liberó de memoria** | — |
 
 Cada ronda guarda el gen con el que acusó (`SUM@1.0`) y lo usa hasta el final, así que un cambio a
 mitad de un evento no mezcla versiones.
@@ -578,7 +573,7 @@ mensaje** (cabe holgado en una línea NDJSON de 64 KiB). Viaja por broadcast com
 solo la madre con `destino == mi hash` la atiende, y solo si el origen es un `GESTOR`. Contesta
 `GEN_ACK` antes de trabajar y `GEN_RES` al terminar el ciclo de vida. Una orden repetida no se
 ejecuta dos veces. Estados en el gestor: `enviada → recibida → ok | rechazada | sin respuesta |
-sin resultado`.
+sin resultado` (o `no salió`, sin enlace).
 
 Dos atajos facilitan la demostración: **"Distribuir una de cada operación por nodo"** asigna a
 cada nodo una madre vacía por operación que le falte (la versión base, `SUM 1.0`), y **"Sustituir
@@ -645,7 +640,7 @@ Cada madre revisa cada 0.5 s, sin input de nadie:
 1. **Detectar.** Una madre sin latido en 6 s y sin `CEL_ADIOS` se registra como pérdida, con sus
    genes, su nodo y su nombre (`CAIDA … pérdida → necesita 1 reemplazo`).
 2. **Turno (gradual).** Si hay una regeneración en curso en el sistema, las demás pérdidas
-   esperan (`EN_ESPERA`). Si no, va la pendiente de menor hash: todas eligen la misma.
+   esperan (`EN_ESPERA` en el gestor). Si no, va la pendiente de menor hash: todas eligen la misma.
 3. **Clonador.** Ranking HRW de las madres **aptas** con la clave `clon:<hash de la pérdida>`.
    El rango 0 regenera. El rango r espera `r · RELEVO_CLON` (3 s) y regenera solo si no vio un
    `CLON_AVISO` para esa pérdida: si el clonador también cae, otra toma su lugar.
@@ -803,18 +798,18 @@ inyectable que crea los reemplazos en el mismo proceso.
 
 | Archivo | Pruebas | Qué cubre |
 |---|---|---|
-| `test_protocolo`, `test_mensajes`, `test_hashes`, `test_vistos`, `test_bitacora`, `test_formato`, `test_enlace` | 64 | Framing NDJSON, sobre y control, hashes y ranking HRW, registro de vistos, bitácora, formato de números, enlace con cola |
-| `test_malla`, `test_broadcast` | 15 | Malla por gossip (incluido un 5.º nodo con una sola semilla), inundación, TTL y duplicados |
-| `test_flujo` | 30 | Las 4 operaciones con un RES por folio, `X_FIN` que cierra rondas, ajenas ignoradas, sello alterado, madre muda en ausentes, ráfagas simultáneas, relevo y failover de nodo |
+| `test_protocolo`, `test_mensajes`, `test_hashes`, `test_vistos`, `test_bitacora`, `test_formato`, `test_enlace` | 66 | Framing NDJSON, sobre y control, hashes y ranking HRW, registro de vistos, bitácora, formato de números, enlace con cola y drenaje; líneas que desbordan o anidan de más |
+| `test_malla`, `test_broadcast` | 17 | Malla por gossip (un 5.º nodo con una sola semilla), nodo detenido al marcar, inundación, TTL y duplicados |
+| `test_flujo` | 33 | Las 4 operaciones con un RES por folio, `X_FIN` que cierra rondas, ajenas ignoradas, sello alterado, madre muda en ausentes, ráfagas simultáneas, relevo y failover de nodo (sin gastar reintentos) |
 | `test_foliado` | 15 | Folio, sello determinista y sensible a cada campo, rastro, validación |
-| `test_genes` | 20 | Localizar (confinado al almacén), validar, cargar, autoprueba, activar, descargar con `weakref`, sustituir con reversión |
+| `test_genes` | 21 | Localizar (confinado al almacén), validar, cargar, autoprueba, activar, descargar con `weakref` (aun retenido), sustituir con reversión |
 | `test_microservicios` | 14 | Cada gen real pasa sus pruebas; `SUM 9.9` se rechaza; `SUM 2.0` da `0.3` |
-| `test_gestor` | 24 | BD, topología, distribuir, alta, baja, sustituir, retiro, orden a célula muerta, pedidos y entregas, el sistema sin gestor |
-| `test_regeneracion` | 15 | Una pérdida → un reemplazo con sus genes copiados; tres → en secuencia; retiro y baja no regeneran; una sola `SUM` → una; clonador muerto → rango 1; topes, telómeros y cupo |
+| `test_gestor` | 28 | BD, topología, distribuir, alta, baja, sustituir, retiro, orden a célula muerta, pedidos y entregas, el sistema sin gestor |
+| `test_regeneracion` | 19 | Una pérdida → un reemplazo con sus genes copiados; tres → en secuencia; retiro y baja no regeneran; una sola `SUM` → una; clonador muerto → rango 1; topes, telómeros y cupo; reconexión, hijo vencido |
 | `test_panel` | 4 | Los dos modos de arranque y que el panel no abre gestores |
-| **Total** | **201** | |
+| **Total** | **217** | |
 
-**Resultado:** 201 pruebas en verde **tres veces seguidas** (190.9 s, 191.4 s y 190.6 s), y
+**Resultado:** 217 pruebas en verde **tres veces seguidas** (190.4 s, 192.7 s y 193.8 s), y
 `ruff check .` limpio.
 
 ## 12. Escenarios ejecutados
@@ -865,8 +860,14 @@ así, cada `RESULTADO` llega solo a la GUI dueña del folio (bitácoras de GUI-1
 | 6 | En el panel, la quinta madre de un nodo se cortaba | Fichas en una sola línea | Las fichas bajan de renglón según el ancho libre |
 
 Ninguno daba un resultado aritmético incorrecto. Los bugs 1 y 2 solo aparecieron con el sistema
-completo bajo carga, igual que en el segundo parcial: el orden de los eventos concurrentes es lo
-que más sorprende en un sistema distribuido.
+completo bajo carga: el orden de los eventos concurrentes es lo que más sorprende.
+
+**Auditoría final.** Una revisión del código por áreas encontró defectos en casos borde que la
+demostración no ejercita, y todos se corrigieron con pruebas nuevas: una madre que pasaba más de
+~8 s sin enlace daba por perdidas a todas al reconectarse y clonaba a una sana; un reemplazo lento
+de un intento vencido podía quedar vivo junto al del reintento (ahora el clonador lo termina); el
+clonador lanzaba aunque su `CLON_AVISO` no hubiera salido; la GUI gastaba reintentos durante un
+failover; y en el gestor, un reemplazo muerto antes de estar listo bloqueaba el "nivel ok".
 
 ## 14. Decisiones de diseño y limitaciones
 
@@ -892,7 +893,7 @@ que más sorprende en un sistema distribuido.
    producir dos titulares. La GUI acepta una respuesta por folio y descarta la otra, pero la
    carrera no es imposible.
 4. **Sin autenticación.** Cualquier proceso que hable el protocolo podría presentarse como
-   `GESTOR` y dar órdenes. El sha256 protege la integridad del gen, no su origen; firmar con una
+   `GESTOR` y dar órdenes, o usar el folio de otra GUI. El sha256 protege la integridad del gen, no su origen; firmar con una
    llave sería el siguiente paso.
 5. **El gen es código Python que se ejecuta** en la célula. El sha256 y la autoprueba evitan
    genes alterados, pero no un gen bien firmado y malicioso. Un entorno aislado (otro proceso con
@@ -929,7 +930,7 @@ conserva la historia completa, con la etiqueta `parcial-2` marcando el punto de 
 indispensable, y ahora su funcionalidad vive en genes que se cargan de disco, se cambian en
 caliente desde un gestor y se copian por la red cuando una célula muere. Los cinco objetivos
 específicos se verificaron: el foliado, la carga dinámica, el gestor y la autorrecuperación, con
-los ocho escenarios en vivo (30 de 30 revisiones) y con 201 pruebas automatizadas en verde tres
+los ocho escenarios en vivo (30 de 30 revisiones) y con 217 pruebas automatizadas en verde tres
 veces seguidas.
 
 **Lo que enseñó el proyecto.**
@@ -987,19 +988,11 @@ del segundo parcial (`LATIDO` 2, `LATIDO_CADUCIDAD` 6, `VENTANA_ACUSES` 1.5, `VE
 
 ## Anexo C. Cómo correrlo y documentación complementaria
 
-```
-uv sync                                          # una vez
-uv run python -m panel                           # panel de la demostración
-uv run python -m unittest discover -s tests -t . # pruebas
-uv run python -m herramientas.firmar --verificar # integridad del banco de genes
-```
-
-En el repositorio, `README.md` explica cómo arrancar cada programa; `GUION_VIDEO.md` es el guion
+`uv sync` una vez y `uv run python -m panel` para la demostración. En el repositorio,
+`README.md` explica cómo arrancar cada programa y correr las pruebas; `GUION_VIDEO.md` es el guion
 del video; `docs/REQUISITOS.md` lista cada requisito con su evidencia; `docs/PLAN.md` tiene el
 diseño completo; `docs/capturas/` guarda las figuras y la bitácora completa de la verificación en
 vivo; y `docs/parcial2/` lo entregado en el segundo parcial.
-
----
 
 # REFERENCIAS
 

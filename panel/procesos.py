@@ -134,8 +134,10 @@ class Procesos:
         self.raiz = raiz
         self.procesos: list[Proceso] = []
         self._lock = threading.Lock()
-        self._clones: dict[int, Proceso] = {}     # pid -> reemplazo visto en run/
-        self._seguir: dict[int, tuple[Path | None, int]] = {}  # pid -> (log, bytes leídos)
+        # (pid, inicio) -> reemplazo visto en run/: Windows recicla PIDs, así que un
+        # reemplazo nuevo puede traer el PID de uno que ya murió.
+        self._clones: dict[tuple[int, float], Proceso] = {}
+        self._seguir: dict[tuple[int, float], tuple[Path | None, int]] = {}  # -> (log, leídos)
 
     # ---------------------------------------------------------------- consulta
 
@@ -239,22 +241,22 @@ class Procesos:
     def buscar_reemplazos(self) -> None:
         """Agrega los reemplazos nuevos de ``run/``, marca los que murieron y lee lo
         nuevo de sus bitácoras (``logs/``)."""
-        registrados = {int(d["pid"]): d for d in lanzador.registrados()}
+        registrados = {(int(d["pid"]), float(d["inicio"])): d for d in lanzador.registrados()}
         with self._lock:
-            for pid, d in registrados.items():
-                if pid not in self._clones:
+            for clave, d in registrados.items():
+                if clave not in self._clones:
                     p = Proceso(d["nombre"], CLON, _fila(d.get("nodo")), list(d.get("comando", [])),
-                                pid_clon=pid, inicio=float(d["inicio"]))
-                    self._clones[pid] = p
+                                pid_clon=clave[0], inicio=clave[1])
+                    self._clones[clave] = p
                     self.procesos.append(p)
-            for pid, p in self._clones.items():
-                if not p.terminado and pid not in registrados:
+            for clave, p in self._clones.items():
+                if not p.terminado and clave not in registrados:
                     p.terminado = True
-        for pid, p in list(self._clones.items()):
-            self._leer_log(pid, p)
+        for clave, p in list(self._clones.items()):
+            self._leer_log(clave, p)
 
-    def _leer_log(self, pid: int, p: Proceso) -> None:
-        ruta, leidos = self._seguir.get(pid, (None, 0))
+    def _leer_log(self, clave: tuple[int, float], p: Proceso) -> None:
+        ruta, leidos = self._seguir.get(clave, (None, 0))
         if ruta is None:
             ruta = _log_de(p)
             if ruta is None:
@@ -266,7 +268,7 @@ class Procesos:
                 leidos = f.tell()
         except OSError:
             return
-        self._seguir[pid] = (ruta, leidos)
+        self._seguir[clave] = (ruta, leidos)
         for linea in nuevo.splitlines():
             p.agregar_linea(linea)
 

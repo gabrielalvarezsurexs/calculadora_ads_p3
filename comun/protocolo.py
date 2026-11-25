@@ -42,10 +42,19 @@ def _rechazar_constante(nombre):
     raise ValueError(f"{nombre} no es JSON estándar")
 
 
+def _numero(texto: str) -> float:
+    """Un literal como ``1e999`` se volvería ``inf``: tampoco es un número válido aquí."""
+    x = float(texto)
+    if x in (float("inf"), float("-inf")):
+        raise ValueError(f"{texto[:20]} se desborda")
+    return x
+
+
 def _decodificar(linea: bytes):
     try:
-        objeto = json.loads(linea.decode("utf-8"), parse_constant=_rechazar_constante)
-    except (UnicodeDecodeError, ValueError):
+        objeto = json.loads(linea.decode("utf-8"), parse_constant=_rechazar_constante,
+                            parse_float=_numero)
+    except (UnicodeDecodeError, ValueError, RecursionError):   # [[[[…]]]] muy anidado
         return None, "no es JSON"
     if not isinstance(objeto, dict):
         return None, "no es un objeto JSON"
@@ -88,6 +97,7 @@ def leer_mensajes(fuente):
 
 
 _CERRAR = object()  # marca en la cola: cerrar el socket después de vaciarla
+_SOLO_LEER = object()  # marca en la cola: tras vaciarla, cerrar solo la escritura
 
 
 class Enlace:
@@ -127,6 +137,7 @@ class Enlace:
         self._etiqueta = etiqueta
         self._cola: queue.Queue = queue.Queue()
         self._vivo = True
+        self._drenando = False
         self._lock = threading.Lock()
         self._lector = threading.Thread(target=self._leer, name=f"{etiqueta}-lector",
                                         daemon=True)
@@ -171,6 +182,12 @@ class Enlace:
             if datos is _CERRAR:
                 self._cerrar_socket()
                 return
+            if datos is _SOLO_LEER:
+                try:
+                    self.sock.shutdown(socket.SHUT_WR)  # el par recibe fin de datos
+                except OSError:
+                    pass
+                return
             try:
                 self.sock.sendall(datos)
             except OSError as e:
@@ -183,7 +200,7 @@ class Enlace:
         motivo = "cerrado por el par"
         try:
             for mensaje, problema in leer_mensajes(self.sock):
-                if not self._vivo:
+                if not self._vivo and not self._drenando:
                     break
                 try:
                     if problema is not None:
@@ -202,6 +219,10 @@ class Enlace:
             motivo = "error interno del lector"
         finally:
             self.cerrar(motivo)
+            if self._drenando:   # el par ya terminó: que salga lo encolado y se cierra todo
+                if self._escritor.is_alive():
+                    self._escritor.join(config.DRENAJE)
+                self._cerrar_socket()
             if self._al_cerrar:
                 try:
                     self._al_cerrar(self, self.motivo_cierre)
@@ -210,16 +231,25 @@ class Enlace:
 
     # --- Cierre -------------------------------------------------------------
 
-    def cerrar(self, motivo: str | None = None, vaciar: bool = False) -> None:
+    def cerrar(self, motivo: str | None = None, vaciar: bool = False,
+               drenar: bool = False) -> None:
         """Cierra el enlace. Con ``vaciar=True`` primero envía lo encolado
-        (por ejemplo, un RECHAZO) y luego cierra. Idempotente: gana el primer
-        motivo."""
+        (por ejemplo, un RECHAZO) y luego cierra. Con ``drenar=True`` además
+        sigue LEYENDO hasta que el par cierre (máx. ``DRENAJE`` s): lo que el par
+        ya había mandado se procesa en vez de perderse. Idempotente: gana el
+        primer motivo."""
         with self._lock:
             if not self._vivo:
                 return
             self._vivo = False
             self.motivo_cierre = motivo
-        if vaciar:
+            self._drenando = drenar
+        if drenar:
+            self._cola.put(_SOLO_LEER)
+            t = threading.Timer(config.DRENAJE, self._cerrar_socket)  # par que no cierra
+            t.daemon = True
+            t.start()
+        elif vaciar:
             self._cola.put(_CERRAR)
             # Red de seguridad por si el escritor está atorado con un par colgado.
             t = threading.Timer(2.0, self._cerrar_socket)

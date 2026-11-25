@@ -125,6 +125,7 @@ class Interfaz(Celula):
         self.ajenas = 0          # mensajes que no eran para mí (contador visible)
         self._ultima_disp = None
         self._sin_enlace = False  # entre perder el nodo y terminar el failover
+        self._fines_pendientes: list[tuple[str, dict]] = []   # X_FIN que no salieron
 
     # ------------------------------------------------------------------ vida
 
@@ -146,7 +147,21 @@ class Interfaz(Celula):
             for celulas in self.vivas.values():
                 for datos in celulas.values():
                     datos[0] = max(datos[0], ahora)
+            # Lo que estaba en vuelo: sin enlace no se gastaron intentos (ver
+            # _revisar_operacion). Lo no confirmado se reintenta ya por el nodo nuevo;
+            # lo confirmado recibe un plazo completo para su respuesta.
+            for op in self.operaciones.values():
+                if op.estado == EN_VUELO:
+                    if op.t_confirmado is None:
+                        op.enviado_en = min(op.enviado_en, ahora - config.VENTANA_ACUSES)
+                    else:
+                        op.t_confirmado = max(op.t_confirmado, ahora)
+            fines, self._fines_pendientes = self._fines_pendientes, []
             self._sin_enlace = False
+        for codigo, cuerpo in fines:   # X_FIN que no salieron: las madres cierran sus rondas
+            if self.publicar(codigo, cuerpo) is None:
+                with self._lock_ops:
+                    self._fines_pendientes.append((codigo, cuerpo))
         if como == FAILOVER:
             self._mini("FAILOVER", f"→ {nodo['nombre']} ({nodo['endpoint']})", registrar=False)
         else:
@@ -271,7 +286,7 @@ class Interfaz(Celula):
                 if tipo == codigos.ACK:
                     self._rx_ack(op, m, intento)
                 else:
-                    self._rx_res(op, m)
+                    self._rx_res(op, m, intento)
                 return
         self._ignorar(m, por)
         if por != "folio ajeno":
@@ -360,7 +375,7 @@ class Interfaz(Celula):
             self._cerrar_ventana(op)
         self._emitir_operacion(op)
 
-    def _rx_res(self, op: Operacion, m: dict) -> None:
+    def _rx_res(self, op: Operacion, m: dict, intento: int) -> None:
         """Con ``_lock_ops`` tomado."""
         nombre = m.get("nombre_origen") or hashes.corto(m["origen"])
         rol = m["cuerpo"].get("rol")
@@ -373,6 +388,10 @@ class Interfaz(Celula):
                                  f"fallida; descartada")
             return
         if op.t_confirmado is None:
+            if intento != op.intento:   # se retiene solo la del intento vigente
+                self._mini("TARDÍA", f"{op.folio} · respuesta de {nombre} del intento {intento}; "
+                                     f"voy en el {op.intento}: descartada")
+                return
             op.retenido = m
             self._mini("RETENIDA", f"{op.folio} · respuesta de {nombre} ({rol}) retenida: evento "
                                    f"aún sin confirmar ({op.acuses()}/"
@@ -466,6 +485,7 @@ class Interfaz(Celula):
         op.enviado_en = time.monotonic()
         op.fase = foliado.INICIO
         op.t_confirmado = None
+        op.retenido = None   # la retenida era de otro intento
         op.ventana_cerrada = False
         op.ausentes = []
         op.esperados = self._esperados(op.servicio)
@@ -487,10 +507,12 @@ class Interfaz(Celula):
                       for h in op.acusadores.get(op.intento, ())]
             op.huella_final = foliado.con_pasos(op.huella, acuses)
         op.huella_final = foliado.con_paso(op.huella_final, self.hash, self.nombre, foliado.FIN)
-        self.publicar(codigos.codigo(op.servicio, codigos.FIN), {
-            "folio": op.folio, "intento": op.intento, "estado": op.estado,
-            "id_respuesta": op.id_respuesta, "acuses": sorted(op.acusaron()),
-            "ausentes": op.ausentes, "huella": op.huella_final})
+        codigo = codigos.codigo(op.servicio, codigos.FIN)
+        cuerpo = {"folio": op.folio, "intento": op.intento, "estado": op.estado,
+                  "id_respuesta": op.id_respuesta, "acuses": sorted(op.acusaron()),
+                  "ausentes": op.ausentes, "huella": op.huella_final}
+        if self.publicar(codigo, cuerpo) is None:
+            self._fines_pendientes.append((codigo, cuerpo))   # sale al reconectar
         self._mini("FIN", f"{op.folio} · {op.estado} · rastro: "
                           f"{foliado.texto_rastro(op.huella_final)}")
         self._emitir_operacion(op)
@@ -521,6 +543,8 @@ class Interfaz(Celula):
             self._cerrar_ventana(op)
         if op.estado != EN_VUELO:
             return
+        if self._sin_enlace or not self.conectado:
+            return   # sin enlace no se gasta un intento: al reconectar se rearma el plazo
         if op.t_confirmado is None:
             if vencio_ventana:
                 self._vencer(op, f"acuses insuficientes ({op.acuses()}/{minimo})")

@@ -6,11 +6,13 @@ para simular que TCP parte o junta mensajes como quiera.
 """
 
 import json
+import socket
+import threading
 import unittest
 from unittest import mock
 
 from comun import config
-from comun.protocolo import ConexionCerrada, leer_mensajes, serializar
+from comun.protocolo import ConexionCerrada, Enlace, leer_mensajes, serializar
 
 
 class FuenteFalsa:
@@ -96,6 +98,11 @@ class TestLineasInvalidas(unittest.TestCase):
         pares = leer_todo([b'{"x": NaN}\n{"x": Infinity}\n{"x": -Infinity}\n{"x": 1.5}\n'])
         self.assertEqual([m for m, _ in pares], [None, None, None, {"x": 1.5}])
 
+    def test_desborde_y_anidamiento_extremo_no_rompen_el_lector(self):
+        anidado = b"[" * 50_000 + b"]" * 50_000 + b"\n"   # < 64 KiB; RecursionError al leer
+        pares = leer_todo([b'{"x": 1e999}\n' + anidado + b'{"ok": 1}\n'])
+        self.assertEqual([m for m, _ in pares], [None, None, {"ok": 1}])
+
 
 class TestTopeMaxLinea(unittest.TestCase):
     def setUp(self):
@@ -143,6 +150,32 @@ class TestSerializar(unittest.TestCase):
         for valor in (float("nan"), float("inf"), float("-inf")):
             with self.subTest(valor=valor), self.assertRaises(ValueError):
                 serializar({"x": valor})
+
+
+class TestDrenaje(unittest.TestCase):
+    """Cerrar un enlace duplicado con ``drenar``: sale lo encolado, se deja de
+    escribir, y lo que el par ya había mandado todavía se lee (no se pierde)."""
+
+    def test_drenar_lee_lo_que_el_par_ya_mando(self):
+        mio, par = socket.socketpair()
+        self.addCleanup(par.close)
+        recibidos, cerrado = [], threading.Event()
+        enlace = Enlace(mio, saliente=True, al_mensaje=lambda e, m: recibidos.append(m),
+                        al_cerrar=lambda e, motivo: cerrado.set())
+        enlace.iniciar()
+        enlace.enviar({"n": 1})
+        enlace.cerrar("duplicado", drenar=True)
+        self.assertFalse(enlace.enviar({"n": 2}), "ya no se escribe")
+
+        par.settimeout(3)
+        lector = leer_mensajes(par)
+        self.assertEqual(next(lector), ({"n": 1}, None), "lo encolado sí sale")
+        with self.assertRaises(ConexionCerrada):   # y luego, fin de datos
+            next(lector)
+        par.sendall(serializar({"n": 3}))   # lo que el par tenía en vuelo
+        par.close()
+        self.assertTrue(cerrado.wait(3))
+        self.assertEqual(recibidos, [{"n": 3}])
 
 
 if __name__ == "__main__":

@@ -47,7 +47,7 @@ from comun.bitacora import Bitacora, hora
 from comun.pedidos import Proveedor
 from comun.programador import Programador
 from gestor.bd import BaseDatos
-from gestor.topologia import VIVA, CelulaVista, Foto, Topologia
+from gestor.topologia import CAIDA, VIVA, CelulaVista, Foto, Topologia
 from madre.ordenes import ALTA, BAJA, CAMBIO, RETIRO
 
 # Estados de una orden.
@@ -114,6 +114,7 @@ class Gestor(Celula):
         self.ordenes: OrderedDict[str, Orden] = OrderedDict()
         self.linea_tiempo: deque = deque(maxlen=200)   # (hora, evento, texto) de regeneración
         self._entregas: set[tuple[str, str]] = set()   # (reemplazo, gen) ya en la línea
+        self._listos: set[str] = set()                 # reemplazos que publicaron CLON_LISTO
         self._numeros = itertools.count(1)
         self._consultas = itertools.count(1)
         self._genes_en_bd = 0
@@ -132,17 +133,31 @@ class Gestor(Celula):
         return {"tipo": mensajes.GESTOR, "bd": self._genes_en_bd}
 
     def al_conectar(self, nodo: dict, como: str) -> None:
+        # Sin enlace no oía latidos: eso no prueba que nadie muriera. Plazo nuevo.
+        self.topologia.tregua()
         self._registrarme()
         self.anotar("CONEXION", f"conectado a {nodo['nombre']} ({nodo['endpoint']}); "
                                 f"pido la topología a todos (TOPO_REQ)")
         self.consultar(silencioso=True)
 
     def al_latir(self) -> None:
+        if not self.conectado:   # aislado no puedo saber quién murió (ver al_conectar)
+            return
         self._registrarme()
         for evento, texto, h, tipo in self.topologia.caducar():
             self.anotar(evento, texto)
             c = self.topologia.celula(h) if tipo == mensajes.MADRE else None
-            if c is not None:
+            if c is None:
+                continue
+            with self._lock_ordenes:
+                listo = c.hash in self._listos
+            if c.reemplaza and not listo:
+                # Igual que las madres: un reemplazo que muere antes de estar listo no es
+                # otra pérdida; ellas reintentan la MISMA.
+                self.topologia.olvidar(c.hash)
+                self._regeneracion("CAIDA", f"{c.nombre} murió antes de estar listo: las "
+                                            f"madres reintentan su pérdida")
+            else:
                 self._caida(c)
 
     def _caida(self, c: CelulaVista) -> None:
@@ -213,7 +228,14 @@ class Gestor(Celula):
                        key=lambda n: natural(n.nombre))
         for nodo in nodos:
             madres = sorted(foto.madres(nodo.hash), key=lambda c: natural(c.nombre))
-            presentes = {cod for c in madres for cod in c.codigos}
+            # Lo que este nodo ya tiene o va a tener: madres vivas que responden (una muda
+            # no cuenta), caídas que esperan su reemplazo y reemplazos naciendo aquí.
+            en_espera = [c for c in foto.celulas.values()
+                         if c.tipo == mensajes.MADRE and c.nodo == nodo.hash
+                         and c.estado == CAIDA and c.reemplazada_en is None]
+            naciendo = [c for c in foto.naciendo.values() if c.nodo == nodo.hash]
+            presentes = {cod for c in (*madres, *en_espera, *naciendo) if not c.mudo
+                         for cod in c.codigos}
             libres = [c for c in madres if c.vacia and not c.mudo]
             faltan = [s for s in codigos.SERVICIOS if s not in presentes and versiones[s]]
             for servicio, madre in zip(faltan, libres):
@@ -225,6 +247,14 @@ class Gestor(Celula):
                    + (f" · {'; '.join(notas)}" if notas else ""))
         self.anotar("DISTRIBUIR", resumen)
         return ordenes, notas
+
+    def publicar(self, codigo: str, cuerpo: dict, *, ttl: int | None = None) -> dict | None:
+        m = super().publicar(codigo, cuerpo, ttl=ttl)
+        if m is not None and codigo == codigos.GEN_ENTREGA:
+            destino = self.topologia.celula(cuerpo.get("destino") or "")
+            if destino is not None and destino.reemplaza:
+                self._rx_entrega(m, destino)
+        return m
 
     def consultar(self, *, silencioso: bool = False) -> None:
         """``TOPO_REQ``: todas las células contestan ya con su latido."""
@@ -259,9 +289,10 @@ class Gestor(Celula):
         return orden
 
     def _vencer_ack(self, orden: Orden) -> None:
-        with self._lock_ordenes:
+        with self._lock_ordenes:   # revisar y apartar juntos: si no, pisa un GEN_RES
             if orden.estado != ENVIADA:
                 return
+            orden.estado = SIN_RESPUESTA
         self._cerrar(orden, SIN_RESPUESTA, f"sin GEN_ACK en {config.GEN_ACK_TIMEOUT:g} s: "
                                            f"{orden.destino_nombre} no contestó")
 
@@ -269,6 +300,7 @@ class Gestor(Celula):
         with self._lock_ordenes:
             if orden.estado != RECIBIDA:
                 return
+            orden.estado = SIN_RESULTADO
         self._cerrar(orden, SIN_RESULTADO, f"GEN_ACK sin GEN_RES en "
                                            f"{config.GEN_RES_TIMEOUT:g} s")
 
@@ -354,6 +386,7 @@ class Gestor(Celula):
             orden.ms = cuerpo.get("ms") if isinstance(cuerpo.get("ms"), int) else None
             orden.ruta = cuerpo.get("ruta") if isinstance(cuerpo.get("ruta"), str) else None
             orden.rtt_ms = round((time.monotonic() - orden.t0) * 1000)
+            orden.estado = OK if ok else RECHAZADA   # apartada: un vencimiento ya no la pisa
         detalle = str(cuerpo.get("detalle") or "")[:200]
         if cuerpo.get("sustituyo"):
             detalle = f"{cuerpo['sustituyo']} → {cuerpo.get('gen')} · {detalle}"
@@ -414,6 +447,8 @@ class Gestor(Celula):
         fuentes = cuerpo.get("fuentes") if isinstance(cuerpo.get("fuentes"), dict) else {}
         faltan = cuerpo.get("faltan") if isinstance(cuerpo.get("faltan"), list) else []
         copiados = ", ".join(f"{g} de {de}" for g, de in fuentes.items()) or "sin genes"
+        with self._lock_ordenes:
+            self._listos.add(m["origen"])
         perdida = self.topologia.celula(cuerpo.get("reemplaza") or "")
         self._regeneracion("CLON_LISTO", f"{m.get('nombre_origen')} reemplaza a "
                                          f"{perdida.nombre if perdida else 'la perdida'}: "

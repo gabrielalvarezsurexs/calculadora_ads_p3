@@ -58,6 +58,8 @@ class VentanaInterfaz:
         self._entrada = "0"
         self._resultado_en_display = False  # el display muestra un resultado (para encadenar)
         self._mi_op: str | None = None      # folio cuyo resultado irá al display
+        self._enviada = False               # el display muestra una operación ya enviada
+        self._tecleo = False                # se empezó otra mientras _mi_op estaba en vuelo
         self._operaciones: dict[str, dict] = {}  # folio -> fila (en orden de llegada)
         self._evento: str | None = None     # folio que muestra la tarjeta
         self._seguir = True                 # la tarjeta sigue a la operación más nueva
@@ -257,7 +259,16 @@ class VentanaInterfaz:
             self._tecla(evento.char)
 
     def _tecla(self, tecla: str) -> None:
-        nuevo_numero = self._resultado_en_display and (tecla.isdigit() or tecla == ".")
+        if self._enviada and tecla in TECLA_SERVICIO:
+            self._decir("espera el resultado (o escribe otro número)", tema.AVISO)
+            return
+        nuevo_numero = ((self._resultado_en_display or self._enviada)
+                        and (tecla.isdigit() or tecla == "."))
+        if self._enviada:   # se empieza otra operación: la enviada ya no va al display
+            self._tecleo = self._mi_op is not None
+            self._enviada = False
+            if nuevo_numero or tecla == "±":
+                self._acumulado, self._servicio = "", None
         self._resultado_en_display = False
         if nuevo_numero:  # tras un resultado, un dígito empieza otro número
             self._entrada = "0"
@@ -268,7 +279,13 @@ class VentanaInterfaz:
             if not self.interfaz.habilitadas[servicio]:
                 self._decir(f"{servicio} no disponible", tema.ERROR)
                 return
-            self._acumulado, self._servicio, self._entrada = self._entrada, servicio, "0"
+            if self._servicio and self._entrada == "0":
+                self._servicio = servicio   # corrige el operador: el primer número se queda
+            elif self._servicio:
+                self._decir("presiona = para resolver la operación actual", tema.AVISO)
+                return
+            else:
+                self._acumulado, self._servicio, self._entrada = self._entrada, servicio, "0"
         elif tecla == ".":
             if "." not in self._entrada:
                 self._entrada += "."
@@ -283,6 +300,14 @@ class VentanaInterfaz:
         self._refrescar_display()
 
     def _borrar_digito(self) -> None:
+        if self._enviada or self._resultado_en_display or "e" in self._entrada.lower():
+            # Lo enviado o un resultado (o notación científica) no se edita dígito a
+            # dígito: "1e+20" sin su último carácter sería 100. Se empieza de cero.
+            self._tecleo = self._enviada and self._mi_op is not None
+            self._enviada = self._resultado_en_display = False
+            self._acumulado, self._servicio, self._entrada = "", None, "0"
+            self._refrescar_display()
+            return
         self._entrada = self._entrada[:-1]
         if self._entrada in ("", "-"):
             self._entrada = "0"
@@ -296,6 +321,9 @@ class VentanaInterfaz:
         self._lbl_display.config(text=texto)
 
     def _resolver(self) -> None:
+        if self._enviada:   # un = repetido no manda otro evento con otro folio
+            self._decir(f"{self._mi_op}: ya va en camino; espera su resultado", tema.AVISO)
+            return
         if self._servicio is None:
             self._decir("escoge una operación primero", tema.AVISO)
             return
@@ -309,6 +337,7 @@ class VentanaInterfaz:
             self._decir(texto, tema.ERROR)
             return
         self._mi_op = folio
+        self._enviada, self._tecleo = True, False
         self._seguir = True
         self._decir(f"{folio}: esperando acuses…", tema.AVISO)
 
@@ -422,8 +451,18 @@ class VentanaInterfaz:
             self._decir(f"{fila['folio']} · {NOMBRE_FASE[fila['fase']]} · intento "
                         f"{fila['intento']} · ACK {fila['acuses']}/{fila['minimo']}", tema.AVISO)
             return
-        # Terminó la última operación pedida con "=": el resultado pasa al display.
+        # Terminó la última operación pedida con "=": el resultado pasa al display,
+        # salvo que ya se esté escribiendo otra (entonces solo va a la línea de estado).
         self._mi_op = None
+        if self._tecleo:
+            self._tecleo = False
+            fallo = fila["estado"] == FALLIDA or fila["error"]
+            texto = (f"FALLIDA: {fila['motivo']}" if fila["estado"] == FALLIDA
+                     else fila["error"] or f"{fila['folio']}: "
+                                           f"{formato.numero(fila['resultado'])}")
+            self._decir(texto, tema.ERROR if fallo else tema.OK)
+            return
+        self._enviada = False
         self._acumulado, self._servicio = "", None
         if fila["estado"] == FALLIDA or fila["error"]:
             self._entrada = "0"
@@ -454,15 +493,8 @@ class VentanaInterfaz:
         self._lbl_operacion.config(text=_operacion(fila), fg=tema.TEXTO)
         color = {EN_VUELO: tema.AVISO, FALLIDA: tema.ERROR}.get(fila["estado"], tema.OK)
         estilo.pintar_pildora(self._pil_estado, fila["estado"], color)
-        actual = foliado.FASES.index(fila["fase"])
-        for i, etiqueta in enumerate(self._fases):
-            if i < actual or (i == actual and fila["finalizado"]):
-                etiqueta.config(bg=tema.OK_SUAVE, fg=tema.OK)
-            elif i == actual:
-                fallo = fila["estado"] == FALLIDA
-                etiqueta.config(bg=tema.ERROR if fallo else tema.ACENTO, fg=tema.TEXTO_INVERSO)
-            else:
-                etiqueta.config(bg=tema.SUPERFICIE_2, fg=tema.APAGADO)
+        for etiqueta, (bg, fg) in zip(self._fases, _colores_fases(fila), strict=True):
+            etiqueta.config(bg=bg, fg=fg)
         acusaron = ", ".join(fila["acusaron"]) or "—"
         self._campos["sello"].config(text=fila["sello"][:16] + "…")
         self._campos["ACK"].config(
@@ -509,6 +541,26 @@ def _rastro(rastro: list) -> str:
             grupos.append([paso, [nombre]])
     return " → ".join(f"{nombres[0]} {paso}" if len(nombres) == 1 else f"{len(nombres)}×{paso}"
                       for paso, nombres in grupos) or "—"
+
+
+_HECHA = (tema.OK_SUAVE, tema.OK)
+_EN_CURSO = (tema.ACENTO, tema.TEXTO_INVERSO)
+_FALLO = (tema.ERROR, tema.TEXTO_INVERSO)
+_PENDIENTE = (tema.SUPERFICIE_2, tema.APAGADO)
+
+
+def _colores_fases(fila: dict) -> list[tuple[str, str]]:
+    """(fondo, letra) de cada fase de la tarjeta del evento."""
+    n = len(foliado.FASES)
+    if fila["estado"] == FALLIDA:
+        # Inicio sí; confirmado solo si llegó el mínimo; la primera que no llegó, en
+        # rojo (ahí falló); finalizado sí, porque se publicó X_FIN.
+        fallo = 2 if fila["acuses"] >= fila["minimo"] else 1
+        return [_HECHA if i < fallo or i == n - 1 else _FALLO if i == fallo else _PENDIENTE
+                for i in range(n)]
+    actual = foliado.FASES.index(fila["fase"])
+    return [_HECHA if i < actual or (i == actual and fila["finalizado"])
+            else _EN_CURSO if i == actual else _PENDIENTE for i in range(n)]
 
 
 def _operacion(fila: dict) -> str:

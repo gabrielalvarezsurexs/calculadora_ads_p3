@@ -19,7 +19,9 @@ misma decisión sin ponerse de acuerdo ni preguntarle a nadie:
    (``madre/lanzador.py``) con ``--reemplaza`` y la lista de genes a copiar.
 5. **Cerrar.** El reemplazo copia sus genes (``madre/copia.py``) y publica
    ``CLON_LISTO``; con eso la pérdida queda resuelta en todas. Si no llega en
-   ``PLAZO_CLON`` s, se reintenta (hasta ``MAX_REINTENTOS_CLON`` veces).
+   ``PLAZO_CLON`` s, se reintenta (hasta ``MAX_REINTENTOS_CLON`` veces); antes,
+   el clonador termina a su hijo vencido, para que nunca queden dos reemplazos
+   de la misma pérdida.
 6. **Alto.** Sin pérdidas pendientes, cada madre anota ``NIVEL_OK`` y no se
    clona nada más: el nivel requerido es el que había antes de la falla.
 
@@ -118,14 +120,19 @@ class Encargo:
         return args
 
 
-Lanzador = Callable[[Encargo], None]
+Lanzador = Callable[[Encargo], object]     # devuelve con qué cancelarlo (o None)
+Cancelar = Callable[[object], object]
 
 
 class Regeneracion:
     def __init__(self, madre, lanzador: Lanzador | None,
-                 reloj: Callable[[], float] = time.monotonic):
+                 reloj: Callable[[], float] = time.monotonic, cancelar: Cancelar | None = None):
+        """``cancelar``: cómo terminar a un hijo que no estuvo listo a tiempo (recibe
+        lo que devolvió ``lanzador``)."""
         self.madre = madre
         self.lanzador = lanzador
+        self.cancelar = cancelar
+        self._hijos: dict[str, object] = {}              # pérdida -> mi hijo en curso
         self.activa = lanzador is not None   # sin lanzador: lleva la cuenta pero no clona
         self._reloj = reloj
         self._lock = threading.Lock()
@@ -141,9 +148,15 @@ class Regeneracion:
     # ------------------------------------------------------------ entradas
 
     def conectada(self) -> None:
-        """Primera conexión: desde aquí cuenta mi antigüedad (como me ven las demás)."""
+        """Conexión o reconexión. Desde aquí cuenta mi antigüedad: tras un hueco no
+        clono hasta volver a oír a todas (mi directorio pudo quedar viejo). Y el
+        hueco no prueba que nadie haya muerto: cada una recibe un plazo completo
+        desde ahora (si no, al reconectarme daría por perdidas a todas)."""
         with self._lock:
-            self.desde = self._reloj()
+            ahora = self._reloj()
+            self.desde = ahora
+            for f in self.directorio.values():
+                f.visto = max(f.visto, ahora)
 
     def rx_latido(self, m: dict) -> None:
         """``CEL_LAT`` (o ``TOPO_RES``) de otra madre."""
@@ -186,8 +199,16 @@ class Regeneracion:
         with self._lock:
             f = self.directorio.pop(m["origen"], None)
             if f is None:
-                return
-            p = self.perdidas.get(f.reemplaza) if f.reemplaza else None
+                # Ya la daba por perdida (sus latidos no llegaban) y ahora se despide:
+                # no era una pérdida. Si ya hay un reemplazo en curso, se deja seguir.
+                p = self.perdidas.get(m["origen"])
+                if p is None or p.estado != PENDIENTE:
+                    return
+                del self.perdidas[m["origen"]]
+                avisos.append(("ADIOS", (f"{p.nombre} se despidió con CEL_ADIOS: no era una "
+                                         f"pérdida, no se regenera")))
+                self._quizas_nivel_ok(avisos)
+            p = self.perdidas.get(f.reemplaza) if f is not None and f.reemplaza else None
             if p is not None and p.estado == EN_CURSO:
                 # El administrador retiró al reemplazo antes de que estuviera listo:
                 # ese es el nivel que quiso; no se insiste.
@@ -195,8 +216,10 @@ class Regeneracion:
                 avisos.append(("NO_CLONA", (f"{p.nombre}: su reemplazo {f.nombre} se retiró "
                                            f"ordenadamente; no se insiste")))
                 self._quizas_nivel_ok(avisos)
-        self.madre.log("ADIOS", f"{f.nombre} se fue con CEL_ADIOS ({m['cuerpo'].get('motivo')}): "
-                                f"no es una pérdida, no se regenera", consola=False)
+        if f is not None:
+            self.madre.log("ADIOS", f"{f.nombre} se fue con CEL_ADIOS "
+                                    f"({m['cuerpo'].get('motivo')}): no es una pérdida, no se "
+                                    f"regenera", consola=False)
         self._anotar(avisos)
 
     def rx_aviso(self, m: dict) -> None:
@@ -211,8 +234,9 @@ class Regeneracion:
                 # Aún no la daba por perdida (o llegué después): el aviso basta para
                 # saber que hay una regeneración en curso.
                 self.directorio.pop(h, None)
+                nodo = c.get("nodo_perdida") if mensajes.es_hash(c.get("nodo_perdida")) else None
                 p = self.perdidas[h] = Perdida(
-                    h, str(c.get("perdida") or hashes.corto(h)), c.get("nodo_perdida"),
+                    h, str(c.get("perdida") or hashes.corto(h)), nodo,
                     None, _genes(c.get("genes")), max(0, _entero(c.get("generacion")) - 1),
                     desde=ahora)
             if p.estado in (RESUELTA, DESCARTADA):
@@ -234,11 +258,12 @@ class Regeneracion:
         if not mensajes.es_hash(h):
             return
         with self._lock:
-            self._fin_ultima = ahora
             p = self.perdidas.get(h)
             if p is None or p.estado in (RESUELTA, DESCARTADA):
                 return
             self._cerrar(p, RESUELTA, ahora)
+            self._fin_ultima = ahora
+            self._hijos.pop(h, None)
             fuentes = c.get("fuentes") if isinstance(c.get("fuentes"), dict) else {}
             copiados = ", ".join(f"{g} de {de}" for g, de in fuentes.items()) or "sin genes"
             faltan = c.get("faltan") if isinstance(c.get("faltan"), list) else []
@@ -252,14 +277,16 @@ class Regeneracion:
 
     def revisar(self) -> None:
         """Cada ``REVISION_REGENERACION`` s, en cada madre, sin input de nadie."""
-        ahora, avisos = self._reloj(), []
+        ahora, avisos, vencidos = self._reloj(), [], []
         with self._lock:
             self._detectar(ahora, avisos)
-            self._vencer(ahora, avisos)
+            self._vencer(ahora, avisos, vencidos)
             encargo = self._turno(ahora, avisos)
             self._quizas_nivel_ok(avisos)
             self._podar(ahora)
         self._anotar(avisos)
+        for nombre, hijo in vencidos:
+            self._cancelar(nombre, hijo)
         if encargo is not None:
             self._lanzar(*encargo)
 
@@ -291,16 +318,24 @@ class Regeneracion:
                                     f"{config.LATIDO_CADUCIDAD:g} s y sin CEL_ADIOS: pérdida → "
                                     f"necesita 1 reemplazo")))
 
-    def _vencer(self, ahora: float, avisos: list) -> None:
+    def _vencer(self, ahora: float, avisos: list, vencidos: list) -> None:
         for p in self.perdidas.values():
             if p.estado != EN_CURSO or ahora - p.aviso_en <= config.PLAZO_CLON:
                 continue
             hijo = self._reemplazo_vivo(p.hash, ahora)
             if hijo is not None:
                 self._cerrar(p, RESUELTA, ahora)
+                self._fin_ultima = ahora
+                self._hijos.pop(p.hash, None)
                 avisos.append(("CLON_LISTO", (f"{hijo.nombre} reemplaza a {p.nombre} (late; su "
                                              f"CLON_LISTO no me llegó)")))
-            elif p.intento > config.MAX_REINTENTOS_CLON:
+                continue
+            # Límite 2 (uno a uno): si el hijo vencido es mío, lo termino antes de que
+            # se reintente; si no, un hijo lento podría aparecer junto al del reintento.
+            if p.hash in self._hijos:
+                vencidos.append((p.hijo, self._hijos.pop(p.hash)))
+            self._fin_ultima = ahora
+            if p.intento > config.MAX_REINTENTOS_CLON:
                 self._cerrar(p, DESCARTADA, ahora, f"{p.intento} intentos sin reemplazo listo")
                 avisos.append(("NO_CLONA", (f"{p.nombre}: {p.motivo}; se deja (anti-cáncer: no "
                                            f"se insiste sin fin)")))
@@ -407,19 +442,43 @@ class Regeneracion:
         return mio.get("hash"), mio.get("nombre", "?"), mio.get("endpoint") or self.madre.nodo_inicial
 
     def _lanzar(self, encargo: Encargo, rango: int, p: Perdida) -> None:
-        self.madre.publicar(codigos.CLON_AVISO, {
+        aviso = self.madre.publicar(codigos.CLON_AVISO, {
             "reemplaza": p.hash, "perdida": p.nombre, "nodo_perdida": p.nodo,
             "genes": p.genes, "hijo": encargo.nombre, "nodo": encargo.nodo,
             "nodo_nombre": encargo.nodo_nombre, "generacion": encargo.generacion,
             "intento": p.intento, "rango": rango})
+        if aviso is None:
+            # Límite 3: si nadie oyó mi aviso, el rango siguiente también lanzaría.
+            with self._lock:
+                if p.estado == EN_CURSO and p.clonador == self.madre.nombre:
+                    p.estado, p.aviso_en, p.clonador, p.hijo = PENDIENTE, None, None, None
+            self.madre.log("NO_CLONA", f"mi CLON_AVISO para {p.nombre} no salió (sin enlace): no "
+                                       f"lanzo; otra lo hará")
+            return
         self.madre.log("CLON_AVISO", f"yo (rango {rango}) regenero a {p.nombre} → {encargo.nombre} "
                                      f"en {encargo.nodo_nombre}: nace vacía y copia "
                                      f"{_gen_texto(p.genes)} (intento {p.intento})")
         try:
-            self.lanzador(encargo)
+            hijo = self.lanzador(encargo)
             self.lanzados += 1
         except Exception as e:  # el aviso caduca en PLAZO_CLON y se reintenta
             self.madre.log("ERROR", f"no se pudo lanzar {encargo.nombre}: {e!r}")
+            return
+        if hijo is not None:
+            with self._lock:
+                if p.estado == EN_CURSO:
+                    self._hijos[p.hash] = hijo
+
+    def _cancelar(self, nombre: str | None, hijo: object) -> None:
+        if self.cancelar is None:
+            return
+        try:
+            if self.cancelar(hijo) is not False:   # False: ya no vivía
+                self.madre.log("CLON_CANCELADO", f"terminé a mi hijo {nombre}: no estuvo listo "
+                                                 f"en {config.PLAZO_CLON:g} s (uno a uno: no "
+                                                 f"quedan dos)")
+        except Exception as e:
+            self.madre.log("ERROR", f"no se pudo terminar a {nombre}: {e!r}")
 
     # ------------------------------------------------------------ utilidades
 

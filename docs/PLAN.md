@@ -131,7 +131,7 @@ calculadora_ads_p3/
 ├─ panel/  sonda/
 ├─ tests/
 ├─ docs/         PLAN.md, REQUISITOS.md, ENUNCIADO.md, INSTRUCCIONES_USUARIO.md, md_a_docx.py,
-│                llenar_minutos.py, capturas/, parcial2/
+│                capturas/, parcial2/
 └─ logs/  datos/  run/                           (ignorados por git)
 ```
 
@@ -647,7 +647,7 @@ Verificación en vivo de los 8 escenarios con el panel y el gestor; scripts que 
 | S4 | A4 | Regeneración + lanzador; ventana de la GUI (tarjeta de evento, ráfaga); panel (dos modos, atajos, detener todo) |
 | S5 | B + C | Suite adaptada y nueva; verificación en vivo de los 8 escenarios; fixes |
 | S6 | D | README, ENTREGA, REPORTE_TECNICO.md (≤ 30 págs.), capturas, `.docx` |
-| S7 | E | GUION_VIDEO.md, `llenar_minutos.py`, checklist |
+| S7 | E | GUION_VIDEO.md, checklist (sin minutos: mensaje 19) |
 
 ---
 
@@ -656,7 +656,7 @@ Verificación en vivo de los 8 escenarios con el panel y el gestor; scripts que 
 | Parte | Secciones | Págs. |
 |---|---|---|
 | Portada + índice | | 2 |
-| I. Requisitos | Matriz de trazabilidad (IDs de `REQUISITOS.md` → archivo/función → minuto del video) | 3 |
+| I. Requisitos | Matriz de trazabilidad (IDs de `REQUISITOS.md` → archivo/función → escena del video) | 3 |
 | II. Diseño | Arquitectura final y topología de demo · Heredado resumido (conexión, comunicación y ciclos, formato y códigos) · Foliado (definiciones, mensajes, reglas, diagrama de tiempo de un evento) · Tolerancia a fallas · Células madre y genes (ciclo de vida) · Gestor, BD y topología (por qué no es orquestador) · Regeneración y anti-cáncer (algoritmo, reglas de clonar y detener) | 15 |
 | III. Evidencia | Pruebas automatizadas · Escenarios 1–8 con bitácoras reales y capturas · Bugs encontrados · Limitaciones y decisiones · Diferencias con la clase · Referencias APA | 9 |
 | Anexo | Glosario y constantes | 1 |

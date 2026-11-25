@@ -43,7 +43,7 @@ from madre.almacen import BANCO, ENTREGA, INYECCION, Almacen
 from madre.copia import Copia, Gen
 from madre.ordenes import Ordenes
 from madre.pedidos import Pedido, Pedidos
-from madre.regeneracion import Lanzador, Regeneracion
+from madre.regeneracion import Cancelar, Lanzador, Regeneracion
 from madre.rondas import Rondas
 
 __all__ = ["BANCO", "ENTREGA", "INYECCION", "Instalacion", "Madre"]
@@ -74,11 +74,12 @@ class Madre(Celula):
                  banco: Path | None = None, datos: Path | None = None, retardo_ms: int = 0,
                  mudo: bool = False, generacion: int = 0, reemplaza: str | None = None,
                  reemplaza_nombre: str | None = None, copiar: Sequence[Gen] = (),
-                 lanzador: Lanzador | None = None, bitacora: Bitacora | None = None,
-                 eventos=None):
+                 lanzador: Lanzador | None = None, cancelar: Cancelar | None = None,
+                 bitacora: Bitacora | None = None, eventos=None):
         """``lanzador``: cómo levantar un reemplazo (``madre.lanzador.lanzar_proceso``
         en producción; en las pruebas, una madre en el mismo proceso). Sin él, la
-        madre lleva la cuenta de las pérdidas pero no clona.
+        madre lleva la cuenta de las pérdidas pero no clona. ``cancelar``: cómo
+        terminar a un hijo que no estuvo listo a tiempo (``madre.lanzador.terminar``).
         ``reemplaza`` + ``copiar``: esta madre ES el reemplazo de una perdida."""
         super().__init__(mensajes.MADRE, nombre, nodo, None, bitacora=bitacora, eventos=eventos)
         self.banco = banco or config.DIR_MICROSERVICIOS
@@ -102,7 +103,7 @@ class Madre(Celula):
         self.ordenes = Ordenes(self)
         self.pedidos = Pedidos(self)
         self.proveedor = Proveedor(self, self._buscar_gen, self.programador)
-        self.regeneracion = Regeneracion(self, lanzador)
+        self.regeneracion = Regeneracion(self, lanzador, cancelar=cancelar)
         self.copia = Copia(self, list(copiar)) if reemplaza else None
 
     # ------------------------------------------------------------------ vida
@@ -145,10 +146,10 @@ class Madre(Celula):
         self.rondas.purgar()
 
     def al_conectar(self, nodo: dict, como: str) -> None:
-        if como == CONEXION:
-            self.regeneracion.conectada()
-            if self.copia is not None:
-                self.copia.iniciar()
+        self.regeneracion.conectada()   # también tras un failover: plazo nuevo para todas
+        if como == CONEXION and self.copia is not None:
+            self.latir()   # que me vean (gestor, madres) antes de que llegue mi primer gen
+            self.copia.iniciar()
 
     def _revisar_regeneracion(self) -> None:
         if not self.activo:
@@ -225,6 +226,9 @@ class Madre(Celula):
         except genes.GenRechazado as e:
             self.almacen.borrar(paquete.codigo, paquete.version)
             return rechazo(f"{e.paso}: {e.motivo}", ruta)
+        except Exception as e:   # algo inesperado del gen: se rechaza igual, sin rastro en disco
+            self.almacen.borrar(paquete.codigo, paquete.version)
+            return rechazo(f"{genes.CARGAR}: {e!r}"[:200], ruta)
 
         # 5. Activar (atómico); si había otra versión, se descarga después
         anterior = self.genoma.activar(gen)
@@ -263,16 +267,27 @@ class Madre(Celula):
         ref, gen_id = genes.referencia(gen), gen.id
         self.almacen.borrar(gen.codigo, gen.version)
         intentos = list(config.GEN_LIBERACION)
+        limite = time.monotonic() + config.GEN_VIGILANCIA
+        avisado = False
 
         def revisar() -> None:
+            nonlocal avisado
             if genes.liberado(ref):
                 self.log("GEN_LIBERADO", f"{gen_id}: módulo eliminado de memoria "
                                          f"(weakref confirmado) y borrado del disco")
-            elif intentos:
+                return
+            if intentos:
                 self.programador.en(intentos.pop(0), revisar)
-            else:
+                return
+            if not avisado:   # una sola línea; se sigue vigilando hasta que la ronda lo suelte
+                avisado = True
                 self.log("GEN_EN_USO", f"{gen_id}: aún lo retiene una ronda en curso; se "
                                        f"liberará al terminar")
+            if time.monotonic() < limite:
+                self.programador.en(config.GEN_LIBERACION[-1], revisar)
+            else:
+                self.log("GEN_EN_USO", f"{gen_id}: sigue retenido tras "
+                                       f"{config.GEN_VIGILANCIA:g} s; se deja de vigilar")
         self.programador.en(intentos.pop(0), revisar)
 
     # ------------------------------------------------------- pedir y entregar

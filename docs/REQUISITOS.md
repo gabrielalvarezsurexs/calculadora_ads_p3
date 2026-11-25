@@ -40,7 +40,7 @@ limpio.
 | [x] | U18 | Topología como **diagrama/dibujo** | §4.4 | S3 | Esc. 0, 6, 8 · `gestor/diagrama.py`, `TestDiagrama` · capturas S5 |
 | [x] | U19 | **Inyectar** microservicios **por el Campo de Datos** a las madres | §4.3 (`GEN_INYECTA`) | S3 | Esc. 4 · `test_b_distribuir…`, `test_e_alta…` · humo S5 E0 (16 altas), E4, E8 |
 | [x] | U20 | Video **fácil de grabar** | §10, §11 | S4, S7 | `GUION_VIDEO.md` (11 escenas, clics exactos, qué se ve, qué decir) · panel (modos, Gestor por nodo, Tumbar) · gestor (Distribuir, línea de tiempo) |
-| [x] | U21 | Código **deslumbrante** | §15 | Todas | Revisión por sesión, ruff limpio, 201 pruebas ×3 en verde, cada límite anti-cáncer en un método |
+| [x] | U21 | Código **deslumbrante** | §15 | Todas | Revisión por sesión, ruff limpio, 217 pruebas ×3 en verde (auditoría final incluida), cada límite anti-cáncer en un método |
 | [x] | U22 | Seguimos en **Python** | §0.1 | — | — |
 | [x] | U23 | Topes sí, pero **si se levanta una, solo se mantiene una** (sin rellenar a N) | §6.2 | S4 | `test_una_sola_madre_con_el_gen_se_reemplaza_por_una` · humo S5 final (DIV de vuelta a 5, no más) |
 | [x] | U24 | **Dos modos**: arrancar todo vacío o todo levantado; el funcionamiento se mantiene | §10.1 | S4 | Panel: "Configuración mínima — vacía" / "— con servicios" (`panel/procesos.py`, `test_panel`) · humo S4 (con servicios) y S5 (vacía) |

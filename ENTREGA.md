@@ -7,38 +7,34 @@ hacer a mano.
 
 | Entregable | Estado | Dónde / qué falta |
 |---|---|---|
-| **Reporte técnico** | Escrito (30 páginas en Word) | [REPORTE_TECNICO.md](REPORTE_TECNICO.md) y `Reporte_Tecnico_Calculadora_ADS.docx`. Falta llenar la portada y los minutos del video, y regenerar el `.docx` |
+| **Reporte técnico** | Escrito (30 páginas en Word) | [REPORTE_TECNICO.md](REPORTE_TECNICO.md) y `Reporte_Tecnico_Calculadora_ADS.docx`. Falta llenar la portada y regenerar el `.docx` |
 | **Video con audio** | Guion listo, **falta grabar** | [GUION_VIDEO.md](GUION_VIDEO.md): 11 escenas, ~12 min (los ocho escenarios + arranque + "sin unidad central") |
-| **Liga al código fuente** | **Falta publicar** | Repo nuevo en GitHub: commit + push |
+| **Liga al código fuente** | Publicado en GitHub (`calculadora_ads_p3`) | Falta subir lo último: commit + push, y la etiqueta `parcial-2` |
 
 ## Lo que falta que hagas tú
 
 1. **Llenar la portada del reporte.** [REPORTE_TECNICO.md](REPORTE_TECNICO.md) tiene 5
    marcadores: `<NOMBRE COMPLETO>`, `<MATRÍCULA>`, `<GRUPO>`, `<LIGA AL REPOSITORIO>` y
    `<LIGA AL VIDEO>`.
-2. **Publicar el repositorio.** El repo local parte de la historia del segundo parcial (etiqueta
-   `parcial-2`); el trabajo del tercero aún no está en commits: pídeme el commit cuando quieras, o
-   hazlo tú. Luego crea el repo en GitHub y haz push. El `.gitignore` ya excluye `logs/`, `datos/`, `run/`,
-   `__pycache__/` y `.venv/`.
+2. **Subir lo último al repositorio.** El repo ya está en GitHub, pero la auditoría y los
+   arreglos finales aún no están en commits: pídeme el commit cuando quieras, o hazlo tú, y haz
+   push. Sube también la etiqueta del punto de partida (`git push origin parcial-2`), que el §16
+   del reporte menciona. El `.gitignore` ya excluye `logs/`, `datos/`, `run/`, `__pycache__/` y
+   `.venv/`.
 3. **Grabar el video** siguiendo [GUION_VIDEO.md](GUION_VIDEO.md). Antes, haz su sección "Antes de
    grabar" (procesos, bitácoras, pruebas y checklist). **Prueba el micrófono**: el enunciado pide
    video *con audio*. Graba la pantalla completa (OBS o Recortes).
-4. **Anotar los minutos** de cada escena en la tabla "Minutos por escena" de `GUION_VIDEO.md` y
-   pasarlos a la matriz del reporte:
-   ```
-   uv run python docs/llenar_minutos.py --revisar   # muestra qué minuto va en cada fila
-   uv run python docs/llenar_minutos.py             # llena la columna "Video" del §2
-   ```
-5. **Subir el video** con acceso "cualquiera con el enlace" y comprobar la liga en incógnito.
-6. **Regenerar el `.docx`** cuando ya no le muevas al reporte:
+   Graba las escenas en el orden del guion: la columna "Escena" de la matriz del reporte (§2)
+   remite a ellas.
+4. **Subir el video** con acceso "cualquiera con el enlace" y comprobar la liga en incógnito.
+5. **Regenerar el `.docx`** cuando ya no le muevas al reporte:
    `uv run python docs/md_a_docx.py`. Ábrelo en Word y revisa portada, matriz y que siga en
    30 páginas o menos.
-7. **Entregar las tres ligas**: reporte, video y repositorio.
+6. **Entregar las tres ligas**: reporte, video y repositorio.
 
 ## Checklist final
 
 - [ ] La portada del reporte no tiene ningún `<…>` pendiente.
-- [ ] La columna "Video" de la matriz (§2) no tiene ningún `<mm:ss>`.
 - [ ] `Reporte_Tecnico_Calculadora_ADS.docx` se regeneró después de lo anterior y tiene ≤ 30 páginas.
 - [ ] El video se escucha de principio a fin y su liga abre en incógnito.
 - [ ] El repositorio en GitHub es visible para el profesor y tiene el último commit, con el
@@ -65,6 +61,6 @@ de verificación con su evidencia, en [docs/REQUISITOS.md](docs/REQUISITOS.md).
 | 9–10 | Evidencias y escenarios | Verificados en vivo (30/30); se muestran en el video |
 | 11 | Contenido del reporte (D1–D14) | Cubierto; ver §2.2 del reporte |
 
-Estado técnico: **201 pruebas en verde tres veces seguidas** (~191 s cada corrida), `ruff`
+Estado técnico: **217 pruebas en verde tres veces seguidas** (~192 s cada corrida, tras la auditoría final), `ruff`
 limpio, y los ocho escenarios más "sin unidad central" verificados con procesos reales: 0 `ERROR`,
 0 `Traceback`, 0 respuestas duplicadas, 10 avisos de clonación = 10 reemplazos.

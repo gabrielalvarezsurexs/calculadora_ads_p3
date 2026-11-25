@@ -200,8 +200,38 @@ no se toca). El usuario creó el repo `calculadora_ads_p3` en GitHub e hizo comm
 > Ahora, hazle una auditoría completa a la implementacion para encontrar bugs ver que este bien
 > pero no demasiado largo el guion, y que el reporte tampoco sea exageradamente extenso
 
-**Cómo quedó:** auditoría del código (revisión por áreas, suite y ruff), y repaso de extensión del
-guion y del reporte.
+**Cómo quedó:** auditoría en 5 áreas con revisores independientes; se corrigieron los defectos
+confirmados (casos borde de regeneración, GUI, gestor, protocolo y panel) con 12 pruebas nuevas
+(213 en verde) y un humo real. Guion recortado de ~15 a ~12 min. El reporte se mantiene en
+≤ 30 páginas: su extensión va en el diseño que pide el enunciado; se recortó §1.4 y la auditoría
+va en un párrafo de §13.
+
+## Mensaje 17 — 2026-11-18
+
+> Corrige los issues menores que encontraste
+
+**Cómo quedó:** se corrigieron los cuatro casos menores que la auditoría había dejado anotados
+(enlace duplicado que perdía mensajes en vuelo, BIENVENIDA tardía que parecía desconexión, nodo
+detenido con un enlace a medio abrir, `GEN_LIBERADO` que dejaba de vigilarse), con 4 pruebas
+nuevas (217 en verde).
+
+## Mensaje 18 — 2026-11-25
+
+> Entonces, ya esta al 100 el proyecto? obvio me falta grabar el video pero ya esta el reporte, el
+> guion con lo que hay que ejecutar LEGIBLE, etc? tambien armame un archivo como en el parcial 2
+> que contenga todos los detalles relevantes del proyecto par que le haga una auditoria al reporte
+> tecnico por mi cuenta
+
+**Cómo quedó:** se revisó el estado de la entrega (lo que falta es del usuario) y se armó
+`RESUMEN_PROYECTO.md`, con la misma estructura que el del segundo parcial, sacado del código.
+
+## Mensaje 19 — 2026-11-25
+
+> Quita la seccion de minutos
+
+**Cómo quedó:** el enunciado no pide minutos. Se quitó la sección "Minutos" del guion y
+`docs/llenar_minutos.py`; la columna "Video" de la matriz del reporte ahora da la **escena** del
+video en que se demuestra cada requisito (no hay nada que cronometrar).
 
 ---
 
